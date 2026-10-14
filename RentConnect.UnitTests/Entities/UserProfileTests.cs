@@ -1,9 +1,4 @@
 ﻿using RentConnect.Core.Entities;
-using System;
-using System.Collections.Generic;
-using System.Text;
-
-using RentConnect.Core.Entities;
 
 namespace RentConnect.UnitTests.Entities;
 
