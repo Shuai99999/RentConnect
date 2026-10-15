@@ -11,6 +11,12 @@ public class ApplicationDbContext(
     public DbSet<UserProfile> UserProfiles =>
         Set<UserProfile>();
 
+    public DbSet<Property> Properties =>
+        Set<Property>();
+
+    public DbSet<PropertyOwner> PropertyOwners =>
+        Set<PropertyOwner>();
+
     protected override void OnModelCreating(
         ModelBuilder builder)
     {
@@ -37,5 +43,8 @@ public class ApplicationDbContext(
             entity.HasIndex(user => user.UserProfileId)
                 .IsUnique();
         });
+
+        builder.ApplyConfigurationsFromAssembly(
+            typeof(ApplicationDbContext).Assembly);
     }
 }
