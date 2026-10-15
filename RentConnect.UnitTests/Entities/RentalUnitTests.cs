@@ -95,6 +95,22 @@ public class RentalUnitTests
         Assert.True(unit.IsActive);
     }
 
+    [Fact]
+    public void Constructor_WithNameLongerThanMaximum_ThrowsException()
+    {
+        var longName = new string(
+            'A',
+            RentalUnit.MaxNameLength + 1);
+
+        var action = () => new RentalUnit(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            longName,
+            RentalUnitType.Apartment);
+
+        Assert.Throws<ArgumentException>(action);
+    }
+
     private static RentalUnit CreateUnit()
     {
         return new RentalUnit(

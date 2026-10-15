@@ -252,6 +252,34 @@ namespace RentConnect.Migrations
                     b.ToTable("PropertyOwners", (string)null);
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.RentalUnit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PropertyId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("RentalUnits", (string)null);
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -453,6 +481,15 @@ namespace RentConnect.Migrations
                     b.HasOne("RentConnect.Core.Entities.UserProfile", null)
                         .WithMany()
                         .HasForeignKey("UserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.RentalUnit", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

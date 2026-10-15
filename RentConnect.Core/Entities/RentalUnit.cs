@@ -4,6 +4,8 @@ namespace RentConnect.Core.Entities;
 
 public sealed class RentalUnit
 {
+    public const int MaxNameLength = 100;
+
     private RentalUnit()
     {
     }
@@ -77,6 +79,15 @@ public sealed class RentalUnit
                 nameof(name));
         }
 
-        Name = name.Trim();
+        var normalizedName = name.Trim();
+
+        if (normalizedName.Length > MaxNameLength)
+        {
+            throw new ArgumentException(
+                $"Rental unit name cannot exceed {MaxNameLength} characters.",
+                nameof(name));
+        }
+
+        Name = normalizedName;
     }
 }

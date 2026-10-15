@@ -17,6 +17,9 @@ public class ApplicationDbContext(
     public DbSet<PropertyOwner> PropertyOwners =>
         Set<PropertyOwner>();
 
+    public DbSet<RentalUnit> RentalUnits =>
+        Set<RentalUnit>();
+
     protected override void OnModelCreating(
         ModelBuilder builder)
     {
