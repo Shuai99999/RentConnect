@@ -20,6 +20,12 @@ public class ApplicationDbContext(
     public DbSet<RentalUnit> RentalUnits =>
         Set<RentalUnit>();
 
+    public DbSet<Tenancy> Tenancies =>
+        Set<Tenancy>();
+
+    public DbSet<TenancyMember> TenancyMembers =>
+        Set<TenancyMember>();
+
     protected override void OnModelCreating(
         ModelBuilder builder)
     {

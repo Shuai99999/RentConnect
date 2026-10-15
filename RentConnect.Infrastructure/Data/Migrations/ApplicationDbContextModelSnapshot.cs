@@ -280,6 +280,65 @@ namespace RentConnect.Migrations
                     b.ToTable("RentalUnits", (string)null);
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.Tenancy", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly?>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("IsCancelled")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("RentalUnitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RentalUnitId", "StartDate");
+
+                    b.ToTable("Tenancies", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_Tenancies_DateRange", "[EndDate] IS NULL OR [EndDate] >= [StartDate]");
+                        });
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.TenancyMember", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("JoinedOn")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("LeftOn")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("TenancyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserProfileId");
+
+                    b.HasIndex("TenancyId", "UserProfileId", "JoinedOn")
+                        .IsUnique();
+
+                    b.ToTable("TenancyMembers", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_TenancyMembers_DateRange", "[LeftOn] IS NULL OR [LeftOn] >= [JoinedOn]");
+                        });
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -494,6 +553,30 @@ namespace RentConnect.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.Tenancy", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.RentalUnit", null)
+                        .WithMany()
+                        .HasForeignKey("RentalUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.TenancyMember", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.Tenancy", null)
+                        .WithMany("Members")
+                        .HasForeignKey("TenancyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("UserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RentConnect.Data.ApplicationUser", b =>
                 {
                     b.HasOne("RentConnect.Core.Entities.UserProfile", "UserProfile")
@@ -507,6 +590,11 @@ namespace RentConnect.Migrations
             modelBuilder.Entity("RentConnect.Core.Entities.Property", b =>
                 {
                     b.Navigation("Owners");
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.Tenancy", b =>
+                {
+                    b.Navigation("Members");
                 });
 #pragma warning restore 612, 618
         }
