@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Identity;
+using RentConnect.Core.Entities;
 
-namespace RentConnect.Data
+namespace RentConnect.Data;
+
+public class ApplicationUser : IdentityUser
 {
-    // Add profile data for application users by adding properties to the ApplicationUser class
-    public class ApplicationUser : IdentityUser
-    {
-    }
+    public Guid? UserProfileId { get; set; }
 
+    public UserProfile? UserProfile { get; set; }
 }
