@@ -68,6 +68,48 @@ app.UseHttpsRedirection();
 
 app.UseAntiforgery();
 
+app.MapGet(
+        "/maintenance/attachments/{attachmentId:guid}/content",
+        async (
+            Guid attachmentId,
+            HttpContext httpContext,
+            UserManager<ApplicationUser> userManager,
+            IMaintenanceService maintenanceService,
+            CancellationToken cancellationToken) =>
+        {
+            var user = await userManager.GetUserAsync(
+                httpContext.User);
+
+            if (user?.UserProfileId is not Guid userProfileId)
+            {
+                return Results.NotFound();
+            }
+
+            var download =
+                await maintenanceService.OpenAttachmentAsync(
+                    attachmentId,
+                    userProfileId,
+                    cancellationToken);
+
+            if (download is null)
+            {
+                return Results.NotFound();
+            }
+
+            httpContext.Response.Headers[
+                "X-Content-Type-Options"] = "nosniff";
+            httpContext.Response.Headers[
+                "Cache-Control"] = "private, no-store";
+            httpContext.Response.Headers[
+                "Pragma"] = "no-cache";
+
+            return Results.File(
+                download.Content,
+                download.ContentType,
+                enableRangeProcessing: false);
+        })
+    .RequireAuthorization();
+
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

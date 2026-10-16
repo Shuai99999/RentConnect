@@ -336,6 +336,138 @@
 
         <section class="content-card">
             <div class="section-heading">
+                <h2>Photos</h2>
+                <p>
+                    Add photos that help document the issue and repair.
+                </p>
+            </div>
+
+            @if (_attachmentError is not null)
+            {
+                <div class="form-alert"
+                     role="alert">
+                    @_attachmentError
+                </div>
+            }
+
+            @if (_request.Attachments.Count == 0)
+            {
+                <div class="empty-attachments">
+                    No photos have been added yet.
+                </div>
+            }
+            else
+            {
+                <div class="attachment-grid">
+                    @foreach (var attachment in _request.Attachments)
+                    {
+                        <article class="attachment-card">
+                            <a class="attachment-preview"
+                               href="@GetAttachmentContentUrl(attachment.Id)"
+                               target="_blank"
+                               rel="noopener noreferrer">
+                                <img src="@GetAttachmentContentUrl(attachment.Id)"
+                                     alt="@attachment.OriginalFileName"
+                                     loading="lazy" />
+                            </a>
+
+                            <div class="attachment-details">
+                                <strong title="@attachment.OriginalFileName">
+                                    @attachment.OriginalFileName
+                                </strong>
+
+                                <span>
+                                    @FormatFileSize(attachment.FileSizeBytes)
+                                    · @FormatDateTime(attachment.UploadedAtUtc)
+                                </span>
+
+                                @if (attachment.CanDelete)
+                                {
+                                    <div class="attachment-actions">
+                                        @if (_deleteConfirmationAttachmentId ==
+                                             attachment.Id)
+                                        {
+                                            <span class="delete-confirmation">
+                                                Delete this photo?
+                                            </span>
+
+                                            <button type="button"
+                                                    class="danger-button"
+                                                    @onclick="() => DeleteAttachmentAsync(attachment.Id)">
+                                                Confirm Delete
+                                            </button>
+
+                                            <button type="button"
+                                                    class="text-button"
+                                                    @onclick="CancelAttachmentDelete">
+                                                Keep Photo
+                                            </button>
+                                        }
+                                        else
+                                        {
+                                            <button type="button"
+                                                    class="delete-button"
+                                                    @onclick="() => BeginAttachmentDelete(attachment.Id)">
+                                                Delete
+                                            </button>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        </article>
+                    }
+                </div>
+            }
+
+            @if (_request.Permissions.CanAddAttachment)
+            {
+                <div class="attachment-uploader">
+                    <label for="maintenance-photo">
+                        Add a photo
+                    </label>
+
+                    <InputFile @key="_attachmentInputVersion"
+                               id="maintenance-photo"
+                               class="attachment-input"
+                               accept="image/jpeg,image/png,image/webp"
+                               OnChange="SelectAttachment" />
+
+                    <p class="input-help">
+                        JPEG, PNG, or WebP. Maximum file size: 10 MB.
+                    </p>
+
+                    @if (_selectedAttachment is not null)
+                    {
+                        <p class="selected-attachment">
+                            Selected:
+                            <strong>@_selectedAttachment.Name</strong>
+                            (@FormatFileSize(_selectedAttachment.Size))
+                        </p>
+                    }
+
+                    <button type="button"
+                            class="primary-button"
+                            disabled="@(_selectedAttachment is null ||
+                                        _isUploadingAttachment)"
+                            @onclick="UploadAttachmentAsync">
+                        @(_isUploadingAttachment
+                            ? "Uploading..."
+                            : "Upload Photo")
+                    </button>
+                </div>
+            }
+            else if (_request.Status is
+                     MaintenanceStatus.Closed or
+                     MaintenanceStatus.Cancelled)
+            {
+                <div class="attachments-closed">
+                    Photos cannot be added to a closed or cancelled request.
+                </div>
+            }
+        </section>
+
+        <section class="content-card">
+            <div class="section-heading">
                 <h2>Conversation</h2>
                 <p>
                     Messages from tenants and property management
@@ -537,8 +669,13 @@
     private string? _messageActionError;
     private Guid? _editingMessageId;
     private Guid? _deleteConfirmationMessageId;
+    private Guid? _deleteConfirmationAttachmentId;
     private MaintenanceAction? _selectedStatusAction;
     private string? _statusActionError;
+    private string? _attachmentError;
+    private IBrowserFile? _selectedAttachment;
+    private bool _isUploadingAttachment;
+    private int _attachmentInputVersion;
 
     private MessageInputModel MessageInput { get; set; } =
         new();
@@ -723,12 +860,178 @@
         }
     }
 
+    private void SelectAttachment(
+        InputFileChangeEventArgs eventArgs)
+    {
+        _attachmentError = null;
+        _selectedAttachment = null;
+
+        var file = eventArgs.File;
+        var normalizedContentType =
+            file.ContentType.Trim().ToLowerInvariant();
+
+        if (file.Size <= 0)
+        {
+            _attachmentError =
+                "Select a photo that is not empty.";
+            return;
+        }
+
+        if (file.Size >
+            MaintenanceAttachment.MaxFileSizeBytes)
+        {
+            _attachmentError =
+                "The photo cannot exceed 10 MB.";
+            return;
+        }
+
+        if (normalizedContentType is not
+            ("image/jpeg" or
+             "image/png" or
+             "image/webp"))
+        {
+            _attachmentError =
+                "Select a JPEG, PNG, or WebP image.";
+            return;
+        }
+
+        _selectedAttachment = file;
+    }
+
+    private async Task UploadAttachmentAsync()
+    {
+        if (_selectedAttachment is not IBrowserFile file ||
+            _isUploadingAttachment)
+        {
+            return;
+        }
+
+        _attachmentError = null;
+        _isUploadingAttachment = true;
+
+        try
+        {
+            await using var content = file.OpenReadStream(
+                MaintenanceAttachment.MaxFileSizeBytes);
+
+            await MaintenanceService.AddAttachmentAsync(
+                new AddMaintenanceAttachmentCommand(
+                    RequestId,
+                    file.Name,
+                    file.ContentType,
+                    content),
+                _currentUserProfileId);
+
+            _selectedAttachment = null;
+            _attachmentInputVersion++;
+
+            await ReloadRequestAsync();
+        }
+        catch (KeyNotFoundException)
+        {
+            _attachmentError =
+                "This request is no longer available, or you do not have permission to add photos.";
+        }
+        catch (ArgumentException exception)
+        {
+            _attachmentError = exception.Message;
+        }
+        catch (IOException exception)
+        {
+            _attachmentError =
+                "The photo could not be stored. Please try again.";
+
+            Console.Error.WriteLine(exception);
+        }
+        catch (Exception exception)
+        {
+            _attachmentError =
+                "The photo could not be uploaded. Please try again.";
+
+            Console.Error.WriteLine(exception);
+        }
+        finally
+        {
+            _isUploadingAttachment = false;
+        }
+    }
+
+    private void BeginAttachmentDelete(Guid attachmentId)
+    {
+        _attachmentError = null;
+        _deleteConfirmationAttachmentId = attachmentId;
+    }
+
+    private void CancelAttachmentDelete()
+    {
+        _deleteConfirmationAttachmentId = null;
+        _attachmentError = null;
+    }
+
+    private async Task DeleteAttachmentAsync(
+        Guid attachmentId)
+    {
+        _attachmentError = null;
+
+        try
+        {
+            await MaintenanceService.DeleteAttachmentAsync(
+                new DeleteMaintenanceAttachmentCommand(
+                    attachmentId),
+                _currentUserProfileId);
+
+            _deleteConfirmationAttachmentId = null;
+
+            await ReloadRequestAsync();
+        }
+        catch (KeyNotFoundException)
+        {
+            _attachmentError =
+                "This photo is no longer available, or you do not have permission to delete it.";
+        }
+        catch (Exception exception)
+        {
+            _attachmentError =
+                "The photo could not be deleted. Please try again.";
+
+            Console.Error.WriteLine(exception);
+        }
+    }
+
     private async Task ReloadRequestAsync()
     {
         _request =
             await MaintenanceService.GetDetailsAsync(
                 RequestId,
                 _currentUserProfileId);
+    }
+
+    private static string GetAttachmentContentUrl(
+        Guid attachmentId)
+    {
+        return
+            $"/maintenance/attachments/{attachmentId:D}/content";
+    }
+
+    private static string FormatFileSize(long fileSizeBytes)
+    {
+        const double bytesPerKilobyte = 1024;
+        const double bytesPerMegabyte =
+            bytesPerKilobyte * 1024;
+
+        if (fileSizeBytes < bytesPerKilobyte)
+        {
+            return $"{fileSizeBytes} bytes";
+        }
+
+        if (fileSizeBytes >= bytesPerMegabyte)
+        {
+            return
+                $"{fileSizeBytes / bytesPerMegabyte:0.##} MB";
+        }
+
+        return
+            $"{fileSizeBytes / bytesPerKilobyte:0.##} KB";
     }
 
     private bool HasAvailableStatusActions()
