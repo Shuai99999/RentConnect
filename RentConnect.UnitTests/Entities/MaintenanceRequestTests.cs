@@ -422,6 +422,124 @@ public class MaintenanceRequestTests
             request.UpdatedAtUtc);
     }
 
+    [Fact]
+    public void Reopen_ResolvedRequest_ReturnsToAcknowledged()
+    {
+        var request = CreateResolvedRequest();
+        var reopenedAtUtc = CreatedAtUtc.AddHours(5);
+
+        request.Reopen(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            "  The leak has returned.  ",
+            reopenedAtUtc);
+
+        Assert.Equal(
+            MaintenanceStatus.Acknowledged,
+            request.Status);
+        Assert.Equal(reopenedAtUtc, request.UpdatedAtUtc);
+        Assert.Null(request.ScheduledForUtc);
+        Assert.Null(request.ResolutionNotes);
+
+        var reopenChange = request.StatusHistory.Last();
+
+        Assert.Equal(
+            MaintenanceStatus.Resolved,
+            reopenChange.FromStatus);
+        Assert.Equal(
+            MaintenanceStatus.Acknowledged,
+            reopenChange.ToStatus);
+        Assert.Equal(
+            "The leak has returned.",
+            reopenChange.Note);
+    }
+
+    [Fact]
+    public void Reopen_ClosedRequest_ReturnsToAcknowledged()
+    {
+        var request = CreateResolvedRequest();
+
+        request.Close(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            CreatedAtUtc.AddHours(5));
+
+        request.Reopen(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            "The problem happened again.",
+            CreatedAtUtc.AddHours(6));
+
+        Assert.Equal(
+            MaintenanceStatus.Acknowledged,
+            request.Status);
+    }
+
+    [Fact]
+    public void Reopen_WithoutReason_DoesNotPartiallyUpdate()
+    {
+        var request = CreateResolvedRequest();
+        var historyCount = request.StatusHistory.Count;
+
+        var action = () => request.Reopen(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            "   ",
+            CreatedAtUtc.AddHours(5));
+
+        Assert.Throws<ArgumentException>(action);
+        Assert.Equal(
+            MaintenanceStatus.Resolved,
+            request.Status);
+        Assert.Equal(
+            "Pipe was replaced.",
+            request.ResolutionNotes);
+        Assert.Equal(historyCount, request.StatusHistory.Count);
+    }
+
+    [Fact]
+    public void Reopen_SubmittedRequest_ThrowsException()
+    {
+        var request = CreateRequest();
+
+        var action = () => request.Reopen(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            "The problem happened again.",
+            CreatedAtUtc.AddHours(1));
+
+        Assert.Throws<InvalidOperationException>(action);
+    }
+
+    private static MaintenanceRequest CreateResolvedRequest()
+    {
+        var request = CreateRequest();
+
+        request.Acknowledge(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            CreatedAtUtc.AddHours(1));
+
+        request.Schedule(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            CreatedAtUtc.AddHours(3),
+            CreatedAtUtc.AddHours(2));
+
+        request.StartWork(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            CreatedAtUtc.AddHours(3));
+
+        request.Resolve(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            "Pipe was replaced.",
+            CreatedAtUtc.AddHours(4));
+
+        return request;
+    }
+
     private static MaintenanceRequest CreateRequest()
     {
         return new MaintenanceRequest(

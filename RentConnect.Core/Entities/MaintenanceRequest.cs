@@ -271,6 +271,53 @@ public sealed class MaintenanceRequest
             note);
     }
 
+    public void Reopen(
+        Guid statusChangeId,
+        Guid changedByUserProfileId,
+        string reason,
+        DateTimeOffset changedAtUtc)
+    {
+        EnsureStatus(
+            MaintenanceStatus.Resolved,
+            MaintenanceStatus.Closed);
+
+        if (string.IsNullOrWhiteSpace(reason))
+        {
+            throw new ArgumentException(
+                "A reason is required to reopen a maintenance request.",
+                nameof(reason));
+        }
+
+        var normalizedReason = reason.Trim();
+
+        if (normalizedReason.Length >
+            MaintenanceStatusChange.MaxNoteLength)
+        {
+            throw new ArgumentException(
+                $"The reopen reason cannot exceed {MaintenanceStatusChange.MaxNoteLength} characters.",
+                nameof(reason));
+        }
+
+        var normalizedChangedTime =
+            RequireValidChangeTime(changedAtUtc);
+
+        var statusChange = CreateStatusChange(
+            statusChangeId,
+            changedByUserProfileId,
+            MaintenanceStatus.Acknowledged,
+            normalizedChangedTime,
+            normalizedReason);
+
+        // A reopened request returns to triage. The previous resolution remains
+        // available in status history, while current scheduling data is reset.
+        ScheduledForUtc = null;
+        ResolutionNotes = null;
+        Status = MaintenanceStatus.Acknowledged;
+        UpdatedAtUtc = normalizedChangedTime;
+
+        _statusHistory.Add(statusChange);
+    }
+
     public void Cancel(
         Guid statusChangeId,
         Guid changedByUserProfileId,
