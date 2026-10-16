@@ -33,6 +33,9 @@ public class ApplicationDbContext(
         MaintenanceStatusChanges =>
         Set<MaintenanceStatusChange>();
 
+    public DbSet<MaintenanceMessage> MaintenanceMessages =>
+    Set<MaintenanceMessage>();
+
     protected override void OnModelCreating(
         ModelBuilder builder)
     {

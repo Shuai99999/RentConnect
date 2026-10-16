@@ -177,6 +177,51 @@ namespace RentConnect.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("AuthorUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("DeletedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("DeletedByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("EditedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("MaintenanceRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AuthorUserProfileId");
+
+                    b.HasIndex("DeletedByUserProfileId");
+
+                    b.HasIndex("MaintenanceRequestId", "CreatedAtUtc");
+
+                    b.ToTable("MaintenanceMessages", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MaintenanceMessages_Deletion", "([DeletedAtUtc] IS NULL AND [DeletedByUserProfileId] IS NULL)\nOR\n([DeletedAtUtc] IS NOT NULL AND [DeletedByUserProfileId] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_MaintenanceMessages_EditedAfterCreation", "[EditedAtUtc] IS NULL\nOR [EditedAtUtc] > [CreatedAtUtc]");
+                        });
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceRequest", b =>
                 {
                     b.Property<Guid>("Id")
@@ -623,6 +668,26 @@ namespace RentConnect.Migrations
                     b.HasOne("RentConnect.Data.ApplicationUser", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceMessage", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("AuthorUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("DeletedByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RentConnect.Core.Entities.MaintenanceRequest", null)
+                        .WithMany()
+                        .HasForeignKey("MaintenanceRequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

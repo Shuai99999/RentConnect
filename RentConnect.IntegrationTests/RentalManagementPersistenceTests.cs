@@ -25,6 +25,9 @@ public sealed class RentalManagementPersistenceTests
         var rentalUnitId = Guid.NewGuid();
         var tenancyId = Guid.NewGuid();
         var maintenanceRequestId = Guid.NewGuid();
+        var landlordMessageId = Guid.NewGuid();
+        var editedMessageId = Guid.NewGuid();
+        var deletedMessageId = Guid.NewGuid();
 
         var maintenanceCreatedAtUtc =
             new DateTimeOffset(
@@ -125,6 +128,38 @@ public sealed class RentalManagementPersistenceTests
                         .AddDays(1)
                         .AddHours(2));
 
+                var landlordMessage =
+                    new MaintenanceMessage(
+                        landlordMessageId,
+                        maintenanceRequestId,
+                        ownerProfileId,
+                        "A plumber has been contacted.",
+                        maintenanceCreatedAtUtc.AddHours(3));
+
+                var editedMessage =
+                    new MaintenanceMessage(
+                        editedMessageId,
+                        maintenanceRequestId,
+                        tenantProfileId,
+                        "The leak is getting worse.",
+                        maintenanceCreatedAtUtc.AddHours(4));
+
+                editedMessage.Edit(
+                    "The leak has slowed down.",
+                    maintenanceCreatedAtUtc.AddHours(5));
+
+                var deletedMessage =
+                    new MaintenanceMessage(
+                        deletedMessageId,
+                        maintenanceRequestId,
+                        tenantProfileId,
+                        "Message to be deleted.",
+                        maintenanceCreatedAtUtc.AddHours(6));
+
+                deletedMessage.Delete(
+                    ownerProfileId,
+                    maintenanceCreatedAtUtc.AddHours(7));
+
                 context.UserProfiles.AddRange(
                     owner,
                     tenant);
@@ -134,6 +169,10 @@ public sealed class RentalManagementPersistenceTests
                 context.Tenancies.Add(tenancy);
                 context.MaintenanceRequests.Add(
                     maintenanceRequest);
+                context.MaintenanceMessages.AddRange(
+                    landlordMessage,
+                    editedMessage,
+                    deletedMessage);
 
                 await context.SaveChangesAsync();
             }
@@ -172,6 +211,15 @@ public sealed class RentalManagementPersistenceTests
                             request =>
                                 request.Id ==
                                 maintenanceRequestId);
+
+                var savedMaintenanceMessages =
+                    await context.MaintenanceMessages
+                        .Where(
+                            message =>
+                                message.MaintenanceRequestId ==
+                                maintenanceRequestId)
+                        .OrderBy(message => message.CreatedAtUtc)
+                        .ToArrayAsync();
 
                 Assert.Equal(
                     "Integration Test Property",
@@ -257,6 +305,62 @@ public sealed class RentalManagementPersistenceTests
                 Assert.Equal(
                     "The damaged pipe was replaced.",
                     resolvedStatusChange.Note);
+
+                Assert.Equal(
+                    3,
+                    savedMaintenanceMessages.Length);
+
+                var savedLandlordMessage =
+                    Assert.Single(
+                        savedMaintenanceMessages,
+                        message =>
+                            message.Id == landlordMessageId);
+
+                Assert.Equal(
+                    ownerProfileId,
+                    savedLandlordMessage.AuthorUserProfileId);
+
+                Assert.Equal(
+                    "A plumber has been contacted.",
+                    savedLandlordMessage.Body);
+
+                Assert.False(savedLandlordMessage.IsEdited);
+                Assert.False(savedLandlordMessage.IsDeleted);
+
+                var savedEditedMessage =
+                    Assert.Single(
+                        savedMaintenanceMessages,
+                        message =>
+                            message.Id == editedMessageId);
+
+                Assert.Equal(
+                    "The leak has slowed down.",
+                    savedEditedMessage.Body);
+
+                Assert.True(savedEditedMessage.IsEdited);
+                Assert.Equal(
+                    maintenanceCreatedAtUtc.AddHours(5),
+                    savedEditedMessage.EditedAtUtc);
+
+                var savedDeletedMessage =
+                    Assert.Single(
+                        savedMaintenanceMessages,
+                        message =>
+                            message.Id == deletedMessageId);
+
+                Assert.True(savedDeletedMessage.IsDeleted);
+
+                Assert.Equal(
+                    ownerProfileId,
+                    savedDeletedMessage.DeletedByUserProfileId);
+
+                Assert.Equal(
+                    maintenanceCreatedAtUtc.AddHours(7),
+                    savedDeletedMessage.DeletedAtUtc);
+
+                Assert.Equal(
+                    "Message to be deleted.",
+                    savedDeletedMessage.Body);
             }
         }
         finally
