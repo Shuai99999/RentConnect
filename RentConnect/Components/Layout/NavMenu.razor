@@ -1,0 +1,63 @@
+﻿<header class="site-header">
+    <div class="header-content">
+        <a class="brand" href="/">
+            <span class="brand-mark" aria-hidden="true">R</span>
+
+            <span class="brand-text">
+                <strong>RentConnect</strong>
+                <small>Rental management</small>
+            </span>
+        </a>
+
+        <nav class="primary-navigation"
+             aria-label="Primary navigation">
+            <NavLink href=""
+                     Match="NavLinkMatch.All">
+                Home
+            </NavLink>
+
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink href="maintenance">
+                        Maintenance
+                    </NavLink>
+                </Authorized>
+            </AuthorizeView>
+        </nav>
+
+        <div class="account-navigation">
+            <AuthorizeView>
+                <Authorized>
+                    <NavLink href="Account/Manage">
+                        Account
+                    </NavLink>
+
+                    <form action="Account/Logout"
+                          method="post">
+                        <AntiforgeryToken />
+
+                        <input type="hidden"
+                               name="returnUrl"
+                               value="" />
+
+                        <button class="logout-button"
+                                type="submit">
+                            Log out
+                        </button>
+                    </form>
+                </Authorized>
+
+                <NotAuthorized>
+                    <NavLink href="Account/Login">
+                        Log in
+                    </NavLink>
+
+                    <NavLink class="register-link"
+                             href="Account/Register">
+                        Create account
+                    </NavLink>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+    </div>
+</header>

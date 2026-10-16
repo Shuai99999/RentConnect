@@ -1,0 +1,134 @@
+﻿.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid #e5e9f2;
+    background: rgb(255 255 255 / 92%);
+    backdrop-filter: blur(16px);
+}
+
+.header-content {
+    display: flex;
+    width: min(1180px, calc(100% - 2rem));
+    min-height: 72px;
+    margin: 0 auto;
+    align-items: center;
+    gap: 2rem;
+}
+
+.brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+    color: #172033;
+    text-decoration: none;
+}
+
+.brand-mark {
+    display: grid;
+    width: 38px;
+    height: 38px;
+    place-items: center;
+    border-radius: 0.75rem;
+    background: #5267d8;
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 800;
+    box-shadow: 0 8px 18px rgb(82 103 216 / 24%);
+}
+
+.brand-text {
+    display: grid;
+    line-height: 1.15;
+}
+
+    .brand-text strong {
+        font-size: 1rem;
+    }
+
+    .brand-text small {
+        margin-top: 0.2rem;
+        color: #7b8496;
+        font-size: 0.72rem;
+    }
+
+.primary-navigation,
+.account-navigation {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.primary-navigation {
+    flex: 1;
+}
+
+.account-navigation form {
+    margin: 0;
+}
+
+.primary-navigation ::deep a,
+.account-navigation ::deep a,
+.logout-button {
+    display: inline-flex;
+    min-height: 40px;
+    padding: 0.55rem 0.8rem;
+    align-items: center;
+    border: 0;
+    border-radius: 0.65rem;
+    background: transparent;
+    color: #596273;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 650;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+    .primary-navigation ::deep a:hover,
+    .account-navigation ::deep a:hover,
+    .logout-button:hover {
+        background: #f2f4fb;
+        color: #3549b4;
+    }
+
+    .primary-navigation ::deep a.active {
+        background: #eef1ff;
+        color: #4054c4;
+    }
+
+.account-navigation ::deep .register-link {
+    background: #172033;
+    color: white;
+}
+
+    .account-navigation ::deep .register-link:hover {
+        background: #29344b;
+        color: white;
+    }
+
+@media (max-width: 720px) {
+    .header-content {
+        min-height: 64px;
+        gap: 0.5rem;
+    }
+
+    .brand-text {
+        display: none;
+    }
+
+    .primary-navigation {
+        gap: 0;
+    }
+
+        .primary-navigation ::deep a,
+        .account-navigation ::deep a,
+        .logout-button {
+            padding-inline: 0.55rem;
+            font-size: 0.82rem;
+        }
+
+    .account-navigation ::deep .register-link {
+        display: none;
+    }
+}
