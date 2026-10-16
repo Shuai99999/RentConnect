@@ -265,6 +265,91 @@
         font-size: 0.8rem;
     }
 
+.message-actions,
+.inline-actions {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    margin-top: 0.85rem;
+}
+
+.edit-message-composer ::deep .edit-message-form {
+    display: grid;
+    gap: 0.65rem;
+}
+
+    .edit-message-composer label {
+        font-weight: 700;
+    }
+
+    .edit-message-composer ::deep .message-input {
+        width: 100%;
+        min-height: 95px;
+        padding: 0.8rem;
+        border: 1px solid #cfd5e3;
+        border-radius: 0.75rem;
+        background: white;
+        color: #172033;
+        font: inherit;
+        line-height: 1.6;
+        resize: vertical;
+    }
+
+    .edit-message-composer ::deep .message-input:focus {
+        border-color: #5267d8;
+        outline: none;
+        box-shadow: 0 0 0 3px rgb(82 103 216 / 14%);
+    }
+
+    .edit-message-composer ::deep .field-validation {
+        color: #b42318;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+.text-button,
+.delete-button,
+.danger-button,
+.small-primary-button {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.text-button {
+    color: #4054c4;
+}
+
+.delete-button {
+    color: #b42318;
+}
+
+.small-primary-button,
+.danger-button {
+    padding: 0.55rem 0.8rem;
+    border-radius: 0.6rem;
+    color: white;
+}
+
+.small-primary-button {
+    background: #5267d8;
+}
+
+.danger-button {
+    background: #b42318;
+}
+
+.delete-confirmation {
+    color: #8f1d18;
+    font-size: 0.85rem;
+    font-weight: 700;
+}
+
 .deleted-message {
     margin: 0;
     color: #7b8496;

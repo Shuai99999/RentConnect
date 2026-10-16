@@ -1,5 +1,6 @@
 ﻿@page "/maintenance/{RequestId:guid}"
 @attribute [Authorize]
+@rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components
@@ -209,6 +210,14 @@
                 </p>
             </div>
 
+            @if (_messageActionError is not null)
+            {
+                <div class="form-alert"
+                     role="alert">
+                    @_messageActionError
+                </div>
+            }
+
             @if (_request.Messages.Count == 0)
             {
                 <div class="empty-conversation">
@@ -240,6 +249,40 @@
                                     This message was deleted.
                                 </p>
                             }
+                            else if (_editingMessageId == message.Id)
+                            {
+                                <div class="edit-message-composer">
+                                    <EditForm Model="EditMessageInput"
+                                              OnValidSubmit="SaveMessageEditAsync"
+                                              class="edit-message-form">
+                                        <DataAnnotationsValidator />
+
+                                        <label for="@($"edit-message-{message.Id}")">
+                                            Edit message
+                                        </label>
+
+                                        <InputTextArea id="@($"edit-message-{message.Id}")"
+                                                       class="message-input"
+                                                       @bind-Value="EditMessageInput.Body" />
+
+                                        <ValidationMessage For="() => EditMessageInput.Body"
+                                                           class="field-validation" />
+
+                                        <div class="inline-actions">
+                                            <button type="submit"
+                                                    class="small-primary-button">
+                                                Save Changes
+                                            </button>
+
+                                            <button type="button"
+                                                    class="text-button"
+                                                    @onclick="CancelMessageEdit">
+                                                Cancel
+                                            </button>
+                                        </div>
+                                    </EditForm>
+                                </div>
+                            }
                             else
                             {
                                 <p class="request-description">
@@ -252,6 +295,50 @@
                                         Edited
                                     </small>
                                 }
+
+                                @if (message.CanEdit || message.CanDelete)
+                                {
+                                    <div class="message-actions">
+                                        @if (message.CanEdit)
+                                        {
+                                            <button type="button"
+                                                    class="text-button"
+                                                    @onclick="() => BeginMessageEdit(message)">
+                                                Edit
+                                            </button>
+                                        }
+
+                                        @if (message.CanDelete)
+                                        {
+                                            @if (_deleteConfirmationMessageId == message.Id)
+                                            {
+                                                <span class="delete-confirmation">
+                                                    Delete this message?
+                                                </span>
+
+                                                <button type="button"
+                                                        class="danger-button"
+                                                        @onclick="() => DeleteMessageAsync(message.Id)">
+                                                    Confirm Delete
+                                                </button>
+
+                                                <button type="button"
+                                                        class="text-button"
+                                                        @onclick="CancelMessageDelete">
+                                                    Keep Message
+                                                </button>
+                                            }
+                                            else
+                                            {
+                                                <button type="button"
+                                                        class="delete-button"
+                                                        @onclick="() => BeginMessageDelete(message.Id)">
+                                                    Delete
+                                                </button>
+                                            }
+                                        }
+                                    </div>
+                                }
                             }
                         </article>
                     }
@@ -262,9 +349,7 @@
             {
                 <div class="message-composer">
                     <EditForm Model="MessageInput"
-                              method="post"
                               OnValidSubmit="PostMessageAsync"
-                              FormName="post-maintenance-message"
                               class="message-form">
                         <DataAnnotationsValidator />
 
@@ -316,15 +401,18 @@
     private bool _isLoading = true;
     private string? _errorMessage;
     private string? _messageError;
+    private string? _messageActionError;
+    private Guid? _editingMessageId;
+    private Guid? _deleteConfirmationMessageId;
 
-    [SupplyParameterFromForm]
     private MessageInputModel MessageInput { get; set; } =
-        default!;
+        new();
+
+    private MessageInputModel EditMessageInput { get; set; } =
+        new();
 
     protected override async Task OnParametersSetAsync()
     {
-        MessageInput ??= new();
-
         _isLoading = true;
         _request = null;
         _errorMessage = null;
@@ -367,10 +455,7 @@
 
             MessageInput = new();
 
-            _request =
-                await MaintenanceService.GetDetailsAsync(
-                    RequestId,
-                    _currentUserProfileId);
+            await ReloadRequestAsync();
         }
         catch (KeyNotFoundException)
         {
@@ -388,6 +473,124 @@
 
             Console.Error.WriteLine(exception);
         }
+    }
+
+    private void BeginMessageEdit(
+        MaintenanceMessageItem message)
+    {
+        _messageActionError = null;
+        _deleteConfirmationMessageId = null;
+        _editingMessageId = message.Id;
+
+        EditMessageInput = new MessageInputModel
+        {
+            Body = message.Body ?? string.Empty
+        };
+    }
+
+    private void CancelMessageEdit()
+    {
+        _editingMessageId = null;
+        EditMessageInput = new();
+        _messageActionError = null;
+    }
+
+    private async Task SaveMessageEditAsync()
+    {
+        if (_editingMessageId is not Guid messageId)
+        {
+            return;
+        }
+
+        _messageActionError = null;
+
+        try
+        {
+            await MaintenanceService.EditMessageAsync(
+                new EditMaintenanceMessageCommand(
+                    messageId,
+                    EditMessageInput.Body),
+                _currentUserProfileId);
+
+            _editingMessageId = null;
+            EditMessageInput = new();
+
+            await ReloadRequestAsync();
+        }
+        catch (KeyNotFoundException)
+        {
+            _messageActionError =
+                "This message is no longer available, or you do not have permission to edit it.";
+        }
+        catch (ArgumentException exception)
+        {
+            _messageActionError = exception.Message;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _messageActionError = exception.Message;
+        }
+        catch (Exception exception)
+        {
+            _messageActionError =
+                "The message could not be updated. Please try again.";
+
+            Console.Error.WriteLine(exception);
+        }
+    }
+
+    private void BeginMessageDelete(Guid messageId)
+    {
+        _messageActionError = null;
+        _editingMessageId = null;
+        EditMessageInput = new();
+        _deleteConfirmationMessageId = messageId;
+    }
+
+    private void CancelMessageDelete()
+    {
+        _deleteConfirmationMessageId = null;
+        _messageActionError = null;
+    }
+
+    private async Task DeleteMessageAsync(Guid messageId)
+    {
+        _messageActionError = null;
+
+        try
+        {
+            await MaintenanceService.DeleteMessageAsync(
+                new DeleteMaintenanceMessageCommand(messageId),
+                _currentUserProfileId);
+
+            _deleteConfirmationMessageId = null;
+
+            await ReloadRequestAsync();
+        }
+        catch (KeyNotFoundException)
+        {
+            _messageActionError =
+                "This message is no longer available, or you do not have permission to delete it.";
+        }
+        catch (InvalidOperationException exception)
+        {
+            _messageActionError = exception.Message;
+        }
+        catch (Exception exception)
+        {
+            _messageActionError =
+                "The message could not be deleted. Please try again.";
+
+            Console.Error.WriteLine(exception);
+        }
+    }
+
+    private async Task ReloadRequestAsync()
+    {
+        _request =
+            await MaintenanceService.GetDetailsAsync(
+                RequestId,
+                _currentUserProfileId);
     }
 
     private static string FormatDateTime(
