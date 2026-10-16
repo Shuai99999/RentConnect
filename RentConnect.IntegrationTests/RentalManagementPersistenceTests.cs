@@ -24,6 +24,17 @@ public sealed class RentalManagementPersistenceTests
         var propertyId = Guid.NewGuid();
         var rentalUnitId = Guid.NewGuid();
         var tenancyId = Guid.NewGuid();
+        var maintenanceRequestId = Guid.NewGuid();
+
+        var maintenanceCreatedAtUtc =
+                    new DateTimeOffset(
+                        2026,
+                        2,
+                        1,
+                        9,
+                        0,
+                        0,
+                        TimeSpan.Zero);
 
         try
         {
@@ -78,6 +89,34 @@ public sealed class RentalManagementPersistenceTests
                     tenantProfileId,
                     new DateOnly(2026, 1, 1));
 
+                var maintenanceRequest =
+                    new MaintenanceRequest(
+                        maintenanceRequestId,
+                        tenancyId,
+                        tenantProfileId,
+                        "Leaking kitchen pipe",
+                        "Water is leaking underneath the kitchen sink.",
+                        MaintenanceCategory.Plumbing,
+                        MaintenancePriority.High,
+                        MaintenanceVisibility.SharedWithTenancy,
+                        maintenanceCreatedAtUtc);
+
+                maintenanceRequest.Acknowledge(
+                    maintenanceCreatedAtUtc.AddHours(1));
+
+                maintenanceRequest.Schedule(
+                    maintenanceCreatedAtUtc.AddDays(1),
+                    maintenanceCreatedAtUtc.AddHours(2));
+
+                maintenanceRequest.StartWork(
+                    maintenanceCreatedAtUtc.AddDays(1));
+
+                maintenanceRequest.Resolve(
+                    "The damaged pipe was replaced.",
+                    maintenanceCreatedAtUtc
+                        .AddDays(1)
+                        .AddHours(2));
+
                 context.UserProfiles.AddRange(
                     owner,
                     tenant);
@@ -85,6 +124,8 @@ public sealed class RentalManagementPersistenceTests
                 context.Properties.Add(property);
                 context.RentalUnits.Add(rentalUnit);
                 context.Tenancies.Add(tenancy);
+                context.MaintenanceRequests.Add(
+                    maintenanceRequest);
 
                 await context.SaveChangesAsync();
             }
@@ -116,6 +157,13 @@ public sealed class RentalManagementPersistenceTests
                             tenancy =>
                                 tenancy.Id == tenancyId);
 
+                var savedMaintenanceRequest =
+                    await context.MaintenanceRequests
+                        .SingleAsync(
+                            request =>
+                                request.Id ==
+                                maintenanceRequestId);
+
                 Assert.Equal(
                     "Integration Test Property",
                     savedProperty.Name);
@@ -139,6 +187,31 @@ public sealed class RentalManagementPersistenceTests
                     savedTenancy.IsMemberActiveOn(
                         tenantProfileId,
                         new DateOnly(2026, 6, 1)));
+
+                Assert.Equal(
+                    tenancyId,
+                    savedMaintenanceRequest.TenancyId);
+
+                Assert.Equal(
+                    tenantProfileId,
+                    savedMaintenanceRequest
+                        .CreatedByUserProfileId);
+
+                Assert.Equal(
+                    "Leaking kitchen pipe",
+                    savedMaintenanceRequest.Title);
+
+                Assert.Equal(
+                    MaintenanceStatus.Resolved,
+                    savedMaintenanceRequest.Status);
+
+                Assert.Equal(
+                    maintenanceCreatedAtUtc.AddDays(1),
+                    savedMaintenanceRequest.ScheduledForUtc);
+
+                Assert.Equal(
+                    "The damaged pipe was replaced.",
+                    savedMaintenanceRequest.ResolutionNotes);
             }
         }
         finally

@@ -26,6 +26,9 @@ public class ApplicationDbContext(
     public DbSet<TenancyMember> TenancyMembers =>
         Set<TenancyMember>();
 
+    public DbSet<MaintenanceRequest> MaintenanceRequests =>
+        Set<MaintenanceRequest>();
+
     protected override void OnModelCreating(
         ModelBuilder builder)
     {
