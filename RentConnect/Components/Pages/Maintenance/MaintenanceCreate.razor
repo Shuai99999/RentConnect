@@ -1,0 +1,384 @@
+﻿@page "/maintenance/new"
+@attribute [Authorize]
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Maintenance
+@using RentConnect.Core.Entities
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject IMaintenanceService MaintenanceService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+
+<PageTitle>New Maintenance Request</PageTitle>
+
+<main class="maintenance-form-page">
+    <header class="form-page-header">
+        <div>
+            <p class="page-eyebrow">Rental Management</p>
+            <h1>New Maintenance Request</h1>
+            <p class="page-description">
+                Tell your property manager what happened and how urgently
+                it needs attention.
+            </p>
+        </div>
+
+        <a class="back-link" href="/maintenance">
+            Back to requests
+        </a>
+    </header>
+
+    @if (_loadErrorMessage is not null)
+    {
+        <section class="form-state-panel error-panel"
+                 role="alert">
+            <h2>Unable to load the request form</h2>
+            <p>@_loadErrorMessage</p>
+        </section>
+    }
+    else if (_tenancies.Count == 0)
+    {
+        <section class="form-state-panel">
+            <h2>No active rentals found</h2>
+            <p>
+                You need an active rental or a property with an active
+                tenancy before you can create a maintenance request.
+            </p>
+
+            <a class="secondary-button" href="/maintenance">
+                Return to maintenance requests
+            </a>
+        </section>
+    }
+    else
+    {
+        <EditForm Model="Input"
+                  method="post"
+                  OnValidSubmit="CreateRequestAsync"
+                  FormName="create-maintenance-request"
+                  class="maintenance-form">
+            <DataAnnotationsValidator />
+
+            @if (_submitErrorMessage is not null)
+            {
+                <div class="form-alert"
+                     role="alert">
+                    @_submitErrorMessage
+                </div>
+            }
+
+            <ValidationSummary class="validation-summary"
+                               role="alert" />
+
+            <section class="form-section">
+                <div class="section-heading">
+                    <h2>Request details</h2>
+                    <p>
+                        Start with the rental and a short description
+                        of the problem.
+                    </p>
+                </div>
+
+                <div class="form-field">
+                    <label for="tenancy">
+                        Rental
+                    </label>
+
+                    <InputSelect id="tenancy"
+                                 class="form-control"
+                                 @bind-Value="Input.TenancyId">
+                        <option value="">
+                            Select a rental
+                        </option>
+
+                        @foreach (var tenancy in _tenancies)
+                        {
+                            <option value="@tenancy.TenancyId">
+                                @tenancy.PropertyName — @tenancy.RentalUnitName
+                            </option>
+                        }
+                    </InputSelect>
+
+                    <ValidationMessage For="() => Input.TenancyId"
+                                       class="field-validation" />
+                </div>
+
+                <div class="form-field">
+                    <label for="title">
+                        Title
+                    </label>
+
+                    <InputText id="title"
+                               class="form-control"
+                               @bind-Value="Input.Title"
+                               placeholder="For example: Leaking kitchen pipe" />
+
+                    <div class="field-hint">
+                        Use a short title that clearly identifies the issue.
+                    </div>
+
+                    <ValidationMessage For="() => Input.Title"
+                                       class="field-validation" />
+                </div>
+
+                <div class="form-field">
+                    <label for="description">
+                        Description
+                    </label>
+
+                    <InputTextArea id="description"
+                                   class="form-control description-input"
+                                   @bind-Value="Input.Description"
+                                   placeholder="Describe what happened, where it is, and when you first noticed it." />
+
+                    <ValidationMessage For="() => Input.Description"
+                                       class="field-validation" />
+                </div>
+            </section>
+
+            <section class="form-section">
+                <div class="section-heading">
+                    <h2>Classification</h2>
+                    <p>
+                        This information helps the property manager
+                        prioritize and assign the work.
+                    </p>
+                </div>
+
+                <div class="form-grid">
+                    <div class="form-field">
+                        <label for="category">
+                            Category
+                        </label>
+
+                        <InputSelect id="category"
+                                     class="form-control"
+                                     @bind-Value="Input.Category">
+                            <option value="@MaintenanceCategory.Plumbing">
+                                Plumbing
+                            </option>
+                            <option value="@MaintenanceCategory.Electrical">
+                                Electrical
+                            </option>
+                            <option value="@MaintenanceCategory.HeatingCooling">
+                                Heating and cooling
+                            </option>
+                            <option value="@MaintenanceCategory.LocksAndSecurity">
+                                Locks and security
+                            </option>
+                            <option value="@MaintenanceCategory.Appliance">
+                                Appliance
+                            </option>
+                            <option value="@MaintenanceCategory.Structural">
+                                Structural
+                            </option>
+                            <option value="@MaintenanceCategory.PestControl">
+                                Pest control
+                            </option>
+                            <option value="@MaintenanceCategory.Internet">
+                                Internet
+                            </option>
+                            <option value="@MaintenanceCategory.Other">
+                                Other
+                            </option>
+                        </InputSelect>
+                    </div>
+
+                    <div class="form-field">
+                        <label for="priority">
+                            Priority
+                        </label>
+
+                        <InputSelect id="priority"
+                                     class="form-control"
+                                     @bind-Value="Input.Priority">
+                            <option value="@MaintenancePriority.Low">
+                                Low
+                            </option>
+                            <option value="@MaintenancePriority.Normal">
+                                Normal
+                            </option>
+                            <option value="@MaintenancePriority.High">
+                                High
+                            </option>
+                            <option value="@MaintenancePriority.Emergency">
+                                Emergency
+                            </option>
+                        </InputSelect>
+
+                        <div class="field-hint">
+                            Choose Emergency only when immediate action
+                            is required to protect people or property.
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-section">
+                <div class="section-heading">
+                    <h2>Visibility</h2>
+                    <p>
+                        Choose whether other members of your tenancy
+                        may see this request.
+                    </p>
+                </div>
+
+                <InputRadioGroup TValue="MaintenanceVisibility"
+                                 @bind-Value="Input.Visibility"
+                                 class="visibility-options">
+                    <label class="visibility-option">
+                        <InputRadio TValue="MaintenanceVisibility"
+                                    Value="@MaintenanceVisibility.SharedWithTenancy" />
+
+                        <span>
+                            <strong>Share with my tenancy</strong>
+                            <small>
+                                Roommates and property management can
+                                view this request.
+                            </small>
+                        </span>
+                    </label>
+
+                    <label class="visibility-option">
+                        <InputRadio TValue="MaintenanceVisibility"
+                                    Value="@MaintenanceVisibility.PrivateToReporterAndManagement" />
+
+                        <span>
+                            <strong>Keep this request private</strong>
+                            <small>
+                                Only you and property management can
+                                view this request.
+                            </small>
+                        </span>
+                    </label>
+                </InputRadioGroup>
+            </section>
+
+            <footer class="form-actions">
+                <a class="secondary-button"
+                   href="/maintenance">
+                    Cancel
+                </a>
+
+                <button class="primary-button"
+                        type="submit">
+                    Submit Request
+                </button>
+            </footer>
+        </EditForm>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<MaintenanceTenancyOption> _tenancies =
+        [];
+
+    private string? _loadErrorMessage;
+    private string? _submitErrorMessage;
+
+    [SupplyParameterFromForm]
+    private InputModel Input { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Input ??= new();
+
+        try
+        {
+            var userProfileId =
+                await CurrentUserProfileService
+                    .GetRequiredUserProfileIdAsync();
+
+            _tenancies =
+                await MaintenanceService
+                    .GetAvailableTenanciesAsync(userProfileId);
+
+            if (Input.TenancyId is null &&
+                _tenancies.Count == 1)
+            {
+                Input.TenancyId =
+                    _tenancies[0].TenancyId;
+            }
+        }
+        catch (Exception exception)
+        {
+            _loadErrorMessage =
+                "Please try again. If the problem continues, contact support.";
+
+            Console.Error.WriteLine(exception);
+        }
+    }
+
+    private async Task CreateRequestAsync()
+    {
+        _submitErrorMessage = null;
+
+        try
+        {
+            var userProfileId =
+                await CurrentUserProfileService
+                    .GetRequiredUserProfileIdAsync();
+
+            var requestId =
+                await MaintenanceService.CreateAsync(
+                    new CreateMaintenanceRequestCommand(
+                        Input.TenancyId!.Value,
+                        Input.Title,
+                        Input.Description,
+                        Input.Category,
+                        Input.Priority,
+                        Input.Visibility),
+                    userProfileId);
+
+            NavigationManager.NavigateTo(
+                $"/maintenance/{requestId}");
+        }
+        catch (KeyNotFoundException)
+        {
+            _submitErrorMessage =
+                "The selected rental is no longer available. Refresh the page and try again.";
+        }
+        catch (ArgumentException exception)
+        {
+            _submitErrorMessage = exception.Message;
+        }
+        catch (Exception exception)
+        {
+            _submitErrorMessage =
+                "The request could not be submitted. Please try again.";
+
+            Console.Error.WriteLine(exception);
+        }
+    }
+
+    private sealed class InputModel
+    {
+        [Required(ErrorMessage = "Select a rental.")]
+        public Guid? TenancyId { get; set; }
+
+        [Required(ErrorMessage = "Enter a title.")]
+        [StringLength(
+            MaintenanceRequest.MaxTitleLength,
+            ErrorMessage =
+                "The title cannot exceed {1} characters.")]
+        public string Title { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Enter a description.")]
+        [StringLength(
+            MaintenanceRequest.MaxDescriptionLength,
+            ErrorMessage =
+                "The description cannot exceed {1} characters.")]
+        public string Description { get; set; } = string.Empty;
+
+        public MaintenanceCategory Category { get; set; } =
+            MaintenanceCategory.Other;
+
+        public MaintenancePriority Priority { get; set; } =
+            MaintenancePriority.Normal;
+
+        public MaintenanceVisibility Visibility { get; set; } =
+            MaintenanceVisibility.SharedWithTenancy;
+    }
+}

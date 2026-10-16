@@ -28,6 +28,7 @@ public sealed class RentalManagementPersistenceTests
         var propertyId = Guid.NewGuid();
         var rentalUnitId = Guid.NewGuid();
         var tenancyId = Guid.NewGuid();
+        var expiredTenancyId = Guid.NewGuid();
         var maintenanceRequestId = Guid.NewGuid();
         var privateMaintenanceRequestId = Guid.NewGuid();
         var landlordMessageId = Guid.NewGuid();
@@ -105,6 +106,17 @@ public sealed class RentalManagementPersistenceTests
                     Guid.NewGuid(),
                     roommateProfileId,
                     new DateOnly(2026, 1, 1));
+
+                var expiredTenancy = new Tenancy(
+                    expiredTenancyId,
+                    rentalUnitId,
+                    new DateOnly(2025, 1, 1),
+                    new DateOnly(2025, 12, 31));
+
+                expiredTenancy.AddMember(
+                    Guid.NewGuid(),
+                    tenantProfileId,
+                    new DateOnly(2025, 1, 1));
 
                 var maintenanceRequest =
                     new MaintenanceRequest(
@@ -194,7 +206,9 @@ public sealed class RentalManagementPersistenceTests
 
                 context.Properties.Add(property);
                 context.RentalUnits.Add(rentalUnit);
-                context.Tenancies.Add(tenancy);
+                context.Tenancies.AddRange(
+                    tenancy,
+                    expiredTenancy);
                 context.MaintenanceRequests.AddRange(
                     maintenanceRequest,
                     privateMaintenanceRequest);
@@ -406,6 +420,61 @@ public sealed class RentalManagementPersistenceTests
                     new MaintenanceService(
                         context,
                         testClock);
+
+                var tenantTenancies =
+                    await maintenanceService
+                        .GetAvailableTenanciesAsync(
+                            tenantProfileId);
+
+                var roommateTenancies =
+                    await maintenanceService
+                        .GetAvailableTenanciesAsync(
+                            roommateProfileId);
+
+                var ownerTenancies =
+                    await maintenanceService
+                        .GetAvailableTenanciesAsync(
+                            ownerProfileId);
+
+                var unrelatedTenancies =
+                    await maintenanceService
+                        .GetAvailableTenanciesAsync(
+                            unrelatedProfileId);
+
+                var tenantTenancy =
+                    Assert.Single(tenantTenancies);
+
+                Assert.Equal(
+                    tenancyId,
+                    tenantTenancy.TenancyId);
+
+                Assert.Equal(
+                    "Integration Test Property",
+                    tenantTenancy.PropertyName);
+
+                Assert.Equal(
+                    "Unit 101",
+                    tenantTenancy.RentalUnitName);
+
+                Assert.Equal(
+                    tenancyId,
+                    Assert.Single(roommateTenancies).TenancyId);
+
+                Assert.Equal(
+                    tenancyId,
+                    Assert.Single(ownerTenancies).TenancyId);
+
+                Assert.Empty(unrelatedTenancies);
+
+                Assert.DoesNotContain(
+                    tenantTenancies,
+                    option =>
+                        option.TenancyId == expiredTenancyId);
+
+                Assert.DoesNotContain(
+                    ownerTenancies,
+                    option =>
+                        option.TenancyId == expiredTenancyId);
 
                 var tenantRequests =
                     await maintenanceService

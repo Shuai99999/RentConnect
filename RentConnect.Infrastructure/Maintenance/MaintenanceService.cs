@@ -12,6 +12,45 @@ public sealed class MaintenanceService(
     TimeProvider timeProvider)
     : IMaintenanceService
 {
+    public async Task<IReadOnlyList<MaintenanceTenancyOption>>
+        GetAvailableTenanciesAsync(
+            Guid userProfileId,
+            CancellationToken cancellationToken = default)
+    {
+        EnsureUserProfileId(userProfileId);
+
+        var today = GetToday();
+
+        return await (
+            from tenancy in context.Tenancies.AsNoTracking()
+            join unit in context.RentalUnits.AsNoTracking()
+                on tenancy.RentalUnitId equals unit.Id
+            join property in context.Properties.AsNoTracking()
+                on unit.PropertyId equals property.Id
+            where !tenancy.IsCancelled &&
+                  tenancy.StartDate <= today &&
+                  (!tenancy.EndDate.HasValue ||
+                   tenancy.EndDate.Value >= today) &&
+                  (
+                      context.TenancyMembers.Any(member =>
+                          member.TenancyId == tenancy.Id &&
+                          member.UserProfileId == userProfileId &&
+                          member.JoinedOn <= today &&
+                          (!member.LeftOn.HasValue ||
+                           member.LeftOn.Value >= today))
+                      ||
+                      context.PropertyOwners.Any(owner =>
+                          owner.PropertyId == property.Id &&
+                          owner.UserProfileId == userProfileId)
+                  )
+            orderby property.Name, unit.Name
+            select new MaintenanceTenancyOption(
+                tenancy.Id,
+                property.Name,
+                unit.Name))
+            .ToArrayAsync(cancellationToken);
+    }
+
     public async Task<IReadOnlyList<MaintenanceRequestSummary>>
         GetVisibleRequestsAsync(
             Guid userProfileId,

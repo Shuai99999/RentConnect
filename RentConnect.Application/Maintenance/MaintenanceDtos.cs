@@ -2,6 +2,11 @@ using RentConnect.Core.Enums;
 
 namespace RentConnect.Application.Maintenance;
 
+public sealed record MaintenanceTenancyOption(
+    Guid TenancyId,
+    string PropertyName,
+    string RentalUnitName);
+
 public sealed record MaintenanceRequestSummary(
     Guid Id,
     Guid TenancyId,

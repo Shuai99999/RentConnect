@@ -1,0 +1,384 @@
+﻿@page "/maintenance/{RequestId:guid}"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@using RentConnect.Application.Maintenance
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject IMaintenanceService MaintenanceService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>@(_request?.Title ?? "Maintenance Request")</PageTitle>
+
+<main class="maintenance-details-page">
+    @if (_isLoading)
+    {
+        <section class="state-panel">
+            <p>Loading maintenance request...</p>
+        </section>
+    }
+    else if (_errorMessage is not null)
+    {
+        <section class="state-panel error-panel"
+                 role="alert">
+            <h1>Unable to load this request</h1>
+            <p>@_errorMessage</p>
+
+            <a class="secondary-button"
+               href="/maintenance">
+                Return to maintenance requests
+            </a>
+        </section>
+    }
+    else if (_request is null)
+    {
+        <section class="state-panel">
+            <h1>Maintenance request not found</h1>
+            <p>
+                The request may no longer exist, or you may not
+                have permission to view it.
+            </p>
+
+            <a class="secondary-button"
+               href="/maintenance">
+                Return to maintenance requests
+            </a>
+        </section>
+    }
+    else
+    {
+        <header class="details-header">
+            <a class="back-link"
+               href="/maintenance">
+                Back to requests
+            </a>
+
+            <div class="header-content">
+                <div>
+                    <p class="page-eyebrow">
+                        Maintenance Request
+                    </p>
+
+                    <h1>@_request.Title</h1>
+
+                    <p class="request-reference">
+                        Reference: @_request.Id
+                    </p>
+                </div>
+
+                <div class="header-badges">
+                    <span class="status-badge @GetStatusCssClass(_request.Status)">
+                        @GetStatusText(_request.Status)
+                    </span>
+
+                    @if (_request.Visibility ==
+                         MaintenanceVisibility.PrivateToReporterAndManagement)
+                    {
+                        <span class="private-badge">
+                            Private
+                        </span>
+                    }
+                </div>
+            </div>
+        </header>
+
+        <section class="details-grid"
+                 aria-label="Request information">
+            <article class="detail-card">
+                <span>Category</span>
+                <strong>
+                    @GetCategoryText(_request.Category)
+                </strong>
+            </article>
+
+            <article class="detail-card">
+                <span>Priority</span>
+                <strong class="@GetPriorityCssClass(_request.Priority)">
+                    @GetPriorityText(_request.Priority)
+                </strong>
+            </article>
+
+            <article class="detail-card">
+                <span>Created</span>
+                <strong>
+                    @FormatDateTime(_request.CreatedAtUtc)
+                </strong>
+            </article>
+
+            <article class="detail-card">
+                <span>Last updated</span>
+                <strong>
+                    @FormatDateTime(_request.UpdatedAtUtc)
+                </strong>
+            </article>
+        </section>
+
+        <section class="content-card">
+            <div class="section-heading">
+                <h2>Description</h2>
+            </div>
+
+            <p class="request-description">
+                @_request.Description
+            </p>
+        </section>
+
+        @if (_request.ScheduledForUtc.HasValue)
+        {
+            <section class="content-card">
+                <div class="section-heading">
+                    <h2>Scheduled visit</h2>
+                </div>
+
+                <p>
+                    @_request.ScheduledForUtc.Value
+                        .ToString("MMM d, yyyy 'at' HH:mm 'UTC'")
+                </p>
+            </section>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(
+                 _request.ResolutionNotes))
+        {
+            <section class="content-card resolution-card">
+                <div class="section-heading">
+                    <h2>Resolution</h2>
+                </div>
+
+                <p class="request-description">
+                    @_request.ResolutionNotes
+                </p>
+            </section>
+        }
+
+        <section class="content-card">
+            <div class="section-heading">
+                <h2>Status history</h2>
+                <p>
+                    Follow the progress of this maintenance request.
+                </p>
+            </div>
+
+            <ol class="timeline">
+                <li class="timeline-item">
+                    <div class="timeline-marker"></div>
+
+                    <div>
+                        <strong>Submitted</strong>
+                        <time>
+                            @FormatDateTime(_request.CreatedAtUtc)
+                        </time>
+                    </div>
+                </li>
+
+                @foreach (var change in _request.StatusHistory)
+                {
+                    <li class="timeline-item">
+                        <div class="timeline-marker"></div>
+
+                        <div>
+                            <strong>
+                                @GetStatusText(change.ToStatus)
+                            </strong>
+
+                            <time>
+                                @FormatDateTime(change.ChangedAtUtc)
+                            </time>
+
+                            @if (!string.IsNullOrWhiteSpace(
+                                     change.Note))
+                            {
+                                <p>@change.Note</p>
+                            }
+                        </div>
+                    </li>
+                }
+            </ol>
+        </section>
+
+        <section class="content-card">
+            <div class="section-heading">
+                <h2>Conversation</h2>
+                <p>
+                    Messages from tenants and property management
+                    will appear here.
+                </p>
+            </div>
+
+            @if (_request.Messages.Count == 0)
+            {
+                <div class="empty-conversation">
+                    No messages have been posted yet.
+                </div>
+            }
+            else
+            {
+                <div class="message-list">
+                    @foreach (var message in _request.Messages)
+                    {
+                        <article class="message-card">
+                            <header>
+                                <strong>
+                                    @(message.AuthorUserProfileId ==
+                                      _currentUserProfileId
+                                        ? "You"
+                                        : "Participant")
+                                </strong>
+
+                                <time>
+                                    @FormatDateTime(message.CreatedAtUtc)
+                                </time>
+                            </header>
+
+                            @if (message.IsDeleted)
+                            {
+                                <p class="deleted-message">
+                                    This message was deleted.
+                                </p>
+                            }
+                            else
+                            {
+                                <p class="request-description">
+                                    @message.Body
+                                </p>
+
+                                @if (message.EditedAtUtc.HasValue)
+                                {
+                                    <small>
+                                        Edited
+                                    </small>
+                                }
+                            }
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    [Parameter]
+    public Guid RequestId { get; set; }
+
+    private MaintenanceRequestDetails? _request;
+    private Guid _currentUserProfileId;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _request = null;
+        _errorMessage = null;
+
+        try
+        {
+            _currentUserProfileId =
+                await CurrentUserProfileService
+                    .GetRequiredUserProfileIdAsync();
+
+            _request =
+                await MaintenanceService.GetDetailsAsync(
+                    RequestId,
+                    _currentUserProfileId);
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                "Please try again. If the problem continues, contact support.";
+
+            Console.Error.WriteLine(exception);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string FormatDateTime(
+        DateTimeOffset value)
+    {
+        return value.ToString(
+            "MMM d, yyyy 'at' HH:mm 'UTC'");
+    }
+
+    private static string GetStatusText(
+        MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Submitted => "Submitted",
+            MaintenanceStatus.Acknowledged => "Acknowledged",
+            MaintenanceStatus.Scheduled => "Scheduled",
+            MaintenanceStatus.InProgress => "In progress",
+            MaintenanceStatus.Resolved => "Resolved",
+            MaintenanceStatus.Closed => "Closed",
+            MaintenanceStatus.Cancelled => "Cancelled",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetStatusCssClass(
+        MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Submitted => "status-submitted",
+            MaintenanceStatus.Acknowledged => "status-acknowledged",
+            MaintenanceStatus.Scheduled => "status-scheduled",
+            MaintenanceStatus.InProgress => "status-in-progress",
+            MaintenanceStatus.Resolved => "status-resolved",
+            MaintenanceStatus.Closed => "status-closed",
+            MaintenanceStatus.Cancelled => "status-cancelled",
+            _ => string.Empty
+        };
+    }
+
+    private static string GetCategoryText(
+        MaintenanceCategory category)
+    {
+        return category switch
+        {
+            MaintenanceCategory.Plumbing => "Plumbing",
+            MaintenanceCategory.Electrical => "Electrical",
+            MaintenanceCategory.HeatingCooling =>
+                "Heating and cooling",
+            MaintenanceCategory.LocksAndSecurity =>
+                "Locks and security",
+            MaintenanceCategory.Appliance => "Appliance",
+            MaintenanceCategory.Structural => "Structural",
+            MaintenanceCategory.PestControl => "Pest control",
+            MaintenanceCategory.Internet => "Internet",
+            MaintenanceCategory.Other => "Other",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetPriorityText(
+        MaintenancePriority priority)
+    {
+        return priority switch
+        {
+            MaintenancePriority.Low => "Low",
+            MaintenancePriority.Normal => "Normal",
+            MaintenancePriority.High => "High",
+            MaintenancePriority.Emergency => "Emergency",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetPriorityCssClass(
+        MaintenancePriority priority)
+    {
+        return priority switch
+        {
+            MaintenancePriority.High => "priority-high",
+            MaintenancePriority.Emergency =>
+                "priority-emergency",
+            _ => string.Empty
+        };
+    }
+}

@@ -2,6 +2,11 @@ namespace RentConnect.Application.Maintenance;
 
 public interface IMaintenanceService
 {
+    Task<IReadOnlyList<MaintenanceTenancyOption>>
+        GetAvailableTenanciesAsync(
+            Guid userProfileId,
+            CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<MaintenanceRequestSummary>>
         GetVisibleRequestsAsync(
             Guid userProfileId,
