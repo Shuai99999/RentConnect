@@ -530,6 +530,58 @@ namespace RentConnect.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.UserNotification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ActorUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset?>("ReadAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("RecipientUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TargetPath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ActorUserProfileId");
+
+                    b.HasIndex("RecipientUserProfileId", "ReadAtUtc", "CreatedAtUtc");
+
+                    b.ToTable("UserNotifications", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_UserNotifications_LocalTarget", "[TargetPath] LIKE '/%'\r\nAND\r\n[TargetPath] NOT LIKE '//%'");
+
+                            t.HasCheckConstraint("CK_UserNotifications_ReadAfterCreation", "[ReadAtUtc] IS NULL\r\nOR\r\n[ReadAtUtc] >= [CreatedAtUtc]");
+
+                            t.HasCheckConstraint("CK_UserNotifications_Type", "[Type] IN (1, 2, 3, 4)");
+                        });
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.UserProfile", b =>
                 {
                     b.Property<Guid>("Id")
@@ -829,6 +881,20 @@ namespace RentConnect.Migrations
                     b.HasOne("RentConnect.Core.Entities.UserProfile", null)
                         .WithMany()
                         .HasForeignKey("UserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.UserNotification", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ActorUserProfileId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("RecipientUserProfileId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

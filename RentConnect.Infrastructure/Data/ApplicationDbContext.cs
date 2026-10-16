@@ -40,6 +40,9 @@ public class ApplicationDbContext(
         MaintenanceAttachments =>
         Set<MaintenanceAttachment>();
 
+    public DbSet<UserNotification> UserNotifications =>
+        Set<UserNotification>();
+
     protected override void OnModelCreating(
         ModelBuilder builder)
     {
