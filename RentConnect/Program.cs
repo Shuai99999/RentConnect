@@ -1,9 +1,11 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using RentConnect.Application.Maintenance;
 using RentConnect.Components;
 using RentConnect.Components.Account;
 using RentConnect.Data;
+using RentConnect.Infrastructure.Maintenance;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -26,6 +28,8 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseSqlServer(connectionString));
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
+builder.Services.AddSingleton(TimeProvider.System);
+builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

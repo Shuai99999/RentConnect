@@ -2,10 +2,12 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using RentConnect.Application.Maintenance;
 using RentConnect.Core.Entities;
 using RentConnect.Core.Enums;
 using RentConnect.Core.ValueObjects;
 using RentConnect.Data;
+using RentConnect.Infrastructure.Maintenance;
 
 namespace RentConnect.IntegrationTests;
 
@@ -21,10 +23,13 @@ public sealed class RentalManagementPersistenceTests
 
         var ownerProfileId = Guid.NewGuid();
         var tenantProfileId = Guid.NewGuid();
+        var roommateProfileId = Guid.NewGuid();
+        var unrelatedProfileId = Guid.NewGuid();
         var propertyId = Guid.NewGuid();
         var rentalUnitId = Guid.NewGuid();
         var tenancyId = Guid.NewGuid();
         var maintenanceRequestId = Guid.NewGuid();
+        var privateMaintenanceRequestId = Guid.NewGuid();
         var landlordMessageId = Guid.NewGuid();
         var editedMessageId = Guid.NewGuid();
         var deletedMessageId = Guid.NewGuid();
@@ -58,6 +63,10 @@ public sealed class RentalManagementPersistenceTests
                     tenantProfileId,
                     "Integration Test Tenant");
 
+                var roommate = new UserProfile(
+                    roommateProfileId,
+                    "Integration Test Roommate");
+
                 var property = new Property(
                     propertyId,
                     "Integration Test Property",
@@ -90,6 +99,11 @@ public sealed class RentalManagementPersistenceTests
                 tenancy.AddMember(
                     Guid.NewGuid(),
                     tenantProfileId,
+                    new DateOnly(2026, 1, 1));
+
+                tenancy.AddMember(
+                    Guid.NewGuid(),
+                    roommateProfileId,
                     new DateOnly(2026, 1, 1));
 
                 var maintenanceRequest =
@@ -128,6 +142,19 @@ public sealed class RentalManagementPersistenceTests
                         .AddDays(1)
                         .AddHours(2));
 
+                var privateMaintenanceRequest =
+                    new MaintenanceRequest(
+                        privateMaintenanceRequestId,
+                        tenancyId,
+                        tenantProfileId,
+                        "Private bedroom lock issue",
+                        "The bedroom lock is not working.",
+                        MaintenanceCategory.LocksAndSecurity,
+                        MaintenancePriority.Normal,
+                        MaintenanceVisibility
+                            .PrivateToReporterAndManagement,
+                        maintenanceCreatedAtUtc.AddMinutes(10));
+
                 var landlordMessage =
                     new MaintenanceMessage(
                         landlordMessageId,
@@ -162,13 +189,15 @@ public sealed class RentalManagementPersistenceTests
 
                 context.UserProfiles.AddRange(
                     owner,
-                    tenant);
+                    tenant,
+                    roommate);
 
                 context.Properties.Add(property);
                 context.RentalUnits.Add(rentalUnit);
                 context.Tenancies.Add(tenancy);
-                context.MaintenanceRequests.Add(
-                    maintenanceRequest);
+                context.MaintenanceRequests.AddRange(
+                    maintenanceRequest,
+                    privateMaintenanceRequest);
                 context.MaintenanceMessages.AddRange(
                     landlordMessage,
                     editedMessage,
@@ -361,6 +390,209 @@ public sealed class RentalManagementPersistenceTests
                 Assert.Equal(
                     "Message to be deleted.",
                     savedDeletedMessage.Body);
+
+                var testClock =
+                    new TestTimeProvider(
+                        new DateTimeOffset(
+                            2026,
+                            6,
+                            1,
+                            12,
+                            0,
+                            0,
+                            TimeSpan.Zero));
+
+                var maintenanceService =
+                    new MaintenanceService(
+                        context,
+                        testClock);
+
+                var tenantRequests =
+                    await maintenanceService
+                        .GetVisibleRequestsAsync(
+                            tenantProfileId);
+                var roommateRequests =
+                    await maintenanceService
+                        .GetVisibleRequestsAsync(
+                            roommateProfileId);
+                var ownerRequests =
+                    await maintenanceService
+                        .GetVisibleRequestsAsync(
+                            ownerProfileId);
+                var unrelatedRequests =
+                    await maintenanceService
+                        .GetVisibleRequestsAsync(
+                            unrelatedProfileId);
+
+                Assert.Equal(2, tenantRequests.Count);
+                Assert.Single(roommateRequests);
+                Assert.Equal(
+                    maintenanceRequestId,
+                    roommateRequests[0].Id);
+                Assert.Equal(2, ownerRequests.Count);
+                Assert.Empty(unrelatedRequests);
+
+                Assert.Null(
+                    await maintenanceService.GetDetailsAsync(
+                        privateMaintenanceRequestId,
+                        roommateProfileId));
+
+                var reporterPrivateDetails =
+                    await maintenanceService.GetDetailsAsync(
+                        privateMaintenanceRequestId,
+                        tenantProfileId);
+                var ownerPrivateDetails =
+                    await maintenanceService.GetDetailsAsync(
+                        privateMaintenanceRequestId,
+                        ownerProfileId);
+
+                Assert.NotNull(reporterPrivateDetails);
+                Assert.NotNull(ownerPrivateDetails);
+
+                var tenantSharedDetails =
+                    await maintenanceService.GetDetailsAsync(
+                        maintenanceRequestId,
+                        tenantProfileId);
+
+                Assert.NotNull(tenantSharedDetails);
+
+                var deletedMessageItem =
+                    Assert.Single(
+                        tenantSharedDetails.Messages,
+                        message =>
+                            message.Id == deletedMessageId);
+
+                Assert.True(deletedMessageItem.IsDeleted);
+                Assert.Null(deletedMessageItem.Body);
+
+                await Assert.ThrowsAsync<KeyNotFoundException>(
+                    () => maintenanceService.AddMessageAsync(
+                        new AddMaintenanceMessageCommand(
+                            privateMaintenanceRequestId,
+                            "This message must be rejected."),
+                        roommateProfileId));
+
+                var ownerMessageId =
+                    await maintenanceService.AddMessageAsync(
+                        new AddMaintenanceMessageCommand(
+                            privateMaintenanceRequestId,
+                            "I will arrange a locksmith."),
+                        ownerProfileId);
+
+                await maintenanceService.ChangeStatusAsync(
+                    new ChangeMaintenanceStatusCommand(
+                        privateMaintenanceRequestId,
+                        MaintenanceAction.Acknowledge,
+                        Note: "The issue has been reviewed."),
+                    ownerProfileId);
+
+                var updatedPrivateDetails =
+                    await maintenanceService.GetDetailsAsync(
+                        privateMaintenanceRequestId,
+                        tenantProfileId);
+
+                Assert.NotNull(updatedPrivateDetails);
+                Assert.Equal(
+                    MaintenanceStatus.Acknowledged,
+                    updatedPrivateDetails.Status);
+                Assert.Contains(
+                    updatedPrivateDetails.Messages,
+                    message => message.Id == ownerMessageId);
+
+                await Assert.ThrowsAsync<KeyNotFoundException>(
+                    () => maintenanceService.EditMessageAsync(
+                        new EditMaintenanceMessageCommand(
+                            ownerMessageId,
+                            "A tenant cannot edit the owner's message."),
+                        tenantProfileId));
+
+                testClock.Advance(TimeSpan.FromMinutes(1));
+
+                await maintenanceService.EditMessageAsync(
+                    new EditMaintenanceMessageCommand(
+                        ownerMessageId,
+                        "A locksmith visit is scheduled."),
+                    ownerProfileId);
+
+                testClock.Advance(TimeSpan.FromMinutes(1));
+
+                await maintenanceService.DeleteMessageAsync(
+                    new DeleteMaintenanceMessageCommand(
+                        ownerMessageId),
+                    ownerProfileId);
+
+                var detailsAfterMessageDeletion =
+                    await maintenanceService.GetDetailsAsync(
+                        privateMaintenanceRequestId,
+                        tenantProfileId);
+
+                Assert.NotNull(detailsAfterMessageDeletion);
+
+                var deletedOwnerMessage =
+                    Assert.Single(
+                        detailsAfterMessageDeletion.Messages,
+                        message => message.Id == ownerMessageId);
+
+                Assert.True(deletedOwnerMessage.IsDeleted);
+                Assert.Null(deletedOwnerMessage.Body);
+
+                var serviceCreatedRequestId =
+                    await maintenanceService.CreateAsync(
+                        new CreateMaintenanceRequestCommand(
+                            tenancyId,
+                            "Bathroom fan stopped working",
+                            "The bathroom extractor fan does not start.",
+                            MaintenanceCategory.Electrical,
+                            MaintenancePriority.Normal,
+                            MaintenanceVisibility.SharedWithTenancy),
+                        tenantProfileId);
+
+                testClock.Advance(TimeSpan.FromMinutes(1));
+
+                await maintenanceService.UpdateDetailsAsync(
+                    new UpdateMaintenanceRequestCommand(
+                        serviceCreatedRequestId,
+                        "Bathroom extractor fan stopped working",
+                        "The extractor fan no longer turns on.",
+                        MaintenanceCategory.Electrical,
+                        MaintenancePriority.High,
+                        MaintenanceVisibility.SharedWithTenancy),
+                    tenantProfileId);
+
+                await Assert.ThrowsAsync<KeyNotFoundException>(
+                    () => maintenanceService.UpdateDetailsAsync(
+                        new UpdateMaintenanceRequestCommand(
+                            serviceCreatedRequestId,
+                            "Roommate edit must fail",
+                            "A roommate cannot edit another reporter's request.",
+                            MaintenanceCategory.Other,
+                            MaintenancePriority.Low,
+                            MaintenanceVisibility.SharedWithTenancy),
+                        roommateProfileId));
+
+                var serviceCreatedDetails =
+                    await maintenanceService.GetDetailsAsync(
+                        serviceCreatedRequestId,
+                        roommateProfileId);
+
+                Assert.NotNull(serviceCreatedDetails);
+                Assert.Equal(
+                    "Bathroom extractor fan stopped working",
+                    serviceCreatedDetails.Title);
+                Assert.Equal(
+                    MaintenancePriority.High,
+                    serviceCreatedDetails.Priority);
+
+                await Assert.ThrowsAsync<KeyNotFoundException>(
+                    () => maintenanceService.CreateAsync(
+                        new CreateMaintenanceRequestCommand(
+                            tenancyId,
+                            "Unauthorized request",
+                            "This request must not be created.",
+                            MaintenanceCategory.Other,
+                            MaintenancePriority.Low,
+                            MaintenanceVisibility.SharedWithTenancy),
+                        unrelatedProfileId));
             }
         }
         finally
@@ -419,5 +651,22 @@ public sealed class RentalManagementPersistenceTests
             };
 
         return builder.ConnectionString;
+    }
+
+    private sealed class TestTimeProvider(
+        DateTimeOffset utcNow)
+        : TimeProvider
+    {
+        private DateTimeOffset _utcNow = utcNow;
+
+        public override DateTimeOffset GetUtcNow()
+        {
+            return _utcNow;
+        }
+
+        public void Advance(TimeSpan duration)
+        {
+            _utcNow = _utcNow.Add(duration);
+        }
     }
 }

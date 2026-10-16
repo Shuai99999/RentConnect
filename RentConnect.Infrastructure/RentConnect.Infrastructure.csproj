@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\RentConnect.Application\RentConnect.Application.csproj" />
     <ProjectReference Include="..\RentConnect.Core\RentConnect.Core.csproj" />
   </ItemGroup>
 

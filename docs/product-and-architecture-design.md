@@ -230,6 +230,17 @@ MVP 只记录线下结算：
 
 所有授权必须在服务端根据当前登录用户和目标资源重新检查，不能相信浏览器传入的用户 ID、房东标志或金额计算结果。
 
+当前报修权限实现采用以下具体规则：
+
+- 房东负责确认、预约、开始处理和标记解决；
+- 当前且有权查看报修的租户负责确认关闭或重新打开；
+- 只有仍在租约中的报修创建人可以修改或取消尚未处理的报修；
+- 已离开的报修创建人保留本人历史记录的只读访问，不能继续发送消息或执行状态操作；
+- 已关闭或已取消报修的消息线程只读；
+- 消息作者可以编辑自己的消息，消息作者或房东可以软删除消息；
+- 软删除正文保留在数据库中用于审计，但不会通过页面使用的应用 DTO 返回；
+- 对私密报修的查询和写入，不向无权用户区分“记录不存在”和“没有权限”，防止通过 ID 猜测其存在。
+
 ## 9. 概念数据模型
 
 以下是概念关系，不代表最终数据库字段已经冻结：
@@ -275,7 +286,8 @@ SharedBill  1──* Attachment
 ```text
 RentConnect
 ├── RentConnect                 Blazor UI、Identity 页面、组合根
-├── RentConnect.Core            业务实体、值对象、规则和抽象接口
+├── RentConnect.Application     页面用例接口、命令和只读 DTO
+├── RentConnect.Core            业务实体、值对象和纯业务规则
 ├── RentConnect.Infrastructure  EF Core、SQL Server、文件、邮件和接口实现
 ├── RentConnect.UnitTests       纯业务规则的快速测试
 └── RentConnect.IntegrationTests 数据库、Identity 和跨层集成测试
@@ -285,8 +297,9 @@ RentConnect
 
 ```text
 RentConnect.Core → 不依赖其他项目
-RentConnect.Infrastructure → RentConnect.Core
-RentConnect → RentConnect.Core + RentConnect.Infrastructure
+RentConnect.Application → RentConnect.Core
+RentConnect.Infrastructure → RentConnect.Application + RentConnect.Core
+RentConnect → RentConnect.Application + RentConnect.Infrastructure
 RentConnect.UnitTests → RentConnect.Core
 RentConnect.IntegrationTests → 被测试项目
 ```
@@ -296,6 +309,7 @@ Core 中不引用 Blazor、Entity Framework Core、SQL Server 或 Azure SDK。
 ### 10.3 模型归属
 
 - Domain Entity、Value Object、业务枚举和业务规则放入 Core；
+- 页面用例接口、输入命令和输出 DTO 放入 Application；
 - `DbContext`、EF 映射、Migration 和 Repository 实现放入 Infrastructure；
 - 页面表单、展示模型和 UI 状态放入 Blazor 项目；
 - 外部服务返回的数据使用专门 DTO，不直接污染 Domain Entity。

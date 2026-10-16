@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="RentConnect.Application/RentConnect.Application.csproj" />
   <Project Path="RentConnect.Core/RentConnect.Core.csproj" />
   <Project Path="RentConnect.Infrastructure/RentConnect.Infrastructure.csproj" />
   <Project Path="RentConnect.IntegrationTests/RentConnect.IntegrationTests.csproj" />
