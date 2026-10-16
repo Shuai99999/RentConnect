@@ -32,6 +32,12 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
+builder.Services.AddSingleton<IMaintenanceAttachmentStorage>(
+    _ => new LocalMaintenanceAttachmentStorage(
+        Path.Combine(
+            builder.Environment.ContentRootPath,
+            "App_Data",
+            "MaintenanceAttachments")));
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
