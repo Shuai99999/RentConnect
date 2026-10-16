@@ -201,6 +201,139 @@
             </ol>
         </section>
 
+        @if (HasAvailableStatusActions())
+        {
+            <section class="content-card action-card">
+                <div class="section-heading">
+                    <h2>Request actions</h2>
+                    <p>
+                        Available actions depend on your role and the
+                        current request status.
+                    </p>
+                </div>
+
+                <div class="status-action-buttons">
+                    @if (_request.Permissions.CanAcknowledge)
+                    {
+                        <button type="button"
+                                class="action-button"
+                                @onclick="() => SelectStatusAction(MaintenanceAction.Acknowledge)">
+                            Acknowledge
+                        </button>
+                    }
+
+                    @if (_request.Permissions.CanSchedule)
+                    {
+                        <button type="button"
+                                class="action-button"
+                                @onclick="() => SelectStatusAction(MaintenanceAction.Schedule)">
+                            Schedule Visit
+                        </button>
+                    }
+
+                    @if (_request.Permissions.CanStartWork)
+                    {
+                        <button type="button"
+                                class="action-button"
+                                @onclick="() => SelectStatusAction(MaintenanceAction.StartWork)">
+                            Start Work
+                        </button>
+                    }
+
+                    @if (_request.Permissions.CanResolve)
+                    {
+                        <button type="button"
+                                class="action-button"
+                                @onclick="() => SelectStatusAction(MaintenanceAction.Resolve)">
+                            Resolve
+                        </button>
+                    }
+
+                    @if (_request.Permissions.CanClose)
+                    {
+                        <button type="button"
+                                class="action-button"
+                                @onclick="() => SelectStatusAction(MaintenanceAction.Close)">
+                            Close Request
+                        </button>
+                    }
+
+                    @if (_request.Permissions.CanReopen)
+                    {
+                        <button type="button"
+                                class="action-button"
+                                @onclick="() => SelectStatusAction(MaintenanceAction.Reopen)">
+                            Reopen
+                        </button>
+                    }
+
+                    @if (_request.Permissions.CanCancel)
+                    {
+                        <button type="button"
+                                class="action-button danger-outline-button"
+                                @onclick="() => SelectStatusAction(MaintenanceAction.Cancel)">
+                            Cancel Request
+                        </button>
+                    }
+                </div>
+
+                @if (_selectedStatusAction is MaintenanceAction action)
+                {
+                    <div class="status-action-editor">
+                        <h3>@GetActionTitle(action)</h3>
+
+                        <EditForm Model="StatusActionInput"
+                                  OnValidSubmit="ExecuteStatusActionAsync"
+                                  class="status-action-form">
+                            <DataAnnotationsValidator />
+
+                            @if (action == MaintenanceAction.Schedule)
+                            {
+                                <label for="scheduled-for">
+                                    Scheduled time (UTC)
+                                </label>
+
+                                <InputDate id="scheduled-for"
+                                           class="action-input"
+                                           Type="InputDateType.DateTimeLocal"
+                                           @bind-Value="StatusActionInput.ScheduledForUtc" />
+                            }
+
+                            <label for="status-note">
+                                @GetNoteLabel(action)
+                            </label>
+
+                            <InputTextArea id="status-note"
+                                           class="action-input action-note-input"
+                                           @bind-Value="StatusActionInput.Note"
+                                           placeholder="@GetNotePlaceholder(action)" />
+
+                            @if (_statusActionError is not null)
+                            {
+                                <div class="form-alert"
+                                     role="alert">
+                                    @_statusActionError
+                                </div>
+                            }
+
+                            <div class="inline-actions">
+                                <button type="submit"
+                                        class="small-primary-button">
+                                    @GetActionButtonText(action)
+                                </button>
+
+                                <button type="button"
+                                        class="text-button"
+                                        @onclick="CancelStatusAction">
+                                    Keep Current Status
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+                }
+            </section>
+        }
+
         <section class="content-card">
             <div class="section-heading">
                 <h2>Conversation</h2>
@@ -404,11 +537,16 @@
     private string? _messageActionError;
     private Guid? _editingMessageId;
     private Guid? _deleteConfirmationMessageId;
+    private MaintenanceAction? _selectedStatusAction;
+    private string? _statusActionError;
 
     private MessageInputModel MessageInput { get; set; } =
         new();
 
     private MessageInputModel EditMessageInput { get; set; } =
+        new();
+
+    private StatusActionInputModel StatusActionInput { get; set; } =
         new();
 
     protected override async Task OnParametersSetAsync()
@@ -593,6 +731,166 @@
                 _currentUserProfileId);
     }
 
+    private bool HasAvailableStatusActions()
+    {
+        if (_request is null)
+        {
+            return false;
+        }
+
+        var permissions = _request.Permissions;
+
+        return permissions.CanCancel ||
+               permissions.CanAcknowledge ||
+               permissions.CanSchedule ||
+               permissions.CanStartWork ||
+               permissions.CanResolve ||
+               permissions.CanClose ||
+               permissions.CanReopen;
+    }
+
+    private void SelectStatusAction(MaintenanceAction action)
+    {
+        _selectedStatusAction = action;
+        _statusActionError = null;
+        StatusActionInput = new();
+    }
+
+    private void CancelStatusAction()
+    {
+        _selectedStatusAction = null;
+        _statusActionError = null;
+        StatusActionInput = new();
+    }
+
+    private async Task ExecuteStatusActionAsync()
+    {
+        if (_selectedStatusAction is not MaintenanceAction action)
+        {
+            return;
+        }
+
+        _statusActionError = null;
+
+        if (action == MaintenanceAction.Schedule &&
+            StatusActionInput.ScheduledForUtc is null)
+        {
+            _statusActionError =
+                "Enter the scheduled time in UTC.";
+            return;
+        }
+
+        if (action is MaintenanceAction.Resolve or
+                MaintenanceAction.Reopen &&
+            string.IsNullOrWhiteSpace(StatusActionInput.Note))
+        {
+            _statusActionError = action == MaintenanceAction.Resolve
+                ? "Enter resolution notes."
+                : "Enter a reason for reopening the request.";
+            return;
+        }
+
+        DateTimeOffset? scheduledForUtc = null;
+
+        if (StatusActionInput.ScheduledForUtc is DateTime scheduledTime)
+        {
+            scheduledForUtc = new DateTimeOffset(
+                DateTime.SpecifyKind(
+                    scheduledTime,
+                    DateTimeKind.Utc));
+        }
+
+        try
+        {
+            await MaintenanceService.ChangeStatusAsync(
+                new ChangeMaintenanceStatusCommand(
+                    RequestId,
+                    action,
+                    scheduledForUtc,
+                    StatusActionInput.Note),
+                _currentUserProfileId);
+
+            _selectedStatusAction = null;
+            StatusActionInput = new();
+
+            await ReloadRequestAsync();
+        }
+        catch (KeyNotFoundException)
+        {
+            _statusActionError =
+                "This action is no longer available, or you do not have permission to perform it.";
+        }
+        catch (ArgumentException exception)
+        {
+            _statusActionError = exception.Message;
+        }
+        catch (InvalidOperationException exception)
+        {
+            _statusActionError = exception.Message;
+        }
+        catch (Exception exception)
+        {
+            _statusActionError =
+                "The request status could not be updated. Please try again.";
+
+            Console.Error.WriteLine(exception);
+        }
+    }
+
+    private static string GetActionTitle(MaintenanceAction action)
+    {
+        return action switch
+        {
+            MaintenanceAction.Acknowledge => "Acknowledge request",
+            MaintenanceAction.Schedule => "Schedule a visit",
+            MaintenanceAction.StartWork => "Start work",
+            MaintenanceAction.Resolve => "Resolve request",
+            MaintenanceAction.Close => "Close request",
+            MaintenanceAction.Reopen => "Reopen request",
+            MaintenanceAction.Cancel => "Cancel request",
+            _ => "Update request"
+        };
+    }
+
+    private static string GetActionButtonText(MaintenanceAction action)
+    {
+        return action switch
+        {
+            MaintenanceAction.Acknowledge => "Confirm Acknowledgement",
+            MaintenanceAction.Schedule => "Confirm Schedule",
+            MaintenanceAction.StartWork => "Confirm Start Work",
+            MaintenanceAction.Resolve => "Confirm Resolution",
+            MaintenanceAction.Close => "Confirm Close",
+            MaintenanceAction.Reopen => "Confirm Reopen",
+            MaintenanceAction.Cancel => "Confirm Cancellation",
+            _ => "Confirm"
+        };
+    }
+
+    private static string GetNoteLabel(MaintenanceAction action)
+    {
+        return action switch
+        {
+            MaintenanceAction.Resolve => "Resolution notes",
+            MaintenanceAction.Reopen => "Reason for reopening",
+            _ => "Note (optional)"
+        };
+    }
+
+    private static string GetNotePlaceholder(MaintenanceAction action)
+    {
+        return action switch
+        {
+            MaintenanceAction.Resolve =>
+                "Describe the completed repair.",
+            MaintenanceAction.Reopen =>
+                "Explain why more work is required.",
+            MaintenanceAction.Cancel =>
+                "Explain why this request is being cancelled.",
+            _ => "Add a note about this status change."
+        };
+    }
+
     private static string FormatDateTime(
         DateTimeOffset value)
     {
@@ -685,5 +983,16 @@
             ErrorMessage =
                 "The message cannot exceed {1} characters.")]
         public string Body { get; set; } = string.Empty;
+    }
+
+    private sealed class StatusActionInputModel
+    {
+        public DateTime? ScheduledForUtc { get; set; }
+
+        [StringLength(
+            MaintenanceStatusChange.MaxNoteLength,
+            ErrorMessage =
+                "The note cannot exceed {1} characters.")]
+        public string Note { get; set; } = string.Empty;
     }
 }

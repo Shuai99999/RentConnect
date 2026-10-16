@@ -173,6 +173,90 @@
     background: #f7fcf9;
 }
 
+.action-card {
+    border-color: #cfd6fa;
+    background: #fbfcff;
+}
+
+.status-action-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+}
+
+.action-button {
+    min-height: 40px;
+    padding: 0.6rem 0.9rem;
+    border: 1px solid #bcc6f5;
+    border-radius: 0.65rem;
+    background: white;
+    color: #4054c4;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+    .action-button:hover {
+        border-color: #5267d8;
+        background: #f3f5ff;
+    }
+
+.danger-outline-button {
+    border-color: #f0b4b0;
+    color: #b42318;
+}
+
+    .danger-outline-button:hover {
+        border-color: #d92d20;
+        background: #fff5f4;
+    }
+
+.status-action-editor {
+    margin-top: 1rem;
+    padding: 1rem;
+    border: 1px solid #dfe4ee;
+    border-radius: 0.8rem;
+    background: white;
+}
+
+    .status-action-editor h3 {
+        margin: 0 0 0.9rem;
+        font-size: 1rem;
+    }
+
+    .status-action-editor ::deep .status-action-form {
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    .status-action-editor label {
+        font-weight: 700;
+    }
+
+    .status-action-editor ::deep .action-input {
+        width: 100%;
+        min-height: 44px;
+        padding: 0.7rem 0.8rem;
+        border: 1px solid #cfd5e3;
+        border-radius: 0.7rem;
+        background: white;
+        color: #172033;
+        font: inherit;
+    }
+
+    .status-action-editor ::deep .action-input:focus {
+        border-color: #5267d8;
+        outline: none;
+        box-shadow: 0 0 0 3px rgb(82 103 216 / 14%);
+    }
+
+    .status-action-editor ::deep .action-note-input {
+        min-height: 95px;
+        line-height: 1.6;
+        resize: vertical;
+    }
+
 .timeline {
     position: relative;
     display: grid;
