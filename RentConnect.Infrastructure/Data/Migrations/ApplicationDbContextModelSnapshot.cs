@@ -177,6 +177,54 @@ namespace RentConnect.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("MaintenanceRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("UploadedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UploadedByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique();
+
+                    b.HasIndex("UploadedByUserProfileId");
+
+                    b.HasIndex("MaintenanceRequestId", "UploadedAtUtc");
+
+                    b.ToTable("MaintenanceAttachments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MaintenanceAttachments_FileSize", "[FileSizeBytes] > 0\r\nAND\r\n[FileSizeBytes] <= 10485760");
+                        });
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -669,6 +717,21 @@ namespace RentConnect.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceAttachment", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.MaintenanceRequest", null)
+                        .WithMany()
+                        .HasForeignKey("MaintenanceRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

@@ -34,7 +34,11 @@ public class ApplicationDbContext(
         Set<MaintenanceStatusChange>();
 
     public DbSet<MaintenanceMessage> MaintenanceMessages =>
-    Set<MaintenanceMessage>();
+        Set<MaintenanceMessage>();
+
+    public DbSet<MaintenanceAttachment>
+        MaintenanceAttachments =>
+        Set<MaintenanceAttachment>();
 
     protected override void OnModelCreating(
         ModelBuilder builder)
