@@ -34,3 +34,12 @@ public sealed record ChangeMaintenanceStatusCommand(
     MaintenanceAction Action,
     DateTimeOffset? ScheduledForUtc = null,
     string? Note = null);
+
+public sealed record AddMaintenanceAttachmentCommand(
+    Guid MaintenanceRequestId,
+    string OriginalFileName,
+    string ContentType,
+    Stream Content);
+
+public sealed record DeleteMaintenanceAttachmentCommand(
+    Guid AttachmentId);

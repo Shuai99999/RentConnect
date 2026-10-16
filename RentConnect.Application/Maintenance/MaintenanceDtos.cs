@@ -37,8 +37,23 @@ public sealed record MaintenanceMessageItem(
     bool CanEdit,
     bool CanDelete);
 
+public sealed record MaintenanceAttachmentItem(
+    Guid Id,
+    Guid UploadedByUserProfileId,
+    string OriginalFileName,
+    string ContentType,
+    long FileSizeBytes,
+    DateTimeOffset UploadedAtUtc,
+    bool CanDelete);
+
+public sealed record MaintenanceAttachmentDownload(
+    string OriginalFileName,
+    string ContentType,
+    Stream Content);
+
 public sealed record MaintenancePermissions(
     bool CanPostMessage,
+    bool CanAddAttachment,
     bool CanUpdateDetails,
     bool CanCancel,
     bool CanAcknowledge,
@@ -64,4 +79,5 @@ public sealed record MaintenanceRequestDetails(
     string? ResolutionNotes,
     IReadOnlyList<MaintenanceStatusChangeItem> StatusHistory,
     IReadOnlyList<MaintenanceMessageItem> Messages,
+    IReadOnlyList<MaintenanceAttachmentItem> Attachments,
     MaintenancePermissions Permissions);

@@ -61,6 +61,31 @@ public static class MaintenanceAccessPolicy
                 access.IsPropertyOwner);
     }
 
+    public static bool CanAddAttachment(
+        MaintenanceRequest request,
+        MaintenanceAccessContext access)
+    {
+        return CanView(request, access) &&
+               (access.IsPropertyOwner ||
+                access.IsActiveTenancyMember) &&
+               request.Status is not MaintenanceStatus.Closed and
+                   not MaintenanceStatus.Cancelled;
+    }
+
+    public static bool CanDeleteAttachment(
+        MaintenanceRequest request,
+        MaintenanceAttachment attachment,
+        MaintenanceAccessContext access)
+    {
+        ArgumentNullException.ThrowIfNull(attachment);
+
+        return CanAddAttachment(request, access) &&
+               attachment.MaintenanceRequestId == request.Id &&
+               (attachment.UploadedByUserProfileId ==
+                    access.UserProfileId ||
+                access.IsPropertyOwner);
+    }
+
     public static bool CanUpdateDetails(
         MaintenanceRequest request,
         MaintenanceAccessContext access)

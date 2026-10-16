@@ -134,6 +134,99 @@ public class MaintenanceAccessPolicyTests
     }
 
     [Fact]
+    public void CanAddAttachment_AllowsActiveParticipantAndOwner()
+    {
+        var request = CreateRequest();
+        var activeTenant =
+            CreateAccess(isActiveMember: true);
+        var owner =
+            CreateAccess(isOwner: true);
+
+        Assert.True(
+            MaintenanceAccessPolicy.CanAddAttachment(
+                request,
+                activeTenant));
+
+        Assert.True(
+            MaintenanceAccessPolicy.CanAddAttachment(
+                request,
+                owner));
+    }
+
+    [Fact]
+    public void CanAddAttachment_DeniesUnrelatedAndFormerUsers()
+    {
+        var request = CreateRequest();
+        var unrelatedUser = CreateAccess();
+        var formerReporter =
+            CreateAccess(
+                request.CreatedByUserProfileId);
+
+        Assert.False(
+            MaintenanceAccessPolicy.CanAddAttachment(
+                request,
+                unrelatedUser));
+
+        Assert.False(
+            MaintenanceAccessPolicy.CanAddAttachment(
+                request,
+                formerReporter));
+    }
+
+    [Fact]
+    public void CanAddAttachment_ClosedRequest_DeniesParticipants()
+    {
+        var request = CreateResolvedRequest();
+
+        request.Close(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            CreatedAtUtc.AddHours(5));
+
+        Assert.False(
+            MaintenanceAccessPolicy.CanAddAttachment(
+                request,
+                CreateAccess(isOwner: true)));
+
+        Assert.False(
+            MaintenanceAccessPolicy.CanAddAttachment(
+                request,
+                CreateAccess(isActiveMember: true)));
+    }
+
+    [Fact]
+    public void CanDeleteAttachment_AllowsUploaderOrOwner()
+    {
+        var request = CreateRequest();
+        var uploaderId = Guid.NewGuid();
+
+        var attachment =
+            CreateAttachment(
+                request.Id,
+                uploaderId);
+
+        Assert.True(
+            MaintenanceAccessPolicy.CanDeleteAttachment(
+                request,
+                attachment,
+                CreateAccess(
+                    uploaderId,
+                    isActiveMember: true)));
+
+        Assert.True(
+            MaintenanceAccessPolicy.CanDeleteAttachment(
+                request,
+                attachment,
+                CreateAccess(isOwner: true)));
+
+        Assert.False(
+            MaintenanceAccessPolicy.CanDeleteAttachment(
+                request,
+                attachment,
+                CreateAccess(isActiveMember: true)));
+    }
+
+    [Fact]
     public void ReporterActions_RequireActiveReporter()
     {
         var request = CreateRequest();
@@ -262,6 +355,21 @@ public class MaintenanceAccessPolicyTests
             MaintenancePriority.High,
             visibility,
             CreatedAtUtc);
+    }
+
+    private static MaintenanceAttachment CreateAttachment(
+        Guid requestId,
+        Guid uploaderId)
+    {
+        return new MaintenanceAttachment(
+            Guid.NewGuid(),
+            requestId,
+            uploaderId,
+            "photo.jpg",
+            "image/jpeg",
+            1024,
+            $"maintenance/{requestId:N}/{Guid.NewGuid():N}.jpg",
+            CreatedAtUtc.AddMinutes(1));
     }
 
     private static MaintenanceMessage CreateMessage(

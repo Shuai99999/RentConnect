@@ -17,6 +17,10 @@ public sealed class RentalManagementPersistenceTests
     public async Task CanPersistAndReloadRentalManagementGraph()
     {
         var connectionString = CreateConnectionString();
+        var attachmentStorageRoot = Path.Combine(
+            Path.GetTempPath(),
+            "RentConnectIntegrationAttachments",
+            Guid.NewGuid().ToString("N"));
 
         await using var serviceProvider =
             CreateServiceProvider(connectionString);
@@ -416,10 +420,15 @@ public sealed class RentalManagementPersistenceTests
                             0,
                             TimeSpan.Zero));
 
+                var attachmentStorage =
+                    new LocalMaintenanceAttachmentStorage(
+                        attachmentStorageRoot);
+
                 var maintenanceService =
                     new MaintenanceService(
                         context,
-                        testClock);
+                        testClock,
+                        attachmentStorage);
 
                 var tenantTenancies =
                     await maintenanceService
@@ -652,6 +661,165 @@ public sealed class RentalManagementPersistenceTests
                     MaintenancePriority.High,
                     serviceCreatedDetails.Priority);
 
+                await using (var invalidImage =
+                             new MemoryStream([1, 2, 3, 4]))
+                {
+                    await Assert.ThrowsAsync<ArgumentException>(
+                        () => maintenanceService.AddAttachmentAsync(
+                            new AddMaintenanceAttachmentCommand(
+                                serviceCreatedRequestId,
+                                "not-really-a-photo.png",
+                                "image/png",
+                                invalidImage),
+                            tenantProfileId));
+                }
+
+                await using (var oversizedImage =
+                             new MemoryStream(
+                                 new byte[
+                                     (int)MaintenanceAttachment
+                                         .MaxFileSizeBytes + 1]))
+                {
+                    await Assert.ThrowsAsync<
+                        ArgumentOutOfRangeException>(
+                        () => maintenanceService.AddAttachmentAsync(
+                            new AddMaintenanceAttachmentCommand(
+                                serviceCreatedRequestId,
+                                "oversized.png",
+                                "image/png",
+                                oversizedImage),
+                            tenantProfileId));
+                }
+
+                byte[] pngContent =
+                [
+                    0x89,
+                    0x50,
+                    0x4E,
+                    0x47,
+                    0x0D,
+                    0x0A,
+                    0x1A,
+                    0x0A,
+                    0x01,
+                    0x02,
+                    0x03
+                ];
+
+                Guid attachmentId;
+
+                await using (var imageContent =
+                             new MemoryStream(pngContent))
+                {
+                    attachmentId =
+                        await maintenanceService
+                            .AddAttachmentAsync(
+                                new AddMaintenanceAttachmentCommand(
+                                    serviceCreatedRequestId,
+                                    @"C:\fakepath\bathroom-fan.png",
+                                    "IMAGE/PNG",
+                                    imageContent),
+                                tenantProfileId);
+                }
+
+                var savedAttachment =
+                    await context.MaintenanceAttachments
+                        .AsNoTracking()
+                        .SingleAsync(
+                            attachment =>
+                                attachment.Id == attachmentId);
+
+                Assert.Equal(
+                    "bathroom-fan.png",
+                    savedAttachment.OriginalFileName);
+                Assert.Equal(
+                    "image/png",
+                    savedAttachment.ContentType);
+                Assert.Equal(
+                    pngContent.Length,
+                    savedAttachment.FileSizeBytes);
+
+                var roommateAttachmentDetails =
+                    await maintenanceService.GetDetailsAsync(
+                        serviceCreatedRequestId,
+                        roommateProfileId);
+
+                Assert.NotNull(roommateAttachmentDetails);
+
+                var roommateAttachment =
+                    Assert.Single(
+                        roommateAttachmentDetails.Attachments);
+
+                Assert.Equal(
+                    attachmentId,
+                    roommateAttachment.Id);
+                Assert.False(roommateAttachment.CanDelete);
+
+                var tenantAttachmentDetails =
+                    await maintenanceService.GetDetailsAsync(
+                        serviceCreatedRequestId,
+                        tenantProfileId);
+
+                Assert.NotNull(tenantAttachmentDetails);
+                Assert.True(
+                    Assert.Single(
+                            tenantAttachmentDetails.Attachments)
+                        .CanDelete);
+
+                var ownerDownload =
+                    await maintenanceService.OpenAttachmentAsync(
+                        attachmentId,
+                        ownerProfileId);
+
+                Assert.NotNull(ownerDownload);
+                Assert.Equal(
+                    "bathroom-fan.png",
+                    ownerDownload.OriginalFileName);
+                Assert.Equal(
+                    "image/png",
+                    ownerDownload.ContentType);
+
+                await using (ownerDownload.Content)
+                {
+                    using var downloadedContent =
+                        new MemoryStream();
+
+                    await ownerDownload.Content.CopyToAsync(
+                        downloadedContent);
+
+                    Assert.Equal(
+                        pngContent,
+                        downloadedContent.ToArray());
+                }
+
+                Assert.Null(
+                    await maintenanceService.OpenAttachmentAsync(
+                        attachmentId,
+                        unrelatedProfileId));
+
+                await Assert.ThrowsAsync<KeyNotFoundException>(
+                    () => maintenanceService.DeleteAttachmentAsync(
+                        new DeleteMaintenanceAttachmentCommand(
+                            attachmentId),
+                        roommateProfileId));
+
+                await maintenanceService.DeleteAttachmentAsync(
+                    new DeleteMaintenanceAttachmentCommand(
+                        attachmentId),
+                    ownerProfileId);
+
+                Assert.False(
+                    await context.MaintenanceAttachments
+                        .AnyAsync(
+                            attachment =>
+                                attachment.Id == attachmentId));
+
+                await using var deletedContent =
+                    await attachmentStorage.OpenReadAsync(
+                        savedAttachment.StorageKey);
+
+                Assert.Null(deletedContent);
+
                 await Assert.ThrowsAsync<KeyNotFoundException>(
                     () => maintenanceService.CreateAsync(
                         new CreateMaintenanceRequestCommand(
@@ -666,15 +834,27 @@ public sealed class RentalManagementPersistenceTests
         }
         finally
         {
-            await using var scope =
-                serviceProvider.CreateAsyncScope();
+            try
+            {
+                await using var scope =
+                    serviceProvider.CreateAsyncScope();
 
-            var cleanupContext =
-                scope.ServiceProvider
-                    .GetRequiredService<ApplicationDbContext>();
+                var cleanupContext =
+                    scope.ServiceProvider
+                        .GetRequiredService<ApplicationDbContext>();
 
-            await cleanupContext.Database
-                .EnsureDeletedAsync();
+                await cleanupContext.Database
+                    .EnsureDeletedAsync();
+            }
+            finally
+            {
+                if (Directory.Exists(attachmentStorageRoot))
+                {
+                    Directory.Delete(
+                        attachmentStorageRoot,
+                        recursive: true);
+                }
+            }
         }
     }
 

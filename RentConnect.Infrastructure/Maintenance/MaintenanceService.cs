@@ -9,7 +9,8 @@ namespace RentConnect.Infrastructure.Maintenance;
 
 public sealed class MaintenanceService(
     ApplicationDbContext context,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IMaintenanceAttachmentStorage attachmentStorage)
     : IMaintenanceService
 {
     public async Task<IReadOnlyList<MaintenanceTenancyOption>>
@@ -145,6 +146,16 @@ public sealed class MaintenanceService(
             .OrderBy(message => message.CreatedAtUtc)
             .ToArrayAsync(cancellationToken);
 
+        var attachments =
+            await context.MaintenanceAttachments
+                .AsNoTracking()
+                .Where(attachment =>
+                    attachment.MaintenanceRequestId ==
+                        request.Id)
+                .OrderBy(attachment =>
+                    attachment.UploadedAtUtc)
+                .ToArrayAsync(cancellationToken);
+
         var statusHistory = request.StatusHistory
             .OrderBy(change => change.ChangedAtUtc)
             .Select(change => new MaintenanceStatusChangeItem(
@@ -176,6 +187,22 @@ public sealed class MaintenanceService(
                     access)))
             .ToArray();
 
+        var attachmentItems = attachments
+            .Select(attachment =>
+                new MaintenanceAttachmentItem(
+                    attachment.Id,
+                    attachment.UploadedByUserProfileId,
+                    attachment.OriginalFileName,
+                    attachment.ContentType,
+                    attachment.FileSizeBytes,
+                    attachment.UploadedAtUtc,
+                    MaintenanceAccessPolicy
+                        .CanDeleteAttachment(
+                            request,
+                            attachment,
+                            access)))
+            .ToArray();
+
         return new MaintenanceRequestDetails(
             request.Id,
             request.TenancyId,
@@ -192,6 +219,7 @@ public sealed class MaintenanceService(
             request.ResolutionNotes,
             statusHistory,
             messageItems,
+            attachmentItems,
             CreatePermissions(request, access));
     }
 
@@ -367,6 +395,188 @@ public sealed class MaintenanceService(
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> AddAttachmentAsync(
+        AddMaintenanceAttachmentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureUserProfileId(userProfileId);
+
+        var request = await GetRequestAsync(
+            command.MaintenanceRequestId,
+            includeStatusHistory: false,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            request,
+            userProfileId,
+            cancellationToken);
+
+        Demand(
+            MaintenanceAccessPolicy.CanAddAttachment(
+                request,
+                access));
+
+        var normalizedContentType =
+            NormalizeImageContentType(command.ContentType);
+
+        await using var bufferedContent =
+            await BufferAndValidateImageAsync(
+                command.Content,
+                normalizedContentType,
+                cancellationToken);
+
+        var attachmentId = Guid.NewGuid();
+        var storageKey = CreateStorageKey(
+            request.Id,
+            attachmentId,
+            normalizedContentType);
+
+        var attachment = new MaintenanceAttachment(
+            attachmentId,
+            request.Id,
+            userProfileId,
+            command.OriginalFileName,
+            normalizedContentType,
+            bufferedContent.Length,
+            storageKey,
+            timeProvider.GetUtcNow());
+
+        var fileWasStored = false;
+
+        try
+        {
+            await attachmentStorage.SaveAsync(
+                storageKey,
+                bufferedContent,
+                cancellationToken);
+
+            fileWasStored = true;
+            context.MaintenanceAttachments.Add(attachment);
+
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            var entry = context.Entry(attachment);
+
+            if (entry.State != EntityState.Detached)
+            {
+                entry.State = EntityState.Detached;
+            }
+
+            if (fileWasStored)
+            {
+                try
+                {
+                    await attachmentStorage.DeleteAsync(
+                        storageKey,
+                        CancellationToken.None);
+                }
+                catch
+                {
+                    // Preserve the original failure. Orphaned files can be
+                    // removed by a maintenance cleanup process.
+                }
+            }
+
+            throw;
+        }
+
+        return attachment.Id;
+    }
+
+    public async Task<MaintenanceAttachmentDownload?>
+        OpenAttachmentAsync(
+            Guid attachmentId,
+            Guid userProfileId,
+            CancellationToken cancellationToken = default)
+    {
+        EnsureId(attachmentId, nameof(attachmentId));
+        EnsureUserProfileId(userProfileId);
+
+        var attachment = await context.MaintenanceAttachments
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.Id == attachmentId,
+                cancellationToken);
+
+        if (attachment is null)
+        {
+            return null;
+        }
+
+        var request = await context.MaintenanceRequests
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item =>
+                    item.Id == attachment.MaintenanceRequestId,
+                cancellationToken);
+
+        if (request is null)
+        {
+            return null;
+        }
+
+        var access = await CreateAccessContextAsync(
+            request,
+            userProfileId,
+            cancellationToken);
+
+        if (!MaintenanceAccessPolicy.CanView(request, access))
+        {
+            return null;
+        }
+
+        var content = await attachmentStorage.OpenReadAsync(
+            attachment.StorageKey,
+            cancellationToken);
+
+        if (content is null)
+        {
+            return null;
+        }
+
+        return new MaintenanceAttachmentDownload(
+            attachment.OriginalFileName,
+            attachment.ContentType,
+            content);
+    }
+
+    public async Task DeleteAttachmentAsync(
+        DeleteMaintenanceAttachmentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureUserProfileId(userProfileId);
+
+        var attachment = await GetAttachmentAsync(
+            command.AttachmentId,
+            cancellationToken);
+        var request = await GetRequestAsync(
+            attachment.MaintenanceRequestId,
+            includeStatusHistory: false,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            request,
+            userProfileId,
+            cancellationToken);
+
+        Demand(
+            MaintenanceAccessPolicy.CanDeleteAttachment(
+                request,
+                attachment,
+                access));
+
+        context.MaintenanceAttachments.Remove(attachment);
+        await context.SaveChangesAsync(cancellationToken);
+
+        await attachmentStorage.DeleteAsync(
+            attachment.StorageKey,
+            cancellationToken);
+    }
+
     public async Task ChangeStatusAsync(
         ChangeMaintenanceStatusCommand command,
         Guid userProfileId,
@@ -532,6 +742,21 @@ public sealed class MaintenanceService(
                    "The maintenance resource was not found.");
     }
 
+    private async Task<MaintenanceAttachment> GetAttachmentAsync(
+        Guid attachmentId,
+        CancellationToken cancellationToken)
+    {
+        EnsureId(attachmentId, nameof(attachmentId));
+
+        return await context.MaintenanceAttachments
+                   .SingleOrDefaultAsync(
+                       attachment =>
+                           attachment.Id == attachmentId,
+                       cancellationToken)
+               ?? throw new KeyNotFoundException(
+                   "The maintenance resource was not found.");
+    }
+
     private async Task<MaintenanceAccessContext>
         CreateAccessContextAsync(
             MaintenanceRequest request,
@@ -590,6 +815,7 @@ public sealed class MaintenanceService(
     {
         return new MaintenancePermissions(
             MaintenanceAccessPolicy.CanPostMessage(request, access),
+            MaintenanceAccessPolicy.CanAddAttachment(request, access),
             MaintenanceAccessPolicy.CanUpdateDetails(request, access),
             MaintenanceAccessPolicy.CanCancel(request, access),
             MaintenanceAccessPolicy.CanAcknowledge(request, access),
@@ -598,6 +824,171 @@ public sealed class MaintenanceService(
             MaintenanceAccessPolicy.CanResolve(request, access),
             MaintenanceAccessPolicy.CanClose(request, access),
             MaintenanceAccessPolicy.CanReopen(request, access));
+    }
+
+    private static async Task<MemoryStream>
+        BufferAndValidateImageAsync(
+            Stream content,
+            string contentType,
+            CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        if (!content.CanRead)
+        {
+            throw new ArgumentException(
+                "The attachment stream must be readable.",
+                nameof(content));
+        }
+
+        var bufferedContent = new MemoryStream();
+        var buffer = new byte[81920];
+
+        try
+        {
+            while (true)
+            {
+                var bytesRead = await content.ReadAsync(
+                    buffer.AsMemory(),
+                    cancellationToken);
+
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                if (bufferedContent.Length + bytesRead >
+                    MaintenanceAttachment.MaxFileSizeBytes)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(content),
+                        $"Attachment size cannot exceed {MaintenanceAttachment.MaxFileSizeBytes} bytes.");
+                }
+
+                await bufferedContent.WriteAsync(
+                    buffer.AsMemory(0, bytesRead),
+                    cancellationToken);
+            }
+
+            if (bufferedContent.Length == 0)
+            {
+                throw new ArgumentException(
+                    "The attachment cannot be empty.",
+                    nameof(content));
+            }
+
+            if (!bufferedContent.TryGetBuffer(
+                    out var contentBuffer))
+            {
+                throw new InvalidOperationException(
+                    "The attachment buffer could not be inspected.");
+            }
+
+            var headerLength = (int)Math.Min(
+                12,
+                bufferedContent.Length);
+
+            if (!HasValidImageSignature(
+                    contentType,
+                    contentBuffer.AsSpan(0, headerLength)))
+            {
+                throw new ArgumentException(
+                    "The file content does not match its declared image type.",
+                    nameof(content));
+            }
+
+            bufferedContent.Position = 0;
+            return bufferedContent;
+        }
+        catch
+        {
+            await bufferedContent.DisposeAsync();
+            throw;
+        }
+    }
+
+    private static string NormalizeImageContentType(
+        string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            throw new ArgumentException(
+                "Content type is required.",
+                nameof(contentType));
+        }
+
+        var normalizedContentType =
+            contentType.Trim().ToLowerInvariant();
+
+        if (normalizedContentType is not
+            ("image/jpeg" or
+             "image/png" or
+             "image/webp"))
+        {
+            throw new ArgumentException(
+                "Only JPEG, PNG, and WebP images are supported.",
+                nameof(contentType));
+        }
+
+        return normalizedContentType;
+    }
+
+    private static bool HasValidImageSignature(
+        string contentType,
+        ReadOnlySpan<byte> header)
+    {
+        return contentType switch
+        {
+            "image/jpeg" =>
+                header.Length >= 3 &&
+                header[0] == 0xFF &&
+                header[1] == 0xD8 &&
+                header[2] == 0xFF,
+
+            "image/png" =>
+                header.Length >= 8 &&
+                header[0] == 0x89 &&
+                header[1] == 0x50 &&
+                header[2] == 0x4E &&
+                header[3] == 0x47 &&
+                header[4] == 0x0D &&
+                header[5] == 0x0A &&
+                header[6] == 0x1A &&
+                header[7] == 0x0A,
+
+            "image/webp" =>
+                header.Length >= 12 &&
+                header[0] == 0x52 &&
+                header[1] == 0x49 &&
+                header[2] == 0x46 &&
+                header[3] == 0x46 &&
+                header[8] == 0x57 &&
+                header[9] == 0x45 &&
+                header[10] == 0x42 &&
+                header[11] == 0x50,
+
+            _ => false
+        };
+    }
+
+    private static string CreateStorageKey(
+        Guid maintenanceRequestId,
+        Guid attachmentId,
+        string contentType)
+    {
+        var extension = contentType switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(contentType),
+                contentType,
+                "The image content type is unsupported.")
+        };
+
+        return
+            $"maintenance/{maintenanceRequestId:N}/{attachmentId:N}{extension}";
     }
 
     private DateOnly GetToday()
