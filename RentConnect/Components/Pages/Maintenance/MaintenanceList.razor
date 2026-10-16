@@ -1,0 +1,217 @@
+﻿@page "/maintenance"
+@attribute [Authorize]
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Maintenance
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject IMaintenanceService MaintenanceService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>Maintenance Requests</PageTitle>
+
+<main class="maintenance-page">
+    <header class="page-header">
+        <div>
+            <p class="page-eyebrow">Rental Management</p>
+            <h1>Maintenance Requests</h1>
+            <p class="page-description">
+                Report issues, follow repair progress, and keep everyone informed.
+            </p>
+        </div>
+
+        <a class="primary-button" href="/maintenance/new">
+            New Request
+        </a>
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="state-panel">
+            <p>Loading maintenance requests...</p>
+        </div>
+    }
+    else if (_errorMessage is not null)
+    {
+        <div class="state-panel error-panel" role="alert">
+            <h2>Unable to load requests</h2>
+            <p>@_errorMessage</p>
+        </div>
+    }
+    else if (_requests.Count == 0)
+    {
+        <div class="state-panel empty-panel">
+            <div class="empty-icon" aria-hidden="true">✓</div>
+
+            <h2>No maintenance requests yet</h2>
+
+            <p>
+                Requests submitted by you or your roommates
+                will appear here.
+            </p>
+
+            <a class="secondary-button" href="/maintenance/new">
+                Create your first request
+            </a>
+        </div>
+    }
+    else
+    {
+        <section class="request-grid"
+                 aria-label="Maintenance requests">
+            @foreach (var request in _requests)
+            {
+                <a class="request-card"
+                   href="@($"/maintenance/{request.Id}")">
+                    <div class="card-heading">
+                        <span class="status-badge @GetStatusCssClass(request.Status)">
+                            @GetStatusText(request.Status)
+                        </span>
+
+                        @if (request.Visibility ==
+                             MaintenanceVisibility.PrivateToReporterAndManagement)
+                        {
+                            <span class="private-badge">
+                                Private
+                            </span>
+                        }
+                    </div>
+
+                    <h2>@request.Title</h2>
+
+                    <dl class="request-metadata">
+                        <div>
+                            <dt>Category</dt>
+                            <dd>
+                                @GetCategoryText(request.Category)
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt>Priority</dt>
+                            <dd class="@GetPriorityCssClass(request.Priority)">
+                                @GetPriorityText(request.Priority)
+                            </dd>
+                        </div>
+
+                        <div>
+                            <dt>Last updated</dt>
+                            <dd>
+                                @request.UpdatedAtUtc.ToString("MMM d, yyyy HH:mm")
+                                UTC
+                            </dd>
+                        </div>
+                    </dl>
+                </a>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<MaintenanceRequestSummary> _requests =
+        [];
+
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var userProfileId =
+                await CurrentUserProfileService
+                    .GetRequiredUserProfileIdAsync();
+
+            _requests =
+                await MaintenanceService
+                    .GetVisibleRequestsAsync(userProfileId);
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                "Please try again. If the problem continues, contact support.";
+
+            Console.Error.WriteLine(exception);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string GetStatusText(
+        MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Submitted => "Submitted",
+            MaintenanceStatus.Acknowledged => "Acknowledged",
+            MaintenanceStatus.Scheduled => "Scheduled",
+            MaintenanceStatus.InProgress => "In progress",
+            MaintenanceStatus.Resolved => "Resolved",
+            MaintenanceStatus.Closed => "Closed",
+            MaintenanceStatus.Cancelled => "Cancelled",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetStatusCssClass(
+        MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Submitted => "status-submitted",
+            MaintenanceStatus.Acknowledged => "status-acknowledged",
+            MaintenanceStatus.Scheduled => "status-scheduled",
+            MaintenanceStatus.InProgress => "status-in-progress",
+            MaintenanceStatus.Resolved => "status-resolved",
+            MaintenanceStatus.Closed => "status-closed",
+            MaintenanceStatus.Cancelled => "status-cancelled",
+            _ => string.Empty
+        };
+    }
+
+    private static string GetCategoryText(
+        MaintenanceCategory category)
+    {
+        return category switch
+        {
+            MaintenanceCategory.Plumbing => "Plumbing",
+            MaintenanceCategory.Electrical => "Electrical",
+            MaintenanceCategory.HeatingCooling => "Heating and cooling",
+            MaintenanceCategory.LocksAndSecurity => "Locks and security",
+            MaintenanceCategory.Appliance => "Appliance",
+            MaintenanceCategory.Structural => "Structural",
+            MaintenanceCategory.PestControl => "Pest control",
+            MaintenanceCategory.Internet => "Internet",
+            MaintenanceCategory.Other => "Other",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetPriorityText(
+        MaintenancePriority priority)
+    {
+        return priority switch
+        {
+            MaintenancePriority.Low => "Low",
+            MaintenancePriority.Normal => "Normal",
+            MaintenancePriority.High => "High",
+            MaintenancePriority.Emergency => "Emergency",
+            _ => "Unknown"
+        };
+    }
+
+    private static string GetPriorityCssClass(
+        MaintenancePriority priority)
+    {
+        return priority switch
+        {
+            MaintenancePriority.High => "priority-high",
+            MaintenancePriority.Emergency => "priority-emergency",
+            _ => string.Empty
+        };
+    }
+}

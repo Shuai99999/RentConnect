@@ -6,6 +6,7 @@ using RentConnect.Components;
 using RentConnect.Components.Account;
 using RentConnect.Data;
 using RentConnect.Infrastructure.Maintenance;
+using RentConnect.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -14,6 +15,7 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<CurrentUserProfileService>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 
