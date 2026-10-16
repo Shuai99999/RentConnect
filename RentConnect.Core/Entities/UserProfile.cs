@@ -13,7 +13,7 @@ public sealed class UserProfile
 
     public UserProfile(Guid id, string displayName)
     {
-        if(id == Guid.Empty)
+        if (id == Guid.Empty)
         {
             throw new ArgumentException(
                 "User profile ID cannot be empty.",
@@ -30,7 +30,7 @@ public sealed class UserProfile
 
     public void Rename(string displayName)
     {
-       SetDisplayName(displayName);
+        SetDisplayName(displayName);
     }
 
     private void SetDisplayName(string displayName)
