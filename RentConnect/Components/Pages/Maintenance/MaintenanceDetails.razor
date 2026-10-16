@@ -6,6 +6,8 @@
 @using RentConnect.Application.Maintenance
 @using RentConnect.Core.Enums
 @using RentConnect.Services
+@using System.ComponentModel.DataAnnotations
+@using RentConnect.Core.Entities
 
 @inject IMaintenanceService MaintenanceService
 @inject CurrentUserProfileService CurrentUserProfileService
@@ -255,6 +257,52 @@
                     }
                 </div>
             }
+
+            @if (_request.Permissions.CanPostMessage)
+            {
+                <div class="message-composer">
+                    <EditForm Model="MessageInput"
+                              method="post"
+                              OnValidSubmit="PostMessageAsync"
+                              FormName="post-maintenance-message"
+                              class="message-form">
+                        <DataAnnotationsValidator />
+
+                        <label for="message-body">
+                            Message
+                        </label>
+
+                        <InputTextArea id="message-body"
+                                       class="message-input"
+                                       @bind-Value="MessageInput.Body"
+                                       placeholder="Share an update or ask a question." />
+
+                        <ValidationMessage For="() => MessageInput.Body"
+                                           class="field-validation" />
+
+                        @if (_messageError is not null)
+                        {
+                            <div class="form-alert"
+                                 role="alert">
+                                @_messageError
+                            </div>
+                        }
+
+                        <div class="message-form-actions">
+                            <button type="submit"
+                                    class="primary-button">
+                                Post Message
+                            </button>
+                        </div>
+                    </EditForm>
+                </div>
+            }
+            else
+            {
+                <div class="conversation-closed">
+                    New messages cannot be posted to this request.
+                </div>
+            }
         </section>
     }
 </main>
@@ -267,9 +315,16 @@
     private Guid _currentUserProfileId;
     private bool _isLoading = true;
     private string? _errorMessage;
+    private string? _messageError;
+
+    [SupplyParameterFromForm]
+    private MessageInputModel MessageInput { get; set; } =
+        default!;
 
     protected override async Task OnParametersSetAsync()
     {
+        MessageInput ??= new();
+
         _isLoading = true;
         _request = null;
         _errorMessage = null;
@@ -295,6 +350,43 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private async Task PostMessageAsync()
+    {
+        _messageError = null;
+
+        try
+        {
+            await MaintenanceService.AddMessageAsync(
+                new AddMaintenanceMessageCommand(
+                    RequestId,
+                    MessageInput.Body),
+                _currentUserProfileId);
+
+            MessageInput = new();
+
+            _request =
+                await MaintenanceService.GetDetailsAsync(
+                    RequestId,
+                    _currentUserProfileId);
+        }
+        catch (KeyNotFoundException)
+        {
+            _messageError =
+                "This request is no longer available, or messages cannot be posted to it.";
+        }
+        catch (ArgumentException exception)
+        {
+            _messageError = exception.Message;
+        }
+        catch (Exception exception)
+        {
+            _messageError =
+                "The message could not be posted. Please try again.";
+
+            Console.Error.WriteLine(exception);
         }
     }
 
@@ -380,5 +472,15 @@
                 "priority-emergency",
             _ => string.Empty
         };
+    }
+
+    private sealed class MessageInputModel
+    {
+        [Required(ErrorMessage = "Enter a message.")]
+        [StringLength(
+            MaintenanceMessage.MaxBodyLength,
+            ErrorMessage =
+                "The message cannot exceed {1} characters.")]
+        public string Body { get; set; } = string.Empty;
     }
 }

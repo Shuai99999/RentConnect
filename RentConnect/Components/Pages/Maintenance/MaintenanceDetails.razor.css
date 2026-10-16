@@ -311,6 +311,90 @@
         color: #4054c4;
     }
 
+.message-composer {
+    margin-top: 1.25rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid #e3e7f0;
+}
+
+    .message-composer ::deep .message-form {
+        display: grid;
+        gap: 0.65rem;
+    }
+
+    .message-composer label {
+        font-weight: 700;
+    }
+
+    .message-composer ::deep .message-input {
+        width: 100%;
+        min-height: 110px;
+        padding: 0.8rem;
+        border: 1px solid #cfd5e3;
+        border-radius: 0.75rem;
+        background: white;
+        color: #172033;
+        font: inherit;
+        line-height: 1.6;
+        resize: vertical;
+    }
+
+    .message-composer ::deep .message-input:hover {
+        border-color: #aeb9ef;
+    }
+
+    .message-composer ::deep .message-input:focus {
+        border-color: #5267d8;
+        outline: none;
+        box-shadow: 0 0 0 3px rgb(82 103 216 / 14%);
+    }
+
+.message-form-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+.primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    padding: 0.7rem 1.15rem;
+    border: 0;
+    border-radius: 0.75rem;
+    background: #5267d8;
+    color: white;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 10px 24px rgb(82 103 216 / 22%);
+}
+
+    .primary-button:hover {
+        background: #4054c4;
+    }
+
+    .message-composer ::deep .field-validation {
+        color: #b42318;
+        font-size: 0.85rem;
+        font-weight: 600;
+    }
+
+.form-alert {
+    padding: 0.9rem 1rem;
+    border: 1px solid #f5c2c0;
+    border-radius: 0.75rem;
+    background: #fff7f7;
+    color: #8f1d18;
+}
+
+.conversation-closed {
+    margin-top: 1.25rem;
+    padding: 0.9rem 1rem;
+    border-radius: 0.75rem;
+    background: #f0f2f5;
+    color: #596273;
+}
+
 @media (max-width: 800px) {
     .details-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
