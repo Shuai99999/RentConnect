@@ -238,6 +238,43 @@ namespace RentConnect.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceStatusChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("ChangedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("ChangedByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("FromStatus")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("MaintenanceRequestId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("ToStatus")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ChangedByUserProfileId");
+
+                    b.HasIndex("MaintenanceRequestId", "ChangedAtUtc");
+
+                    b.ToTable("MaintenanceStatusHistory", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_MaintenanceStatusHistory_StatusChange", "[FromStatus] <> [ToStatus]");
+                        });
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.Property", b =>
                 {
                     b.Property<Guid>("Id")
@@ -605,6 +642,21 @@ namespace RentConnect.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceStatusChange", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ChangedByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.MaintenanceRequest", null)
+                        .WithMany("StatusHistory")
+                        .HasForeignKey("MaintenanceRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.PropertyOwner", b =>
                 {
                     b.HasOne("RentConnect.Core.Entities.Property", null)
@@ -661,6 +713,11 @@ namespace RentConnect.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("UserProfile");
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceRequest", b =>
+                {
+                    b.Navigation("StatusHistory");
                 });
 
             modelBuilder.Entity("RentConnect.Core.Entities.Property", b =>

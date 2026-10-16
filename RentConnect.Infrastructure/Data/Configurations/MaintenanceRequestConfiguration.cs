@@ -86,5 +86,11 @@ public sealed class MaintenanceRequestConfiguration
         builder.HasIndex(
             request =>
                 request.CreatedByUserProfileId);
+
+        builder.Navigation(
+        request => request.StatusHistory)
+            .HasField("_statusHistory")
+            .UsePropertyAccessMode(
+        PropertyAccessMode.Field);
     }
 }

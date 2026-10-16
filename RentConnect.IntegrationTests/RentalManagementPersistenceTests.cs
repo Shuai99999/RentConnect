@@ -27,14 +27,14 @@ public sealed class RentalManagementPersistenceTests
         var maintenanceRequestId = Guid.NewGuid();
 
         var maintenanceCreatedAtUtc =
-                    new DateTimeOffset(
-                        2026,
-                        2,
-                        1,
-                        9,
-                        0,
-                        0,
-                        TimeSpan.Zero);
+            new DateTimeOffset(
+                2026,
+                2,
+                1,
+                9,
+                0,
+                0,
+                TimeSpan.Zero);
 
         try
         {
@@ -102,16 +102,24 @@ public sealed class RentalManagementPersistenceTests
                         maintenanceCreatedAtUtc);
 
                 maintenanceRequest.Acknowledge(
+                    Guid.NewGuid(),
+                    tenantProfileId,
                     maintenanceCreatedAtUtc.AddHours(1));
 
                 maintenanceRequest.Schedule(
+                    Guid.NewGuid(),
+                    tenantProfileId,
                     maintenanceCreatedAtUtc.AddDays(1),
                     maintenanceCreatedAtUtc.AddHours(2));
 
                 maintenanceRequest.StartWork(
+                    Guid.NewGuid(),
+                    tenantProfileId,
                     maintenanceCreatedAtUtc.AddDays(1));
 
                 maintenanceRequest.Resolve(
+                    Guid.NewGuid(),
+                    tenantProfileId,
                     "The damaged pipe was replaced.",
                     maintenanceCreatedAtUtc
                         .AddDays(1)
@@ -159,6 +167,7 @@ public sealed class RentalManagementPersistenceTests
 
                 var savedMaintenanceRequest =
                     await context.MaintenanceRequests
+                        .Include(request => request.StatusHistory)
                         .SingleAsync(
                             request =>
                                 request.Id ==
@@ -212,6 +221,42 @@ public sealed class RentalManagementPersistenceTests
                 Assert.Equal(
                     "The damaged pipe was replaced.",
                     savedMaintenanceRequest.ResolutionNotes);
+
+                Assert.Equal(
+                    4,
+                    savedMaintenanceRequest.StatusHistory.Count);
+
+                var savedStatusChanges =
+                    savedMaintenanceRequest.StatusHistory
+                        .OrderBy(change => change.ChangedAtUtc)
+                        .ToArray();
+
+                Assert.Equal(
+                    new[]
+                    {
+                        MaintenanceStatus.Acknowledged,
+                        MaintenanceStatus.Scheduled,
+                        MaintenanceStatus.InProgress,
+                        MaintenanceStatus.Resolved
+                    },
+                    savedStatusChanges.Select(change => change.ToStatus));
+
+                Assert.All(
+                    savedStatusChanges,
+                    change => Assert.Equal(
+                        tenantProfileId,
+                        change.ChangedByUserProfileId));
+
+                var resolvedStatusChange =
+                    Assert.Single(
+                        savedStatusChanges,
+                        change =>
+                            change.ToStatus ==
+                            MaintenanceStatus.Resolved);
+
+                Assert.Equal(
+                    "The damaged pipe was replaced.",
+                    resolvedStatusChange.Note);
             }
         }
         finally

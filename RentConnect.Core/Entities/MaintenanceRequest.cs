@@ -8,6 +8,9 @@ public sealed class MaintenanceRequest
     public const int MaxDescriptionLength = 4000;
     public const int MaxResolutionNotesLength = 2000;
 
+    private readonly List<MaintenanceStatusChange>
+    _statusHistory = [];
+
     private MaintenanceRequest()
     {
     }
@@ -103,6 +106,9 @@ public sealed class MaintenanceRequest
 
     public string? ResolutionNotes { get; private set; }
 
+    public IReadOnlyCollection<MaintenanceStatusChange>
+    StatusHistory => _statusHistory;
+
     public void UpdateDetails(
         string title,
         string description,
@@ -134,18 +140,28 @@ public sealed class MaintenanceRequest
         UpdatedAtUtc = normalizedChangedTime;
     }
 
-    public void Acknowledge(DateTimeOffset changedAtUtc)
+    public void Acknowledge(
+        Guid statusChangeId,
+        Guid changedByUserProfileId,
+        DateTimeOffset changedAtUtc,
+        string? note = null)
     {
         EnsureStatus(MaintenanceStatus.Submitted);
 
         ChangeStatus(
+            statusChangeId,
+            changedByUserProfileId,
             MaintenanceStatus.Acknowledged,
-            changedAtUtc);
+            changedAtUtc,
+            note);
     }
 
     public void Schedule(
-        DateTimeOffset scheduledForUtc,
-        DateTimeOffset changedAtUtc)
+    Guid statusChangeId,
+    Guid changedByUserProfileId,
+    DateTimeOffset scheduledForUtc,
+    DateTimeOffset changedAtUtc,
+    string? note = null)
     {
         EnsureStatus(MaintenanceStatus.Acknowledged);
 
@@ -165,23 +181,41 @@ public sealed class MaintenanceRequest
                 nameof(scheduledForUtc));
         }
 
+        var statusChange = CreateStatusChange(
+            statusChangeId,
+            changedByUserProfileId,
+            MaintenanceStatus.Scheduled,
+            normalizedChangedTime,
+            note);
+
         ScheduledForUtc = normalizedScheduledTime;
         Status = MaintenanceStatus.Scheduled;
         UpdatedAtUtc = normalizedChangedTime;
+
+        _statusHistory.Add(statusChange);
     }
 
-    public void StartWork(DateTimeOffset changedAtUtc)
+    public void StartWork(
+        Guid statusChangeId,
+        Guid changedByUserProfileId,
+        DateTimeOffset changedAtUtc,
+        string? note = null)
     {
         EnsureStatus(
             MaintenanceStatus.Acknowledged,
             MaintenanceStatus.Scheduled);
 
         ChangeStatus(
+            statusChangeId,
+            changedByUserProfileId,
             MaintenanceStatus.InProgress,
-            changedAtUtc);
+            changedAtUtc,
+            note);
     }
 
     public void Resolve(
+        Guid statusChangeId,
+        Guid changedByUserProfileId,
         string resolutionNotes,
         DateTimeOffset changedAtUtc)
     {
@@ -207,38 +241,97 @@ public sealed class MaintenanceRequest
         var normalizedChangedTime =
             RequireValidChangeTime(changedAtUtc);
 
+        var statusChange = CreateStatusChange(
+            statusChangeId,
+            changedByUserProfileId,
+            MaintenanceStatus.Resolved,
+            normalizedChangedTime,
+            normalizedNotes);
+
         ResolutionNotes = normalizedNotes;
         Status = MaintenanceStatus.Resolved;
         UpdatedAtUtc = normalizedChangedTime;
+
+        _statusHistory.Add(statusChange);
     }
 
-    public void Close(DateTimeOffset changedAtUtc)
+    public void Close(
+        Guid statusChangeId,
+        Guid changedByUserProfileId,
+        DateTimeOffset changedAtUtc,
+        string? note = null)
     {
         EnsureStatus(MaintenanceStatus.Resolved);
 
         ChangeStatus(
+            statusChangeId,
+            changedByUserProfileId,
             MaintenanceStatus.Closed,
-            changedAtUtc);
+            changedAtUtc,
+            note);
     }
 
-    public void Cancel(DateTimeOffset changedAtUtc)
+    public void Cancel(
+        Guid statusChangeId,
+        Guid changedByUserProfileId,
+        DateTimeOffset changedAtUtc,
+        string? note = null)
     {
         EnsureStatus(MaintenanceStatus.Submitted);
 
         ChangeStatus(
+            statusChangeId,
+            changedByUserProfileId,
             MaintenanceStatus.Cancelled,
-            changedAtUtc);
+            changedAtUtc,
+            note);
     }
 
     private void ChangeStatus(
+        Guid statusChangeId,
+        Guid changedByUserProfileId,
         MaintenanceStatus newStatus,
-        DateTimeOffset changedAtUtc)
+        DateTimeOffset changedAtUtc,
+        string? note)
     {
         var normalizedChangedTime =
             RequireValidChangeTime(changedAtUtc);
 
+        var statusChange = CreateStatusChange(
+            statusChangeId,
+            changedByUserProfileId,
+            newStatus,
+            normalizedChangedTime,
+            note);
+
         Status = newStatus;
         UpdatedAtUtc = normalizedChangedTime;
+
+        _statusHistory.Add(statusChange);
+    }
+
+    private MaintenanceStatusChange CreateStatusChange(
+        Guid statusChangeId,
+        Guid changedByUserProfileId,
+        MaintenanceStatus newStatus,
+        DateTimeOffset changedAtUtc,
+        string? note)
+    {
+        if (_statusHistory.Any(
+            change => change.Id == statusChangeId))
+        {
+            throw new InvalidOperationException(
+                "A status change with this ID already exists.");
+        }
+
+        return new MaintenanceStatusChange(
+            statusChangeId,
+            Id,
+            Status,
+            newStatus,
+            changedByUserProfileId,
+            changedAtUtc,
+            note);
     }
 
     private static string NormalizeTitle(string title)

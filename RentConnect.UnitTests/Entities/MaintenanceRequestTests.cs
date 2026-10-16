@@ -61,6 +61,7 @@ public class MaintenanceRequestTests
 
         Assert.Null(request.ScheduledForUtc);
         Assert.Null(request.ResolutionNotes);
+        Assert.Empty(request.StatusHistory);
     }
 
     [Fact]
@@ -130,6 +131,8 @@ public class MaintenanceRequestTests
         var request = CreateRequest();
 
         request.Acknowledge(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             CreatedAtUtc.AddMinutes(10));
 
         var action = () =>
@@ -167,19 +170,32 @@ public class MaintenanceRequestTests
         var closedAt =
             resolvedAt.AddHours(1);
 
-        request.Acknowledge(acknowledgedAt);
+        request.Acknowledge(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            acknowledgedAt);
 
         request.Schedule(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             scheduledAt,
             schedulingChangedAt);
 
-        request.StartWork(workStartedAt);
+        request.StartWork(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            workStartedAt);
 
         request.Resolve(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             "The leaking pipe was replaced.",
             resolvedAt);
 
-        request.Close(closedAt);
+        request.Close(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            closedAt);
 
         Assert.Equal(
             MaintenanceStatus.Closed,
@@ -196,6 +212,50 @@ public class MaintenanceRequestTests
         Assert.Equal(
             closedAt,
             request.UpdatedAtUtc);
+
+        Assert.Equal(
+            5,
+            request.StatusHistory.Count);
+
+        Assert.Equal(
+            new[]
+            {
+                MaintenanceStatus.Acknowledged,
+                MaintenanceStatus.Scheduled,
+                MaintenanceStatus.InProgress,
+                MaintenanceStatus.Resolved,
+                MaintenanceStatus.Closed
+            },
+            request.StatusHistory.Select(
+                change => change.ToStatus));
+
+        Assert.Equal(
+            new[]
+            {
+                MaintenanceStatus.Submitted,
+                MaintenanceStatus.Acknowledged,
+                MaintenanceStatus.Scheduled,
+                MaintenanceStatus.InProgress,
+                MaintenanceStatus.Resolved
+            },
+            request.StatusHistory.Select(
+                change => change.FromStatus));
+
+        Assert.All(
+            request.StatusHistory,
+            change => Assert.Equal(
+                request.CreatedByUserProfileId,
+                change.ChangedByUserProfileId));
+
+        var resolvedChange =
+            request.StatusHistory.Single(
+                change =>
+                    change.ToStatus ==
+                    MaintenanceStatus.Resolved);
+
+        Assert.Equal(
+            "The leaking pipe was replaced.",
+            resolvedChange.Note);
     }
 
     [Fact]
@@ -206,7 +266,10 @@ public class MaintenanceRequestTests
         var acknowledgedAt =
             CreatedAtUtc.AddHours(1);
 
-        request.Acknowledge(acknowledgedAt);
+        request.Acknowledge(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            acknowledgedAt);
 
         var schedulingChangedAt =
             CreatedAtUtc.AddHours(2);
@@ -216,6 +279,8 @@ public class MaintenanceRequestTests
 
         var action = () =>
             request.Schedule(
+                Guid.NewGuid(),
+                request.CreatedByUserProfileId,
                 scheduledFor,
                 schedulingChangedAt);
 
@@ -228,13 +293,19 @@ public class MaintenanceRequestTests
         var request = CreateRequest();
 
         request.Acknowledge(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             CreatedAtUtc.AddHours(1));
 
         request.StartWork(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             CreatedAtUtc.AddHours(2));
 
         var action = () =>
             request.Resolve(
+                Guid.NewGuid(),
+                request.CreatedByUserProfileId,
                 "   ",
                 CreatedAtUtc.AddHours(3));
 
@@ -247,10 +318,14 @@ public class MaintenanceRequestTests
         var request = CreateRequest();
 
         request.Acknowledge(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             CreatedAtUtc.AddHours(1));
 
         var action = () =>
             request.Cancel(
+                Guid.NewGuid(),
+                request.CreatedByUserProfileId,
                 CreatedAtUtc.AddHours(2));
 
         Assert.Throws<InvalidOperationException>(action);
@@ -262,10 +337,14 @@ public class MaintenanceRequestTests
         var request = CreateRequest();
 
         request.Acknowledge(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             CreatedAtUtc.AddHours(2));
 
         var action = () =>
             request.StartWork(
+                Guid.NewGuid(),
+                request.CreatedByUserProfileId,
                 CreatedAtUtc.AddHours(1));
 
         Assert.Throws<ArgumentException>(action);
@@ -314,13 +393,19 @@ public class MaintenanceRequestTests
         var request = CreateRequest();
 
         request.Acknowledge(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             CreatedAtUtc.AddHours(1));
 
         request.StartWork(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
             CreatedAtUtc.AddHours(2));
 
         var action = () =>
             request.Resolve(
+                Guid.NewGuid(),
+                request.CreatedByUserProfileId,
                 "Pipe was replaced.",
                 CreatedAtUtc.AddHours(1));
 
