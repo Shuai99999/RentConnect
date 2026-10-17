@@ -1,0 +1,273 @@
+@page "/bills/new"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Billing
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject ISharedBillService SharedBillService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+
+<PageTitle>New Shared Bill</PageTitle>
+
+<main class="create-page">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">Rental finances</p>
+            <h1>New Shared Bill</h1>
+            <p>Record an expense and split it equally between current tenants.</p>
+        </div>
+        <a href="/bills">Back to bills</a>
+    </header>
+
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading rental information...</section>
+    }
+    else if (_loadError is not null)
+    {
+        <section class="state-card error-card" role="alert">
+            <h2>Unable to prepare the form</h2>
+            <p>@_loadError</p>
+        </section>
+    }
+    else if (_tenancies.Count == 0)
+    {
+        <section class="state-card">
+            <h2>No active rentals found</h2>
+            <p>An active tenancy with at least one current tenant is required.</p>
+            <a href="/bills">Return to shared bills</a>
+        </section>
+    }
+    else
+    {
+        <EditForm Model="Input"
+                  FormName="create-shared-bill"
+                  OnValidSubmit="CreateBillAsync">
+            <DataAnnotationsValidator />
+
+            @if (_submitError is not null)
+            {
+                <div class="form-error" role="alert">@_submitError</div>
+            }
+
+            <ValidationSummary class="validation-summary" />
+
+            <section class="form-card">
+                <div class="section-heading">
+                    <h2>Bill details</h2>
+                    <p>Start with the rental, expense type, and amount.</p>
+                </div>
+
+                <div class="field full-width">
+                    <label for="bill-tenancy">Rental</label>
+                    <InputSelect id="bill-tenancy"
+                                 class="form-control"
+                                 @bind-Value="Input.TenancyId">
+                        @foreach (var tenancy in _tenancies)
+                        {
+                            <option value="@tenancy.TenancyId">
+                                @tenancy.PropertyName — @tenancy.RentalUnitName
+                            </option>
+                        }
+                    </InputSelect>
+                </div>
+
+                <div class="field full-width">
+                    <label for="bill-title">Title</label>
+                    <InputText id="bill-title"
+                               class="form-control"
+                               placeholder="For example: October electricity"
+                               @bind-Value="Input.Title" />
+                    <ValidationMessage For="() => Input.Title" />
+                </div>
+
+                <div class="form-grid">
+                    <div class="field">
+                        <label for="bill-category">Category</label>
+                        <InputSelect id="bill-category"
+                                     class="form-control"
+                                     @bind-Value="Input.Category">
+                            @foreach (var category in Enum.GetValues<SharedBillCategory>())
+                            {
+                                <option value="@category">@FormatCategory(category)</option>
+                            }
+                        </InputSelect>
+                    </div>
+
+                    <div class="field amount-field">
+                        <label for="bill-amount">Total amount</label>
+                        <div class="amount-inputs">
+                            <InputSelect class="currency-select"
+                                         aria-label="Currency"
+                                         @bind-Value="Input.Currency">
+                                <option value="CAD">CAD</option>
+                                <option value="USD">USD</option>
+                                <option value="EUR">EUR</option>
+                                <option value="GBP">GBP</option>
+                                <option value="JPY">JPY</option>
+                            </InputSelect>
+                            <InputNumber id="bill-amount"
+                                         class="form-control"
+                                         step="0.01"
+                                         @bind-Value="Input.TotalAmount" />
+                        </div>
+                        <ValidationMessage For="() => Input.TotalAmount" />
+                    </div>
+                </div>
+            </section>
+
+            <section class="form-card">
+                <div class="section-heading">
+                    <h2>Billing period</h2>
+                    <p>The due date must be on or after the period end date.</p>
+                </div>
+
+                <div class="form-grid three-columns">
+                    <div class="field">
+                        <label for="period-start">Period start</label>
+                        <InputDate id="period-start"
+                                   class="form-control"
+                                   @bind-Value="Input.PeriodStart" />
+                    </div>
+                    <div class="field">
+                        <label for="period-end">Period end</label>
+                        <InputDate id="period-end"
+                                   class="form-control"
+                                   @bind-Value="Input.PeriodEnd" />
+                    </div>
+                    <div class="field">
+                        <label for="due-date">Due date</label>
+                        <InputDate id="due-date"
+                                   class="form-control"
+                                   @bind-Value="Input.DueDate" />
+                    </div>
+                </div>
+            </section>
+
+            <section class="split-note">
+                <strong>Equal split</strong>
+                <p>Every current tenant will receive a share. Any rounding remainder is distributed deterministically so all shares exactly match the total.</p>
+            </section>
+
+            <div class="form-actions">
+                <a class="cancel-link" href="/bills">Cancel</a>
+                <button class="primary-button"
+                        type="submit"
+                        disabled="@_isSubmitting">
+                    @(_isSubmitting ? "Creating..." : "Create Draft")
+                </button>
+            </div>
+        </EditForm>
+    }
+</main>
+
+@code {
+    private readonly CreateBillInput Input = new();
+    private IReadOnlyList<SharedBillTenancyOption> _tenancies = [];
+    private Guid _currentUserProfileId;
+    private bool _isLoading = true;
+    private bool _isSubmitting;
+    private string? _loadError;
+    private string? _submitError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        Input.PeriodStart = new DateOnly(today.Year, today.Month, 1);
+        Input.PeriodEnd = Input.PeriodStart.AddMonths(1).AddDays(-1);
+        Input.DueDate = Input.PeriodEnd.AddDays(14);
+
+        try
+        {
+            _currentUserProfileId = await CurrentUserProfileService
+                .GetRequiredUserProfileIdAsync();
+            _tenancies = await SharedBillService
+                .GetAvailableTenanciesAsync(_currentUserProfileId);
+
+            if (_tenancies.Count > 0)
+            {
+                Input.TenancyId = _tenancies[0].TenancyId;
+            }
+        }
+        catch (Exception exception)
+        {
+            _loadError = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task CreateBillAsync()
+    {
+        if (_isSubmitting)
+        {
+            return;
+        }
+
+        _isSubmitting = true;
+        _submitError = null;
+
+        try
+        {
+            var billId = await SharedBillService.CreateEqualSplitAsync(
+                new CreateEqualSharedBillCommand(
+                    Input.TenancyId,
+                    _currentUserProfileId,
+                    Input.Title,
+                    Input.Category,
+                    Input.TotalAmount,
+                    Input.Currency,
+                    Input.Currency == "JPY" ? 0 : 2,
+                    Input.PeriodStart,
+                    Input.PeriodEnd,
+                    Input.DueDate),
+                _currentUserProfileId);
+
+            NavigationManager.NavigateTo($"/bills/{billId}");
+        }
+        catch (Exception exception)
+        {
+            _submitError = exception.Message;
+            _isSubmitting = false;
+        }
+    }
+
+    private static string FormatCategory(SharedBillCategory category)
+    {
+        return category switch
+        {
+            SharedBillCategory.Electricity => "Electricity",
+            SharedBillCategory.Internet => "Internet",
+            SharedBillCategory.Cleaning => "Cleaning",
+            _ => category.ToString()
+        };
+    }
+
+    private sealed class CreateBillInput
+    {
+        public Guid TenancyId { get; set; }
+
+        [Required(ErrorMessage = "Enter a title.")]
+        [StringLength(150, ErrorMessage = "The title cannot exceed 150 characters.")]
+        public string Title { get; set; } = string.Empty;
+
+        public SharedBillCategory Category { get; set; } =
+            SharedBillCategory.Electricity;
+
+        [Range(typeof(decimal), "0.01", "99999999999999", ErrorMessage = "Enter an amount greater than zero.")]
+        public decimal TotalAmount { get; set; }
+
+        public string Currency { get; set; } = "CAD";
+
+        public DateOnly PeriodStart { get; set; }
+        public DateOnly PeriodEnd { get; set; }
+        public DateOnly DueDate { get; set; }
+    }
+}

@@ -1,0 +1,405 @@
+@page "/bills/{Id:guid}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Billing
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject ISharedBillService SharedBillService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>@(_details?.Title ?? "Shared Bill")</PageTitle>
+
+<main class="details-page">
+    <a class="back-link" href="/bills">← Back to bills</a>
+
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading shared bill...</section>
+    }
+    else if (_errorMessage is not null && _details is null)
+    {
+        <section class="state-card error-card" role="alert">
+            <h1>Unable to load this bill</h1>
+            <p>@_errorMessage</p>
+        </section>
+    }
+    else if (_details is null)
+    {
+        <section class="state-card">
+            <h1>Shared bill not found</h1>
+            <p>The bill does not exist or you do not have access to it.</p>
+        </section>
+    }
+    else
+    {
+        <header class="bill-header">
+            <div>
+                <p class="eyebrow">@FormatCategory(_details.Category)</p>
+                <h1>@_details.Title</h1>
+                <p class="reference">Reference: @_details.Id</p>
+            </div>
+            <span class="status @GetStatusClass(_details.Status)">
+                @FormatStatus(_details.Status)
+            </span>
+        </header>
+
+        @if (_errorMessage is not null)
+        {
+            <div class="action-message error-message" role="alert">@_errorMessage</div>
+        }
+        else if (_successMessage is not null)
+        {
+            <div class="action-message success-message">@_successMessage</div>
+        }
+
+        <section class="summary-grid">
+            <article>
+                <span>Total</span>
+                <strong>@FormatMoney(_details.TotalAmount, _details.Currency)</strong>
+            </article>
+            <article>
+                <span>Billing period</span>
+                <strong>@_details.PeriodStart.ToString("MMM d") – @_details.PeriodEnd.ToString("MMM d, yyyy")</strong>
+            </article>
+            <article>
+                <span>Due date</span>
+                <strong>@_details.DueDate.ToString("MMM d, yyyy")</strong>
+            </article>
+            <article>
+                <span>Split method</span>
+                <strong>Equal split</strong>
+            </article>
+            <article>
+                <span>Paid by</span>
+                <strong>@_details.PaidByDisplayName</strong>
+            </article>
+        </section>
+
+        @if (HasPrimaryActions(_details))
+        {
+            <section class="panel action-panel">
+                <div>
+                    <h2>Bill actions</h2>
+                    <p>Available actions depend on your relationship to this bill.</p>
+                </div>
+                <div class="button-row">
+                    @if (_details.Permissions.CanPublish)
+                    {
+                        <button class="primary-button" disabled="@_isUpdating" @onclick="PublishAsync">Publish Bill</button>
+                    }
+                    @if (_details.Permissions.CanDeclarePayment && CanDeclareOwnPayment(_details))
+                    {
+                        <button class="primary-button" disabled="@_isUpdating" @onclick="DeclarePaymentAsync">Mark My Share Paid</button>
+                    }
+                    @if (_details.Permissions.CanVoid)
+                    {
+                        <button class="danger-button" disabled="@_isUpdating" @onclick="VoidAsync">Void Bill</button>
+                    }
+                </div>
+            </section>
+        }
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>Tenant shares</h2>
+                    <p>A payment is settled only after the person who paid the provider confirms receipt.</p>
+                </div>
+                <strong>@_details.Shares.Count share@(_details.Shares.Count == 1 ? "" : "s")</strong>
+            </div>
+
+            <div class="share-list">
+                @foreach (var share in _details.Shares)
+                {
+                    <article class="share-row">
+                        <div class="share-person">
+                            <span class="avatar" aria-hidden="true">@GetInitial(share.DisplayName)</span>
+                            <div>
+                                <strong>@share.DisplayName</strong>
+                                @if (share.UserProfileId == _currentUserProfileId)
+                                {
+                                    <small>You</small>
+                                }
+                            </div>
+                        </div>
+
+                        <div class="share-amount">@FormatMoney(share.Amount, share.Currency)</div>
+
+                        <div class="payment-state">
+                            @if (share.PaymentConfirmedAtUtc.HasValue)
+                            {
+                                <span class="payment-badge confirmed">Confirmed</span>
+                            }
+                            else if (share.PaymentDeclaredAtUtc.HasValue)
+                            {
+                                <span class="payment-badge declared">Payment declared</span>
+                            }
+                            else
+                            {
+                                <span class="payment-badge pending">Pending</span>
+                            }
+
+                            @if (_details.Permissions.CanConfirmPayment &&
+                                 share.PaymentDeclaredAtUtc.HasValue &&
+                                 !share.PaymentConfirmedAtUtc.HasValue)
+                            {
+                                <button class="text-button"
+                                        disabled="@_isUpdating"
+                                        @onclick="() => ConfirmPaymentAsync(share.UserProfileId)">
+                                    Confirm receipt
+                                </button>
+                            }
+                        </div>
+                    </article>
+                }
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>Disputes</h2>
+                    <p>Questions about the amount or allocation remain part of the bill history.</p>
+                </div>
+            </div>
+
+            @if (_details.Disputes.Count == 0)
+            {
+                <div class="empty-inline">No disputes have been raised.</div>
+            }
+            else
+            {
+                <div class="dispute-list">
+                    @foreach (var dispute in _details.Disputes)
+                    {
+                        <article class="dispute-card">
+                            <div class="dispute-heading">
+                                <strong>@dispute.RaisedByDisplayName</strong>
+                                <span>@(dispute.ResolvedAtUtc.HasValue ? "Resolved" : "Open")</span>
+                            </div>
+                            <p>@dispute.Reason</p>
+                            <time>@FormatTimestamp(dispute.RaisedAtUtc)</time>
+                            @if (dispute.ResolvedAtUtc.HasValue)
+                            {
+                                <div class="resolution">
+                                    <strong>Resolution</strong>
+                                    <p>@dispute.Resolution</p>
+                                    <small>Resolved by @dispute.ResolvedByDisplayName · @FormatTimestamp(dispute.ResolvedAtUtc.Value)</small>
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+            }
+
+            @if (_details.Permissions.CanRaiseDispute)
+            {
+                <div class="action-form">
+                    <label for="dispute-reason">Raise a dispute</label>
+                    <textarea id="dispute-reason"
+                              placeholder="Explain what needs to be reviewed."
+                              @bind="_disputeReason"></textarea>
+                    <button class="secondary-button" disabled="@_isUpdating" @onclick="RaiseDisputeAsync">Submit Dispute</button>
+                </div>
+            }
+
+            @if (_details.Permissions.CanResolveDispute && GetActiveDispute(_details) is { } activeDispute)
+            {
+                <div class="action-form resolution-form">
+                    <label for="dispute-resolution">Resolve dispute</label>
+                    <textarea id="dispute-resolution"
+                              placeholder="Explain how the dispute was resolved."
+                              @bind="_disputeResolution"></textarea>
+                    <button class="secondary-button"
+                            disabled="@_isUpdating"
+                            @onclick="() => ResolveDisputeAsync(activeDispute.Id)">
+                        Resolve Dispute
+                    </button>
+                </div>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private SharedBillDetails? _details;
+    private Guid _currentUserProfileId;
+    private bool _isLoading = true;
+    private bool _isUpdating;
+    private string? _errorMessage;
+    private string? _successMessage;
+    private string _disputeReason = string.Empty;
+    private string _disputeResolution = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            _currentUserProfileId = await CurrentUserProfileService
+                .GetRequiredUserProfileIdAsync();
+            await LoadDetailsAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadDetailsAsync()
+    {
+        _details = await SharedBillService.GetDetailsAsync(
+            Id,
+            _currentUserProfileId);
+    }
+
+    private Task PublishAsync() => ExecuteAsync(
+        () => SharedBillService.PublishAsync(
+            new PublishSharedBillCommand(Id),
+            _currentUserProfileId),
+        "The bill was published.");
+
+    private Task VoidAsync() => ExecuteAsync(
+        () => SharedBillService.VoidAsync(
+            new VoidSharedBillCommand(Id),
+            _currentUserProfileId),
+        "The bill was voided.");
+
+    private Task DeclarePaymentAsync() => ExecuteAsync(
+        () => SharedBillService.DeclarePaymentAsync(
+            new DeclareBillPaymentCommand(Id),
+            _currentUserProfileId),
+        "Your payment was marked as paid.");
+
+    private Task ConfirmPaymentAsync(Guid userProfileId) => ExecuteAsync(
+        () => SharedBillService.ConfirmPaymentAsync(
+            new ConfirmBillPaymentCommand(Id, userProfileId),
+            _currentUserProfileId),
+        "The payment was confirmed.");
+
+    private async Task RaiseDisputeAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_disputeReason))
+        {
+            _errorMessage = "Enter a reason for the dispute.";
+            return;
+        }
+
+        await ExecuteAsync(
+            () => SharedBillService.RaiseDisputeAsync(
+                new RaiseBillDisputeCommand(Id, _disputeReason),
+                _currentUserProfileId),
+            "The dispute was submitted.");
+        _disputeReason = string.Empty;
+    }
+
+    private async Task ResolveDisputeAsync(Guid disputeId)
+    {
+        if (string.IsNullOrWhiteSpace(_disputeResolution))
+        {
+            _errorMessage = "Enter a resolution.";
+            return;
+        }
+
+        await ExecuteAsync(
+            () => SharedBillService.ResolveDisputeAsync(
+                new ResolveBillDisputeCommand(
+                    Id,
+                    disputeId,
+                    _disputeResolution),
+                _currentUserProfileId),
+            "The dispute was resolved.");
+        _disputeResolution = string.Empty;
+    }
+
+    private async Task ExecuteAsync(Func<Task> action, string successMessage)
+    {
+        if (_isUpdating)
+        {
+            return;
+        }
+
+        _isUpdating = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            await action();
+            await LoadDetailsAsync();
+            _successMessage = successMessage;
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
+    }
+
+    private bool CanDeclareOwnPayment(SharedBillDetails details)
+    {
+        return details.Shares.Any(share =>
+            share.UserProfileId == _currentUserProfileId &&
+            !share.PaymentDeclaredAtUtc.HasValue);
+    }
+
+    private static bool HasPrimaryActions(SharedBillDetails details)
+    {
+        return details.Permissions.CanPublish ||
+               details.Permissions.CanVoid ||
+               details.Permissions.CanDeclarePayment;
+    }
+
+    private static BillDisputeItem? GetActiveDispute(SharedBillDetails details)
+    {
+        return details.Disputes.LastOrDefault(dispute =>
+            !dispute.ResolvedAtUtc.HasValue);
+    }
+
+    private static string FormatMoney(decimal amount, string currency)
+    {
+        return currency == "JPY"
+            ? $"{currency} {amount:N0}"
+            : $"{currency} {amount:N2}";
+    }
+
+    private static string FormatCategory(SharedBillCategory category) =>
+        category switch
+        {
+            SharedBillCategory.Electricity => "Electricity",
+            SharedBillCategory.Internet => "Internet",
+            SharedBillCategory.Cleaning => "Cleaning",
+            _ => category.ToString()
+        };
+
+    private static string FormatStatus(SharedBillStatus status) =>
+        status == SharedBillStatus.PartiallySettled
+            ? "Partially settled"
+            : status.ToString();
+
+    private static string GetStatusClass(SharedBillStatus status) =>
+        $"status-{status.ToString().ToLowerInvariant()}";
+
+    private static char GetInitial(string displayName) =>
+        string.IsNullOrWhiteSpace(displayName)
+            ? '?'
+            : char.ToUpperInvariant(displayName.Trim()[0]);
+
+    private static string FormatTimestamp(DateTimeOffset timestamp) =>
+        $"{timestamp:MMM d, yyyy 'at' HH:mm} UTC";
+}

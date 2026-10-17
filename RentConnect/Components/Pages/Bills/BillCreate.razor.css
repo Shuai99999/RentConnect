@@ -1,0 +1,37 @@
+.create-page { width: min(920px, calc(100% - 2rem)); margin: 0 auto; padding: 3rem 0 5rem; color: #172033; }
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; gap: 2rem; margin-bottom: 2rem; }
+.page-header a { color: #4054c4; text-decoration: none; font-weight: 700; }
+.eyebrow { margin: 0 0 0.4rem; color: #5267d8; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; }
+.page-header h1 { margin: 0; font-size: clamp(2.1rem, 5vw, 3.3rem); }
+.page-header p:last-child { margin: 0.65rem 0 0; color: #667085; }
+
+.form-card { margin-bottom: 1rem; padding: 1.5rem; border: 1px solid #e1e6f0; border-radius: 1.1rem; background: white; box-shadow: 0 10px 30px rgb(31 43 79 / 5%); }
+.section-heading { margin-bottom: 1.3rem; }
+.section-heading h2 { margin: 0; font-size: 1.25rem; }
+.section-heading p { margin: 0.35rem 0 0; color: #667085; }
+.form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.three-columns { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.field { display: grid; gap: 0.45rem; margin-bottom: 1rem; }
+.field label { font-weight: 700; }
+.full-width { width: 100%; }
+.form-control,
+.currency-select { width: 100%; min-height: 46px; padding: 0.7rem 0.8rem; border: 1px solid #ccd3e2; border-radius: 0.7rem; background: white; color: #172033; font: inherit; }
+.form-control:focus,
+.currency-select:focus { border-color: #7184e2; outline: 3px solid rgb(82 103 216 / 13%); }
+.amount-inputs { display: grid; grid-template-columns: 95px minmax(0, 1fr); gap: 0.5rem; }
+.split-note { margin: 1rem 0; padding: 1.1rem 1.25rem; border: 1px solid #cfd7fb; border-radius: 0.9rem; background: #f7f8ff; }
+.split-note p { margin: 0.35rem 0 0; color: #667085; line-height: 1.55; }
+.form-actions { display: flex; align-items: center; justify-content: flex-end; gap: 1rem; margin-top: 1.25rem; }
+.cancel-link { color: #667085; text-decoration: none; font-weight: 700; }
+.primary-button { min-height: 46px; padding: 0.75rem 1.25rem; border: 0; border-radius: 0.8rem; background: #5267d8; color: white; font: inherit; font-weight: 750; cursor: pointer; box-shadow: 0 10px 24px rgb(82 103 216 / 22%); }
+.primary-button:disabled { cursor: wait; opacity: 0.65; }
+.form-error,
+.validation-summary { margin-bottom: 1rem; padding: 0.85rem 1rem; border-radius: 0.75rem; background: #fff0f0; color: #b42318; }
+.state-card { padding: 3rem 1.5rem; border: 1px solid #e1e6f0; border-radius: 1rem; background: white; text-align: center; }
+.error-card { border-color: #f5c2c0; background: #fff7f7; }
+
+@media (max-width: 700px) {
+    .page-header { align-items: flex-start; flex-direction: column; }
+    .form-grid,
+    .three-columns { grid-template-columns: 1fr; }
+}

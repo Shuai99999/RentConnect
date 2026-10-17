@@ -129,6 +129,8 @@ public sealed class SharedBillService(
 
         var profileIds = bill.Shares
             .Select(share => share.UserProfileId)
+            .Append(bill.CreatedByUserProfileId)
+            .Append(bill.PaidByUserProfileId)
             .Concat(bill.Disputes.Select(
                 dispute => dispute.RaisedByUserProfileId))
             .Concat(bill.Disputes
@@ -180,7 +182,9 @@ public sealed class SharedBillService(
             bill.Id,
             bill.TenancyId,
             bill.CreatedByUserProfileId,
+            displayNames[bill.CreatedByUserProfileId],
             bill.PaidByUserProfileId,
+            displayNames[bill.PaidByUserProfileId],
             bill.Title,
             bill.Category,
             bill.Total.Amount,

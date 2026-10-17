@@ -1,0 +1,127 @@
+@page "/bills"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Billing
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject ISharedBillService SharedBillService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>Shared Bills</PageTitle>
+
+<main class="bills-page">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">Rental finances</p>
+            <h1>Shared Bills</h1>
+            <p>Track household expenses, shares, payments, and disputes.</p>
+        </div>
+
+        <a class="primary-link" href="/bills/new">New Bill</a>
+    </header>
+
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading shared bills...</section>
+    }
+    else if (_errorMessage is not null)
+    {
+        <section class="state-card error-card" role="alert">
+            <h2>Unable to load shared bills</h2>
+            <p>@_errorMessage</p>
+        </section>
+    }
+    else if (_bills.Count == 0)
+    {
+        <section class="state-card empty-card">
+            <div class="empty-icon" aria-hidden="true">$</div>
+            <h2>No shared bills yet</h2>
+            <p>Create a bill to split a household expense with current tenants.</p>
+            <a class="secondary-link" href="/bills/new">Create your first bill</a>
+        </section>
+    }
+    else
+    {
+        <section class="bill-grid" aria-label="Shared bills">
+            @foreach (var bill in _bills)
+            {
+                <a class="bill-card" href="@($"/bills/{bill.Id}")">
+                    <div class="card-heading">
+                        <span class="category">@FormatCategory(bill.Category)</span>
+                        <span class="status @GetStatusClass(bill.Status)">
+                            @FormatStatus(bill.Status)
+                        </span>
+                    </div>
+
+                    <h2>@bill.Title</h2>
+                    <div class="amount">@FormatMoney(bill.TotalAmount, bill.Currency)</div>
+
+                    <div class="card-footer">
+                        <span>Due @bill.DueDate.ToString("MMM d, yyyy")</span>
+                        <span>View details →</span>
+                    </div>
+                </a>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<SharedBillSummary> _bills = [];
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var userProfileId = await CurrentUserProfileService
+                .GetRequiredUserProfileIdAsync();
+            _bills = await SharedBillService
+                .GetVisibleBillsAsync(userProfileId);
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private static string FormatCategory(SharedBillCategory category)
+    {
+        return category switch
+        {
+            SharedBillCategory.Electricity => "Electricity",
+            SharedBillCategory.Internet => "Internet",
+            SharedBillCategory.Cleaning => "Cleaning",
+            _ => category.ToString()
+        };
+    }
+
+    private static string FormatStatus(SharedBillStatus status)
+    {
+        return status switch
+        {
+            SharedBillStatus.PartiallySettled => "Partially settled",
+            _ => status.ToString()
+        };
+    }
+
+    private static string GetStatusClass(SharedBillStatus status)
+    {
+        return $"status-{status.ToString().ToLowerInvariant()}";
+    }
+
+    private static string FormatMoney(decimal amount, string currency)
+    {
+        return currency == "JPY"
+            ? $"{currency} {amount:N0}"
+            : $"{currency} {amount:N2}";
+    }
+}
