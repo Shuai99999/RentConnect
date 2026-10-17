@@ -147,6 +147,135 @@ public sealed class SharedBillTests
                 CreatedAtUtc));
     }
 
+    [Fact]
+    public void ConfirmSharePayment_AfterDeclaration_UpdatesSettlementStatus()
+    {
+        var (bill, firstUserId, secondUserId) =
+            CreatePublishedBill();
+
+        bill.DeclareSharePayment(
+            firstUserId,
+            CreatedAtUtc.AddMinutes(3));
+        bill.ConfirmSharePayment(
+            firstUserId,
+            CreatedAtUtc.AddMinutes(4));
+
+        Assert.Equal(
+            SharedBillStatus.PartiallySettled,
+            bill.Status);
+
+        bill.DeclareSharePayment(
+            secondUserId,
+            CreatedAtUtc.AddMinutes(5));
+        bill.ConfirmSharePayment(
+            secondUserId,
+            CreatedAtUtc.AddMinutes(6));
+
+        Assert.Equal(SharedBillStatus.Settled, bill.Status);
+        Assert.All(bill.Shares, share => Assert.True(share.IsSettled));
+    }
+
+    [Fact]
+    public void ConfirmSharePayment_WithoutDeclaration_ThrowsException()
+    {
+        var (bill, firstUserId, _) = CreatePublishedBill();
+
+        Assert.Throws<InvalidOperationException>(
+            () => bill.ConfirmSharePayment(
+                firstUserId,
+                CreatedAtUtc.AddMinutes(3)));
+
+        Assert.Equal(SharedBillStatus.Published, bill.Status);
+    }
+
+    [Fact]
+    public void RaiseDispute_PreservesReasonAndChangesStatus()
+    {
+        var (bill, firstUserId, _) = CreatePublishedBill();
+        var disputeId = Guid.NewGuid();
+
+        bill.RaiseDispute(
+            disputeId,
+            firstUserId,
+            " The amount does not match the invoice. ",
+            CreatedAtUtc.AddMinutes(3));
+
+        Assert.Equal(SharedBillStatus.Disputed, bill.Status);
+
+        var dispute = Assert.Single(bill.Disputes);
+        Assert.Equal(disputeId, dispute.Id);
+        Assert.Equal(
+            "The amount does not match the invoice.",
+            dispute.Reason);
+        Assert.False(dispute.IsResolved);
+    }
+
+    [Fact]
+    public void ConfirmingEveryShare_DuringDispute_KeepsBillDisputed()
+    {
+        var (bill, firstUserId, secondUserId) =
+            CreatePublishedBill();
+        var disputeId = Guid.NewGuid();
+
+        bill.RaiseDispute(
+            disputeId,
+            firstUserId,
+            "The amount needs review.",
+            CreatedAtUtc.AddMinutes(3));
+
+        bill.DeclareSharePayment(
+            firstUserId,
+            CreatedAtUtc.AddMinutes(4));
+        bill.ConfirmSharePayment(
+            firstUserId,
+            CreatedAtUtc.AddMinutes(5));
+        bill.DeclareSharePayment(
+            secondUserId,
+            CreatedAtUtc.AddMinutes(6));
+        bill.ConfirmSharePayment(
+            secondUserId,
+            CreatedAtUtc.AddMinutes(7));
+
+        Assert.Equal(SharedBillStatus.Disputed, bill.Status);
+
+        bill.ResolveDispute(
+            disputeId,
+            Guid.NewGuid(),
+            "The invoice was verified.",
+            CreatedAtUtc.AddMinutes(8));
+
+        Assert.Equal(SharedBillStatus.Settled, bill.Status);
+
+        var dispute = Assert.Single(bill.Disputes);
+        Assert.True(dispute.IsResolved);
+        Assert.Equal("The invoice was verified.", dispute.Resolution);
+    }
+
+    [Fact]
+    public void ResolveDispute_WithInvalidResolution_DoesNotPartiallyResolve()
+    {
+        var (bill, firstUserId, _) = CreatePublishedBill();
+        var disputeId = Guid.NewGuid();
+
+        bill.RaiseDispute(
+            disputeId,
+            firstUserId,
+            "The amount needs review.",
+            CreatedAtUtc.AddMinutes(3));
+
+        Assert.Throws<ArgumentException>(
+            () => bill.ResolveDispute(
+                disputeId,
+                Guid.NewGuid(),
+                " ",
+                CreatedAtUtc.AddMinutes(4)));
+
+        Assert.Equal(SharedBillStatus.Disputed, bill.Status);
+        var dispute = Assert.Single(bill.Disputes);
+        Assert.False(dispute.IsResolved);
+        Assert.Null(dispute.ResolvedByUserProfileId);
+    }
+
     private static SharedBill CreateBill(decimal total = 120m)
     {
         return new SharedBill(
@@ -172,5 +301,27 @@ public sealed class SharedBillTests
             ],
             decimalPlaces: 2,
             CreatedAtUtc.AddMinutes(1));
+    }
+
+    private static (
+        SharedBill Bill,
+        Guid FirstUserId,
+        Guid SecondUserId) CreatePublishedBill()
+    {
+        var bill = CreateBill();
+        var firstUserId = Guid.NewGuid();
+        var secondUserId = Guid.NewGuid();
+
+        bill.AllocateEqually(
+            [
+                (Guid.NewGuid(), firstUserId),
+                (Guid.NewGuid(), secondUserId)
+            ],
+            decimalPlaces: 2,
+            CreatedAtUtc.AddMinutes(1));
+
+        bill.Publish(CreatedAtUtc.AddMinutes(2));
+
+        return (bill, firstUserId, secondUserId);
     }
 }

@@ -9,6 +9,7 @@ public sealed class SharedBill
     public const int MaxTitleLength = 150;
 
     private readonly List<BillShare> _shares = [];
+    private readonly List<BillDispute> _disputes = [];
 
     private SharedBill()
     {
@@ -115,6 +116,8 @@ public sealed class SharedBill
 
     public IReadOnlyCollection<BillShare> Shares => _shares;
 
+    public IReadOnlyCollection<BillDispute> Disputes => _disputes;
+
     public void AllocateEqually(
         IEnumerable<(Guid ShareId, Guid UserProfileId)> participants,
         int decimalPlaces,
@@ -205,6 +208,144 @@ public sealed class SharedBill
 
         Status = SharedBillStatus.Void;
         UpdatedAtUtc = normalizedVoidedAtUtc;
+    }
+
+    public void DeclareSharePayment(
+        Guid userProfileId,
+        DateTimeOffset declaredAtUtc)
+    {
+        EnsurePaymentActivityAllowed();
+
+        var share = GetShare(userProfileId);
+        var normalizedDeclaredAtUtc =
+            RequireValidChangeTime(declaredAtUtc);
+
+        share.DeclarePayment(normalizedDeclaredAtUtc);
+        UpdatedAtUtc = normalizedDeclaredAtUtc;
+    }
+
+    public void ConfirmSharePayment(
+        Guid userProfileId,
+        DateTimeOffset confirmedAtUtc)
+    {
+        EnsurePaymentActivityAllowed();
+
+        var share = GetShare(userProfileId);
+        var normalizedConfirmedAtUtc =
+            RequireValidChangeTime(confirmedAtUtc);
+
+        share.ConfirmPayment(normalizedConfirmedAtUtc);
+        UpdatedAtUtc = normalizedConfirmedAtUtc;
+
+        if (Status != SharedBillStatus.Disputed)
+        {
+            RefreshSettlementStatus();
+        }
+    }
+
+    public void RaiseDispute(
+        Guid disputeId,
+        Guid raisedByUserProfileId,
+        string reason,
+        DateTimeOffset raisedAtUtc)
+    {
+        if (Status is not SharedBillStatus.Published and
+            not SharedBillStatus.PartiallySettled)
+        {
+            throw new InvalidOperationException(
+                $"A dispute cannot be raised while the bill status is {Status}.");
+        }
+
+        if (_disputes.Any(dispute => dispute.Id == disputeId))
+        {
+            throw new InvalidOperationException(
+                "A bill dispute with this ID already exists.");
+        }
+
+        var normalizedRaisedAtUtc =
+            RequireValidChangeTime(raisedAtUtc);
+
+        var dispute = new BillDispute(
+            disputeId,
+            Id,
+            raisedByUserProfileId,
+            reason,
+            normalizedRaisedAtUtc);
+
+        _disputes.Add(dispute);
+        Status = SharedBillStatus.Disputed;
+        UpdatedAtUtc = normalizedRaisedAtUtc;
+    }
+
+    public void ResolveDispute(
+        Guid disputeId,
+        Guid resolvedByUserProfileId,
+        string resolution,
+        DateTimeOffset resolvedAtUtc)
+    {
+        if (Status != SharedBillStatus.Disputed)
+        {
+            throw new InvalidOperationException(
+                "The shared bill does not have an active dispute.");
+        }
+
+        var dispute = _disputes.SingleOrDefault(
+            dispute =>
+                dispute.Id == disputeId &&
+                !dispute.IsResolved)
+            ?? throw new KeyNotFoundException(
+                "The active bill dispute was not found.");
+
+        var normalizedResolvedAtUtc =
+            RequireValidChangeTime(resolvedAtUtc);
+
+        dispute.Resolve(
+            resolvedByUserProfileId,
+            resolution,
+            normalizedResolvedAtUtc);
+
+        UpdatedAtUtc = normalizedResolvedAtUtc;
+        RefreshSettlementStatus();
+    }
+
+    private BillShare GetShare(Guid userProfileId)
+    {
+        if (userProfileId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "User profile ID cannot be empty.",
+                nameof(userProfileId));
+        }
+
+        return _shares.SingleOrDefault(
+            share => share.UserProfileId == userProfileId)
+            ?? throw new KeyNotFoundException(
+                "The bill share was not found.");
+    }
+
+    private void EnsurePaymentActivityAllowed()
+    {
+        if (Status is not SharedBillStatus.Published and
+            not SharedBillStatus.PartiallySettled and
+            not SharedBillStatus.Disputed)
+        {
+            throw new InvalidOperationException(
+                $"Payment activity is not allowed while the bill status is {Status}.");
+        }
+    }
+
+    private void RefreshSettlementStatus()
+    {
+        var settledShareCount =
+            _shares.Count(share => share.IsSettled);
+
+        Status = settledShareCount switch
+        {
+            0 => SharedBillStatus.Published,
+            _ when settledShareCount == _shares.Count =>
+                SharedBillStatus.Settled,
+            _ => SharedBillStatus.PartiallySettled
+        };
     }
 
     private void ValidateShareTotal()

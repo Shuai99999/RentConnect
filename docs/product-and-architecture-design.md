@@ -201,6 +201,8 @@ Draft/Published → Void（满足权限和审计要求时）
 - `PartiallySettled`：部分成员已记录结清；
 - `Settled`：全部份额已记录结清；
 - `Void`：账单无效，但历史记录不删除。
+- 只有收款确认后的份额才参与 `PartiallySettled` 和 `Settled` 状态计算；
+- 存在未解决争议时，账单保持 `Disputed`，即使所有付款均已确认也不能显示为 `Settled`。
 
 ### 7.4 付款记录边界
 
