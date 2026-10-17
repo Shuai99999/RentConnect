@@ -177,6 +177,83 @@ namespace RentConnect.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.BillDispute", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("RaisedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("RaisedByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid?>("ResolvedByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("SharedBillId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RaisedByUserProfileId");
+
+                    b.HasIndex("ResolvedByUserProfileId");
+
+                    b.HasIndex("SharedBillId", "RaisedAtUtc");
+
+                    b.ToTable("BillDisputes", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BillDisputes_ResolutionCompleteness", "([ResolvedAtUtc] IS NULL AND [ResolvedByUserProfileId] IS NULL AND [Resolution] IS NULL) OR ([ResolvedAtUtc] IS NOT NULL AND [ResolvedByUserProfileId] IS NOT NULL AND [Resolution] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_BillDisputes_ResolutionTime", "[ResolvedAtUtc] IS NULL OR [ResolvedAtUtc] >= [RaisedAtUtc]");
+                        });
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.BillShare", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("PaymentConfirmedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("PaymentDeclaredAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("SharedBillId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("UserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserProfileId");
+
+                    b.HasIndex("SharedBillId", "UserProfileId")
+                        .IsUnique();
+
+                    b.ToTable("BillShares", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BillShares_Amount", "[Amount] >= 0");
+
+                            t.HasCheckConstraint("CK_BillShares_PaymentSequence", "[PaymentConfirmedAtUtc] IS NULL OR ([PaymentDeclaredAtUtc] IS NOT NULL AND [PaymentConfirmedAtUtc] >= [PaymentDeclaredAtUtc])");
+                        });
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceAttachment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -469,6 +546,71 @@ namespace RentConnect.Migrations
                         .IsUnique();
 
                     b.ToTable("RentalUnits", (string)null);
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.SharedBill", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("CreatedByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("DueDate")
+                        .HasColumnType("date");
+
+                    b.Property<Guid>("PaidByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("PeriodEnd")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly>("PeriodStart")
+                        .HasColumnType("date");
+
+                    b.Property<int>("SplitMethod")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("TenancyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTimeOffset>("UpdatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedByUserProfileId");
+
+                    b.HasIndex("PaidByUserProfileId");
+
+                    b.HasIndex("TenancyId", "DueDate");
+
+                    b.HasIndex("TenancyId", "Status", "CreatedAtUtc");
+
+                    b.ToTable("SharedBills", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_SharedBills_BillingPeriod", "[PeriodEnd] >= [PeriodStart]");
+
+                            t.HasCheckConstraint("CK_SharedBills_DueDate", "[DueDate] >= [PeriodEnd]");
+
+                            t.HasCheckConstraint("CK_SharedBills_TotalAmount", "[TotalAmount] > 0");
+
+                            t.HasCheckConstraint("CK_SharedBills_UpdateTime", "[UpdatedAtUtc] >= [CreatedAtUtc]");
+                        });
                 });
 
             modelBuilder.Entity("RentConnect.Core.Entities.Tenancy", b =>
@@ -772,6 +914,70 @@ namespace RentConnect.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.BillDispute", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("RaisedByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ResolvedByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("RentConnect.Core.Entities.SharedBill", null)
+                        .WithMany("Disputes")
+                        .HasForeignKey("SharedBillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.BillShare", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.SharedBill", null)
+                        .WithMany("Shares")
+                        .HasForeignKey("SharedBillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("UserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsOne("RentConnect.Core.ValueObjects.Money", "Amount", b1 =>
+                        {
+                            b1.Property<Guid>("BillShareId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("decimal(18,4)")
+                                .HasColumnName("Amount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .IsUnicode(false)
+                                .HasColumnType("char(3)")
+                                .HasColumnName("Currency")
+                                .IsFixedLength();
+
+                            b1.HasKey("BillShareId");
+
+                            b1.ToTable("BillShares");
+
+                            b1.WithOwner()
+                                .HasForeignKey("BillShareId");
+                        });
+
+                    b.Navigation("Amount")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceAttachment", b =>
                 {
                     b.HasOne("RentConnect.Core.Entities.MaintenanceRequest", null)
@@ -861,6 +1067,56 @@ namespace RentConnect.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.SharedBill", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("CreatedByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("PaidByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.Tenancy", null)
+                        .WithMany()
+                        .HasForeignKey("TenancyId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsOne("RentConnect.Core.ValueObjects.Money", "Total", b1 =>
+                        {
+                            b1.Property<Guid>("SharedBillId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 4)
+                                .HasColumnType("decimal(18,4)")
+                                .HasColumnName("TotalAmount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .IsUnicode(false)
+                                .HasColumnType("char(3)")
+                                .HasColumnName("Currency")
+                                .IsFixedLength();
+
+                            b1.HasKey("SharedBillId");
+
+                            b1.ToTable("SharedBills");
+
+                            b1.WithOwner()
+                                .HasForeignKey("SharedBillId");
+                        });
+
+                    b.Navigation("Total")
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.Tenancy", b =>
                 {
                     b.HasOne("RentConnect.Core.Entities.RentalUnit", null)
@@ -917,6 +1173,13 @@ namespace RentConnect.Migrations
             modelBuilder.Entity("RentConnect.Core.Entities.Property", b =>
                 {
                     b.Navigation("Owners");
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.SharedBill", b =>
+                {
+                    b.Navigation("Disputes");
+
+                    b.Navigation("Shares");
                 });
 
             modelBuilder.Entity("RentConnect.Core.Entities.Tenancy", b =>

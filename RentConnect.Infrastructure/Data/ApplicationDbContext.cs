@@ -43,6 +43,15 @@ public class ApplicationDbContext(
     public DbSet<UserNotification> UserNotifications =>
         Set<UserNotification>();
 
+    public DbSet<SharedBill> SharedBills =>
+        Set<SharedBill>();
+
+    public DbSet<BillShare> BillShares =>
+        Set<BillShare>();
+
+    public DbSet<BillDispute> BillDisputes =>
+        Set<BillDispute>();
+
     protected override void OnModelCreating(
         ModelBuilder builder)
     {
