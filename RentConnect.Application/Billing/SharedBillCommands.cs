@@ -13,3 +13,22 @@ public sealed record CreateEqualSharedBillCommand(
     DateOnly PeriodStart,
     DateOnly PeriodEnd,
     DateOnly DueDate);
+
+public sealed record PublishSharedBillCommand(Guid SharedBillId);
+
+public sealed record VoidSharedBillCommand(Guid SharedBillId);
+
+public sealed record DeclareBillPaymentCommand(Guid SharedBillId);
+
+public sealed record ConfirmBillPaymentCommand(
+    Guid SharedBillId,
+    Guid UserProfileId);
+
+public sealed record RaiseBillDisputeCommand(
+    Guid SharedBillId,
+    string Reason);
+
+public sealed record ResolveBillDisputeCommand(
+    Guid SharedBillId,
+    Guid DisputeId,
+    string Resolution);

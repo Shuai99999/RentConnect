@@ -143,6 +143,74 @@ public sealed class SharedBillServiceTests
             Assert.NotNull(ownerDetails);
             Assert.True(ownerDetails.Permissions.CanPublish);
 
+            await service.PublishAsync(
+                new PublishSharedBillCommand(billId),
+                ownerId);
+
+            await service.DeclarePaymentAsync(
+                new DeclareBillPaymentCommand(billId),
+                firstTenantId);
+            await service.ConfirmPaymentAsync(
+                new ConfirmBillPaymentCommand(
+                    billId,
+                    firstTenantId),
+                firstTenantId);
+
+            var partiallySettledDetails =
+                await service.GetDetailsAsync(
+                    billId,
+                    secondTenantId);
+            Assert.NotNull(partiallySettledDetails);
+            Assert.Equal(
+                SharedBillStatus.PartiallySettled,
+                partiallySettledDetails.Status);
+
+            await service.RaiseDisputeAsync(
+                new RaiseBillDisputeCommand(
+                    billId,
+                    "The second share needs review."),
+                secondTenantId);
+            await service.DeclarePaymentAsync(
+                new DeclareBillPaymentCommand(billId),
+                secondTenantId);
+            await service.ConfirmPaymentAsync(
+                new ConfirmBillPaymentCommand(
+                    billId,
+                    secondTenantId),
+                firstTenantId);
+
+            var disputedDetails =
+                await service.GetDetailsAsync(billId, ownerId);
+            Assert.NotNull(disputedDetails);
+            Assert.Equal(
+                SharedBillStatus.Disputed,
+                disputedDetails.Status);
+            var activeDispute = Assert.Single(
+                disputedDetails.Disputes);
+
+            await service.ResolveDisputeAsync(
+                new ResolveBillDisputeCommand(
+                    billId,
+                    activeDispute.Id,
+                    "The invoice and shares were verified."),
+                ownerId);
+
+            var settledDetails =
+                await service.GetDetailsAsync(
+                    billId,
+                    firstTenantId);
+            Assert.NotNull(settledDetails);
+            Assert.Equal(
+                SharedBillStatus.Settled,
+                settledDetails.Status);
+            Assert.All(
+                settledDetails.Shares,
+                share => Assert.NotNull(
+                    share.PaymentConfirmedAtUtc));
+            Assert.True(
+                Assert.Single(settledDetails.Disputes)
+                    .ResolvedAtUtc.HasValue);
+
             await Assert.ThrowsAsync<ArgumentException>(
                 () => service.CreateEqualSplitAsync(
                     new CreateEqualSharedBillCommand(

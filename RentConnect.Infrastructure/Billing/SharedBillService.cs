@@ -285,6 +285,196 @@ public sealed class SharedBillService(
         return bill.Id;
     }
 
+    public async Task PublishAsync(
+        PublishSharedBillCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bill = await GetBillAsync(
+            context,
+            command.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(SharedBillAccessPolicy.CanPublish(bill, access));
+
+        bill.Publish(GetUtcNow());
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task VoidAsync(
+        VoidSharedBillCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bill = await GetBillAsync(
+            context,
+            command.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(SharedBillAccessPolicy.CanVoid(bill, access));
+
+        bill.Void(GetUtcNow());
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task DeclarePaymentAsync(
+        DeclareBillPaymentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bill = await GetBillAsync(
+            context,
+            command.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(
+            SharedBillAccessPolicy.CanDeclarePayment(bill, access));
+
+        bill.DeclareSharePayment(userProfileId, GetUtcNow());
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ConfirmPaymentAsync(
+        ConfirmBillPaymentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+        EnsureId(command.UserProfileId, nameof(command.UserProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bill = await GetBillAsync(
+            context,
+            command.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(
+            SharedBillAccessPolicy.CanConfirmPayment(bill, access));
+
+        bill.ConfirmSharePayment(
+            command.UserProfileId,
+            GetUtcNow());
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task RaiseDisputeAsync(
+        RaiseBillDisputeCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bill = await GetBillAsync(
+            context,
+            command.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(SharedBillAccessPolicy.CanRaiseDispute(bill, access));
+
+        var disputeId = Guid.NewGuid();
+        bill.RaiseDispute(
+            disputeId,
+            userProfileId,
+            command.Reason,
+            GetUtcNow());
+
+        context.BillDisputes.Add(
+            bill.Disputes.Single(dispute => dispute.Id == disputeId));
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ResolveDisputeAsync(
+        ResolveBillDisputeCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bill = await GetBillAsync(
+            context,
+            command.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(SharedBillAccessPolicy.CanResolveDispute(bill, access));
+
+        bill.ResolveDispute(
+            command.DisputeId,
+            userProfileId,
+            command.Resolution,
+            GetUtcNow());
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private static async Task<SharedBill> GetBillAsync(
+        ApplicationDbContext context,
+        Guid sharedBillId,
+        CancellationToken cancellationToken)
+    {
+        EnsureId(sharedBillId, nameof(sharedBillId));
+
+        return await context.SharedBills
+                   .Include(bill => bill.Shares)
+                   .Include(bill => bill.Disputes)
+                   .SingleOrDefaultAsync(
+                       bill => bill.Id == sharedBillId,
+                       cancellationToken)
+               ?? throw new KeyNotFoundException(
+                   "The shared bill was not found.");
+    }
+
     private async Task<SharedBillAccessContext>
         CreateAccessContextAsync(
             ApplicationDbContext context,
@@ -368,6 +558,20 @@ public sealed class SharedBillService(
     {
         return DateOnly.FromDateTime(
             timeProvider.GetUtcNow().UtcDateTime);
+    }
+
+    private DateTimeOffset GetUtcNow()
+    {
+        return timeProvider.GetUtcNow().ToUniversalTime();
+    }
+
+    private static void Demand(bool isAllowed)
+    {
+        if (!isAllowed)
+        {
+            throw new KeyNotFoundException(
+                "The shared bill was not found.");
+        }
     }
 
     private static void EnsureId(Guid id, string parameterName)

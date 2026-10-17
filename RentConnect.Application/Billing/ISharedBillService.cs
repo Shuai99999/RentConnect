@@ -20,4 +20,34 @@ public interface ISharedBillService
         CreateEqualSharedBillCommand command,
         Guid userProfileId,
         CancellationToken cancellationToken = default);
+
+    Task PublishAsync(
+        PublishSharedBillCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task VoidAsync(
+        VoidSharedBillCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task DeclarePaymentAsync(
+        DeclareBillPaymentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task ConfirmPaymentAsync(
+        ConfirmBillPaymentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task RaiseDisputeAsync(
+        RaiseBillDisputeCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task ResolveDisputeAsync(
+        ResolveBillDisputeCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
 }
