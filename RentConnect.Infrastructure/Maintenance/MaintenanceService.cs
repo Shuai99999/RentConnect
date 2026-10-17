@@ -347,14 +347,27 @@ public sealed class MaintenanceService(
         Demand(
             MaintenanceAccessPolicy.CanPostMessage(request, access));
 
+        var now = timeProvider.GetUtcNow();
+
         var message = new MaintenanceMessage(
             Guid.NewGuid(),
             request.Id,
             userProfileId,
             command.Body,
-            timeProvider.GetUtcNow());
+            now);
+
+        var notifications =
+            await CreateVisibleUserNotificationsAsync(
+                request,
+                userProfileId,
+                NotificationType.MaintenanceMessageAdded,
+                "New maintenance message",
+                $"A new message was added to {request.Title}.",
+                now,
+                cancellationToken);
 
         context.MaintenanceMessages.Add(message);
+        context.UserNotifications.AddRange(notifications);
         await context.SaveChangesAsync(cancellationToken);
 
         return message.Id;
@@ -457,6 +470,8 @@ public sealed class MaintenanceService(
             attachmentId,
             normalizedContentType);
 
+        var now = timeProvider.GetUtcNow();
+
         var attachment = new MaintenanceAttachment(
             attachmentId,
             request.Id,
@@ -465,7 +480,17 @@ public sealed class MaintenanceService(
             normalizedContentType,
             bufferedContent.Length,
             storageKey,
-            timeProvider.GetUtcNow());
+            now);
+
+        var notifications =
+            await CreateVisibleUserNotificationsAsync(
+                request,
+                userProfileId,
+                NotificationType.MaintenanceAttachmentAdded,
+                "New maintenance photo",
+                $"A new photo was added to {request.Title}.",
+                now,
+                cancellationToken);
 
         var fileWasStored = false;
 
@@ -478,6 +503,7 @@ public sealed class MaintenanceService(
 
             fileWasStored = true;
             context.MaintenanceAttachments.Add(attachment);
+            context.UserNotifications.AddRange(notifications);
 
             await context.SaveChangesAsync(cancellationToken);
         }
@@ -488,6 +514,19 @@ public sealed class MaintenanceService(
             if (entry.State != EntityState.Detached)
             {
                 entry.State = EntityState.Detached;
+            }
+
+            foreach (var notification in notifications)
+            {
+                var notificationEntry =
+                    context.Entry(notification);
+
+                if (notificationEntry.State !=
+                    EntityState.Detached)
+                {
+                    notificationEntry.State =
+                        EntityState.Detached;
+                }
             }
 
             if (fileWasStored)
@@ -726,7 +765,108 @@ public sealed class MaintenanceService(
         // the aggregate was already tracked by an earlier operation in the scope.
         context.MaintenanceStatusChanges.Add(newStatusChange);
 
+        var notifications =
+            await CreateVisibleUserNotificationsAsync(
+                request,
+                userProfileId,
+                NotificationType.MaintenanceStatusChanged,
+                "Maintenance request updated",
+                $"{request.Title} is now " +
+                $"{FormatMaintenanceStatus(request.Status)}.",
+                now,
+                cancellationToken);
+
+        context.UserNotifications.AddRange(notifications);
+
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task<UserNotification[]>
+        CreateVisibleUserNotificationsAsync(
+            MaintenanceRequest request,
+            Guid actorUserProfileId,
+            NotificationType type,
+            string title,
+            string message,
+            DateTimeOffset createdAtUtc,
+            CancellationToken cancellationToken)
+    {
+        var ownerUserProfileIds = await (
+                from tenancy in context.Tenancies.AsNoTracking()
+                join unit in context.RentalUnits.AsNoTracking()
+                    on tenancy.RentalUnitId equals unit.Id
+                join owner in context.PropertyOwners.AsNoTracking()
+                    on unit.PropertyId equals owner.PropertyId
+                where tenancy.Id == request.TenancyId
+                select owner.UserProfileId)
+            .ToArrayAsync(cancellationToken);
+
+        var recipientUserProfileIds =
+            ownerUserProfileIds.ToHashSet();
+
+        recipientUserProfileIds.Add(
+            request.CreatedByUserProfileId);
+
+        if (request.Visibility ==
+            MaintenanceVisibility.SharedWithTenancy)
+        {
+            var today = GetToday();
+
+            var memberUserProfileIds = await (
+                    from tenancy in context.Tenancies
+                        .AsNoTracking()
+                    join member in context.TenancyMembers
+                            .AsNoTracking()
+                        on tenancy.Id equals member.TenancyId
+                    where tenancy.Id == request.TenancyId &&
+                          !tenancy.IsCancelled &&
+                          tenancy.StartDate <= today &&
+                          (!tenancy.EndDate.HasValue ||
+                           tenancy.EndDate.Value >= today) &&
+                          member.JoinedOn <= today &&
+                          (!member.LeftOn.HasValue ||
+                           member.LeftOn.Value >= today)
+                    select member.UserProfileId)
+                .ToArrayAsync(cancellationToken);
+
+            recipientUserProfileIds.UnionWith(
+                memberUserProfileIds);
+        }
+
+        recipientUserProfileIds.Remove(
+            actorUserProfileId);
+
+        return recipientUserProfileIds
+            .Select(recipientUserProfileId =>
+                new UserNotification(
+                    Guid.NewGuid(),
+                    recipientUserProfileId,
+                    actorUserProfileId,
+                    type,
+                    title,
+                    message,
+                    $"/maintenance/{request.Id}",
+                    createdAtUtc))
+            .ToArray();
+    }
+
+    private static string FormatMaintenanceStatus(
+        MaintenanceStatus status)
+    {
+        return status switch
+        {
+            MaintenanceStatus.Submitted => "submitted",
+            MaintenanceStatus.Acknowledged => "acknowledged",
+            MaintenanceStatus.Scheduled => "scheduled",
+            MaintenanceStatus.InProgress => "in progress",
+            MaintenanceStatus.Resolved => "resolved",
+            MaintenanceStatus.Closed => "closed",
+            MaintenanceStatus.Cancelled => "cancelled",
+            _ => throw new ArgumentOutOfRangeException(
+                nameof(status),
+                status,
+                "The maintenance status is invalid.")
+        };
     }
 
     private async Task<MaintenanceRequest> GetRequestAsync(

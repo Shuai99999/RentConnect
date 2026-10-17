@@ -558,12 +558,54 @@ public sealed class RentalManagementPersistenceTests
                             "I will arrange a locksmith."),
                         ownerProfileId);
 
+                var privateMessageNotifications =
+                    await context.UserNotifications
+                        .AsNoTracking()
+                        .Where(notification =>
+                            notification.Type ==
+                                NotificationType
+                                    .MaintenanceMessageAdded &&
+                            notification.TargetPath ==
+                                $"/maintenance/{privateMaintenanceRequestId}")
+                        .ToArrayAsync();
+
+                var privateMessageNotification =
+                    Assert.Single(
+                        privateMessageNotifications);
+
+                Assert.Equal(
+                    tenantProfileId,
+                    privateMessageNotification
+                        .RecipientUserProfileId);
+                Assert.Equal(
+                    ownerProfileId,
+                    privateMessageNotification
+                        .ActorUserProfileId);
+
                 await maintenanceService.ChangeStatusAsync(
                     new ChangeMaintenanceStatusCommand(
                         privateMaintenanceRequestId,
                         MaintenanceAction.Acknowledge,
                         Note: "The issue has been reviewed."),
                     ownerProfileId);
+
+                var privateStatusNotification =
+                    await context.UserNotifications
+                        .AsNoTracking()
+                        .SingleAsync(notification =>
+                            notification.Type ==
+                                NotificationType
+                                    .MaintenanceStatusChanged &&
+                            notification.TargetPath ==
+                                $"/maintenance/{privateMaintenanceRequestId}");
+
+                Assert.Equal(
+                    tenantProfileId,
+                    privateStatusNotification
+                        .RecipientUserProfileId);
+                Assert.Equal(
+                    "Private bedroom lock issue is now acknowledged.",
+                    privateStatusNotification.Message);
 
                 var updatedPrivateDetails =
                     await maintenanceService.GetDetailsAsync(
@@ -762,6 +804,36 @@ public sealed class RentalManagementPersistenceTests
                         .SingleAsync(
                             attachment =>
                                 attachment.Id == attachmentId);
+
+                var attachmentNotifications =
+                    await context.UserNotifications
+                        .AsNoTracking()
+                        .Where(notification =>
+                            notification.Type ==
+                                NotificationType
+                                    .MaintenanceAttachmentAdded &&
+                            notification.TargetPath ==
+                                $"/maintenance/{serviceCreatedRequestId}")
+                        .ToArrayAsync();
+
+                Assert.Equal(
+                    2,
+                    attachmentNotifications.Length);
+                Assert.Contains(
+                    attachmentNotifications,
+                    notification =>
+                        notification.RecipientUserProfileId ==
+                            ownerProfileId);
+                Assert.Contains(
+                    attachmentNotifications,
+                    notification =>
+                        notification.RecipientUserProfileId ==
+                            roommateProfileId);
+                Assert.DoesNotContain(
+                    attachmentNotifications,
+                    notification =>
+                        notification.RecipientUserProfileId ==
+                            tenantProfileId);
 
                 Assert.Equal(
                     "bathroom-fan.png",
