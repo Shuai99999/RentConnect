@@ -5,7 +5,7 @@ using RentConnect.Data;
 namespace RentConnect.Infrastructure.Notifications;
 
 public sealed class NotificationService(
-    ApplicationDbContext context,
+    IDbContextFactory<ApplicationDbContext> contextFactory,
     TimeProvider timeProvider)
     : INotificationService
 {
@@ -25,6 +25,10 @@ public sealed class NotificationService(
                 nameof(maximumCount),
                 "Notification count must be between 1 and 100.");
         }
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(
+                cancellationToken);
 
         return await context.UserNotifications
             .AsNoTracking()
@@ -47,7 +51,7 @@ public sealed class NotificationService(
             .ToArrayAsync(cancellationToken);
     }
 
-    public Task<int> GetUnreadCountAsync(
+    public async Task<int> GetUnreadCountAsync(
         Guid userProfileId,
         CancellationToken cancellationToken = default)
     {
@@ -55,7 +59,11 @@ public sealed class NotificationService(
             userProfileId,
             nameof(userProfileId));
 
-        return context.UserNotifications
+        await using var context =
+            await contextFactory.CreateDbContextAsync(
+                cancellationToken);
+
+        return await context.UserNotifications
             .CountAsync(
                 notification =>
                     notification.RecipientUserProfileId ==
@@ -76,6 +84,10 @@ public sealed class NotificationService(
         EnsureId(
             userProfileId,
             nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(
+                cancellationToken);
 
         var notification =
             await context.UserNotifications
@@ -102,6 +114,10 @@ public sealed class NotificationService(
         EnsureId(
             userProfileId,
             nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(
+                cancellationToken);
 
         var notifications =
             await context.UserNotifications

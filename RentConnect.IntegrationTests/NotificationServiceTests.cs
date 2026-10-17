@@ -28,6 +28,11 @@ public sealed class NotificationServiceTests
             scope.ServiceProvider
                 .GetRequiredService<ApplicationDbContext>();
 
+        var contextFactory =
+            scope.ServiceProvider
+                .GetRequiredService<
+                    IDbContextFactory<ApplicationDbContext>>();
+
         var recipientId = Guid.NewGuid();
         var otherUserId = Guid.NewGuid();
 
@@ -118,13 +123,24 @@ public sealed class NotificationServiceTests
 
             var service =
                 new NotificationService(
-                    context,
+                    contextFactory,
                     testClock);
 
-            var recentNotifications =
-                await service.GetRecentAsync(
+            var recentNotificationsTask =
+                service.GetRecentAsync(
                     recipientId,
                     maximumCount: 2);
+
+            var unreadCountTask =
+                service.GetUnreadCountAsync(
+                    recipientId);
+
+            await Task.WhenAll(
+                recentNotificationsTask,
+                unreadCountTask);
+
+            var recentNotifications =
+                await recentNotificationsTask;
 
             Assert.Equal(
                 2,
@@ -144,10 +160,7 @@ public sealed class NotificationServiceTests
                     notification.Id ==
                         otherUserNotification.Id);
 
-            Assert.Equal(
-                2,
-                await service.GetUnreadCountAsync(
-                    recipientId));
+            Assert.Equal(2, await unreadCountTask);
 
             await Assert.ThrowsAsync<KeyNotFoundException>(
                 () => service.MarkAsReadAsync(
@@ -170,6 +183,8 @@ public sealed class NotificationServiceTests
                 0,
                 await service.GetUnreadCountAsync(
                     recipientId));
+
+            context.ChangeTracker.Clear();
 
             var recipientNotifications =
                 await context.UserNotifications
@@ -209,7 +224,7 @@ public sealed class NotificationServiceTests
     {
         var services = new ServiceCollection();
 
-        services.AddDbContext<ApplicationDbContext>(
+        services.AddDbContextFactory<ApplicationDbContext>(
             options =>
                 options.UseSqlServer(connectionString));
 

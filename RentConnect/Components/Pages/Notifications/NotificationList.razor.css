@@ -1,0 +1,237 @@
+.notifications-page {
+    width: min(920px, calc(100% - 2rem));
+    margin: 0 auto;
+    padding: 3rem 0 5rem;
+    color: #172033;
+}
+
+.page-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 2rem;
+    margin-bottom: 2rem;
+}
+
+.page-eyebrow {
+    margin: 0 0 0.4rem;
+    color: #5267d8;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.page-header h1 {
+    margin: 0;
+    font-size: clamp(2rem, 4vw, 3.25rem);
+    line-height: 1.05;
+}
+
+.page-description {
+    max-width: 620px;
+    margin: 0.8rem 0 0;
+    color: #667085;
+    line-height: 1.7;
+}
+
+.secondary-button,
+.secondary-link {
+    display: inline-flex;
+    min-height: 44px;
+    padding: 0.7rem 1.1rem;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #d7dcec;
+    border-radius: 0.75rem;
+    background: white;
+    color: #344054;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+    .secondary-button:hover,
+    .secondary-link:hover {
+        border-color: #aeb9ef;
+        color: #4054c4;
+    }
+
+    .secondary-button:disabled {
+        cursor: wait;
+        opacity: 0.65;
+    }
+
+.notification-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.notification-card {
+    display: grid;
+    width: 100%;
+    padding: 1.15rem 1.25rem;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 1rem;
+    border: 1px solid #e3e7f0;
+    border-radius: 1rem;
+    background: white;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    box-shadow: 0 8px 28px rgb(31 43 79 / 5%);
+    cursor: pointer;
+    transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+    .notification-card:hover {
+        transform: translateY(-1px);
+        border-color: #aeb9ef;
+        box-shadow: 0 12px 30px rgb(31 43 79 / 10%);
+    }
+
+    .notification-card:disabled {
+        cursor: wait;
+    }
+
+    .notification-card.is-unread {
+        border-left: 4px solid #5267d8;
+        background: #fbfcff;
+    }
+
+    .notification-card.is-read {
+        color: #596273;
+    }
+
+.notification-icon {
+    display: grid;
+    width: 42px;
+    height: 42px;
+    place-items: center;
+    border-radius: 0.8rem;
+    font-size: 1.05rem;
+    font-weight: 800;
+}
+
+.type-request {
+    background: #eef1ff;
+    color: #4054c4;
+}
+
+.type-status {
+    background: #e7f8ee;
+    color: #197044;
+}
+
+.type-message {
+    background: #e8f4ff;
+    color: #17669b;
+}
+
+.type-photo {
+    background: #f7eefe;
+    color: #7a3ca1;
+}
+
+.type-default {
+    background: #f0f2f5;
+    color: #596273;
+}
+
+.notification-content {
+    display: grid;
+    min-width: 0;
+    gap: 0.35rem;
+}
+
+.notification-heading {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.unread-label {
+    display: inline-flex;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    background: #eef1ff;
+    color: #4054c4;
+    font-size: 0.68rem;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.notification-message {
+    overflow-wrap: anywhere;
+    color: #667085;
+    line-height: 1.5;
+}
+
+.notification-content time {
+    color: #8a93a3;
+    font-size: 0.78rem;
+}
+
+.open-indicator {
+    color: #7b8496;
+    font-size: 1.25rem;
+}
+
+.state-panel {
+    padding: 3rem 1.5rem;
+    border: 1px solid #e3e7f0;
+    border-radius: 1rem;
+    background: white;
+    text-align: center;
+}
+
+    .state-panel h2 {
+        margin: 0.75rem 0 0.5rem;
+    }
+
+    .state-panel p {
+        color: #667085;
+    }
+
+.empty-icon {
+    display: inline-grid;
+    width: 48px;
+    height: 48px;
+    place-items: center;
+    border-radius: 50%;
+    background: #e7f8ee;
+    color: #197044;
+    font-size: 1.25rem;
+    font-weight: 800;
+}
+
+.error-panel {
+    border-color: #f5c2c0;
+    background: #fff7f7;
+}
+
+@media (max-width: 640px) {
+    .notifications-page {
+        padding-top: 2rem;
+    }
+
+    .page-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .secondary-button {
+        align-self: flex-start;
+    }
+
+    .notification-card {
+        padding: 1rem;
+        grid-template-columns: auto minmax(0, 1fr);
+    }
+
+    .open-indicator {
+        display: none;
+    }
+}

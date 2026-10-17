@@ -1,4 +1,13 @@
-﻿<header class="site-header">
+@rendermode InteractiveServer
+
+@using RentConnect.Application.Notifications
+@using RentConnect.Services
+
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject INotificationService NotificationService
+
+<header class="site-header">
     <div class="header-content">
         <a class="brand" href="/">
             <span class="brand-mark" aria-hidden="true">R</span>
@@ -28,6 +37,19 @@
         <div class="account-navigation">
             <AuthorizeView>
                 <Authorized>
+                    <NavLink class="notifications-link"
+                             href="notifications">
+                        <span>Notifications</span>
+
+                        @if (_unreadCount > 0)
+                        {
+                            <span class="notification-count"
+                                  aria-label="@($"{_unreadCount} unread notifications")">
+                                @FormatUnreadCount(_unreadCount)
+                            </span>
+                        }
+                    </NavLink>
+
                     <NavLink href="Account/Manage">
                         Account
                     </NavLink>
@@ -61,3 +83,33 @@
         </div>
     </div>
 </header>
+
+@code {
+    private int _unreadCount;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authenticationState =
+            await AuthenticationStateProvider
+                .GetAuthenticationStateAsync();
+
+        if (authenticationState.User.Identity
+                ?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        var userProfileId =
+            await CurrentUserProfileService
+                .GetRequiredUserProfileIdAsync();
+
+        _unreadCount =
+            await NotificationService
+                .GetUnreadCountAsync(userProfileId);
+    }
+
+    private static string FormatUnreadCount(int count)
+    {
+        return count > 99 ? "99+" : count.ToString();
+    }
+}

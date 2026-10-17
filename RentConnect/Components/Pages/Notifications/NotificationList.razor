@@ -1,0 +1,230 @@
+@page "/notifications"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Notifications
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject INotificationService NotificationService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Notifications</PageTitle>
+
+<main class="notifications-page">
+    <header class="page-header">
+        <div>
+            <p class="page-eyebrow">Your Updates</p>
+            <h1>Notifications</h1>
+            <p class="page-description">
+                Review maintenance activity that needs your attention.
+            </p>
+        </div>
+
+        @if (!_isLoading && _notifications.Any(item => !item.IsRead))
+        {
+            <button class="secondary-button"
+                    type="button"
+                    disabled="@_isUpdating"
+                    @onclick="MarkAllAsReadAsync">
+                @(_isUpdating ? "Updating..." : "Mark all as read")
+            </button>
+        }
+    </header>
+
+    @if (_isLoading)
+    {
+        <div class="state-panel">
+            <p>Loading notifications...</p>
+        </div>
+    }
+    else if (_errorMessage is not null)
+    {
+        <div class="state-panel error-panel" role="alert">
+            <h2>Unable to load notifications</h2>
+            <p>@_errorMessage</p>
+        </div>
+    }
+    else if (_notifications.Count == 0)
+    {
+        <div class="state-panel empty-panel">
+            <div class="empty-icon" aria-hidden="true">✓</div>
+            <h2>You are all caught up</h2>
+            <p>Maintenance updates will appear here.</p>
+            <a class="secondary-link" href="/maintenance">
+                View maintenance requests
+            </a>
+        </div>
+    }
+    else
+    {
+        <section class="notification-list"
+                 aria-label="Notifications">
+            @foreach (var notification in _notifications)
+            {
+                <button class="notification-card @GetReadCssClass(notification)"
+                        type="button"
+                        disabled="@_isUpdating"
+                        @onclick="() => OpenNotificationAsync(notification)">
+                    <span class="notification-icon @GetTypeCssClass(notification.Type)"
+                          aria-hidden="true">
+                        @GetTypeIcon(notification.Type)
+                    </span>
+
+                    <span class="notification-content">
+                        <span class="notification-heading">
+                            <strong>@notification.Title</strong>
+
+                            @if (!notification.IsRead)
+                            {
+                                <span class="unread-label">New</span>
+                            }
+                        </span>
+
+                        <span class="notification-message">
+                            @notification.Message
+                        </span>
+
+                        <time datetime="@notification.CreatedAtUtc.ToString("O")">
+                            @FormatDateTime(notification.CreatedAtUtc)
+                        </time>
+                    </span>
+
+                    <span class="open-indicator" aria-hidden="true">→</span>
+                </button>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<UserNotificationItem> _notifications = [];
+    private Guid _userProfileId;
+    private bool _isLoading = true;
+    private bool _isUpdating;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _userProfileId =
+                await CurrentUserProfileService
+                    .GetRequiredUserProfileIdAsync();
+
+            await LoadNotificationsAsync();
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadNotificationsAsync()
+    {
+        _notifications =
+            await NotificationService.GetRecentAsync(
+                _userProfileId,
+                maximumCount: 50);
+    }
+
+    private async Task OpenNotificationAsync(
+        UserNotificationItem notification)
+    {
+        if (_isUpdating)
+        {
+            return;
+        }
+
+        _isUpdating = true;
+        _errorMessage = null;
+
+        try
+        {
+            if (!notification.IsRead)
+            {
+                await NotificationService.MarkAsReadAsync(
+                    notification.Id,
+                    _userProfileId);
+            }
+
+            NavigationManager.NavigateTo(
+                notification.TargetPath,
+                forceLoad: true);
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+            _isUpdating = false;
+        }
+    }
+
+    private async Task MarkAllAsReadAsync()
+    {
+        if (_isUpdating)
+        {
+            return;
+        }
+
+        _isUpdating = true;
+        _errorMessage = null;
+
+        try
+        {
+            await NotificationService.MarkAllAsReadAsync(
+                _userProfileId);
+
+            await LoadNotificationsAsync();
+
+            NavigationManager.NavigateTo(
+                "/notifications",
+                forceLoad: true);
+        }
+        catch (Exception exception)
+        {
+            _errorMessage = exception.Message;
+            _isUpdating = false;
+        }
+    }
+
+    private static string GetReadCssClass(
+        UserNotificationItem notification)
+    {
+        return notification.IsRead ? "is-read" : "is-unread";
+    }
+
+    private static string GetTypeCssClass(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.MaintenanceRequestCreated => "type-request",
+            NotificationType.MaintenanceStatusChanged => "type-status",
+            NotificationType.MaintenanceMessageAdded => "type-message",
+            NotificationType.MaintenanceAttachmentAdded => "type-photo",
+            _ => "type-default"
+        };
+    }
+
+    private static string GetTypeIcon(NotificationType type)
+    {
+        return type switch
+        {
+            NotificationType.MaintenanceRequestCreated => "+",
+            NotificationType.MaintenanceStatusChanged => "✓",
+            NotificationType.MaintenanceMessageAdded => "…",
+            NotificationType.MaintenanceAttachmentAdded => "▧",
+            _ => "•"
+        };
+    }
+
+    private static string FormatDateTime(DateTimeOffset timestamp)
+    {
+        return $"{timestamp:MMM d, yyyy 'at' HH:mm} UTC";
+    }
+}

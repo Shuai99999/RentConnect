@@ -102,6 +102,29 @@
     color: white;
 }
 
+.account-navigation ::deep .notifications-link {
+    gap: 0.45rem;
+}
+
+.account-navigation ::deep .notification-count {
+    display: inline-grid;
+    min-width: 1.35rem;
+    height: 1.35rem;
+    padding: 0 0.3rem;
+    place-items: center;
+    border-radius: 999px;
+    background: #5267d8;
+    color: white;
+    font-size: 0.7rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+.account-navigation ::deep .notifications-link.active {
+    background: #eef1ff;
+    color: #4054c4;
+}
+
     .account-navigation ::deep .register-link:hover {
         background: #29344b;
         color: white;

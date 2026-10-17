@@ -1,12 +1,13 @@
-﻿using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Identity;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.EntityFrameworkCore;
 using RentConnect.Data;
 
 namespace RentConnect.Services;
 
 public sealed class CurrentUserProfileService(
     AuthenticationStateProvider authenticationStateProvider,
-    UserManager<ApplicationUser> userManager)
+    IDbContextFactory<ApplicationDbContext> contextFactory)
 {
     public async Task<Guid> GetRequiredUserProfileIdAsync()
     {
@@ -22,14 +23,30 @@ public sealed class CurrentUserProfileService(
                 "The current user is not authenticated.");
         }
 
-        var user = await userManager.GetUserAsync(principal);
+        var userId = principal.FindFirstValue(
+            ClaimTypes.NameIdentifier);
 
-        if (user?.UserProfileId is not Guid userProfileId)
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new InvalidOperationException(
+                "The current user identifier is unavailable.");
+        }
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync();
+
+        var userProfileId = await context.Users
+            .AsNoTracking()
+            .Where(user => user.Id == userId)
+            .Select(user => user.UserProfileId)
+            .SingleOrDefaultAsync();
+
+        if (userProfileId is not Guid requiredUserProfileId)
         {
             throw new InvalidOperationException(
                 "The current user does not have a user profile.");
         }
 
-        return userProfileId;
+        return requiredUserProfileId;
     }
 }
