@@ -626,6 +626,39 @@ public sealed class RentalManagementPersistenceTests
                             MaintenanceVisibility.SharedWithTenancy),
                         tenantProfileId);
 
+                var requestCreatedNotification =
+                    await context.UserNotifications
+                        .AsNoTracking()
+                        .SingleAsync(notification =>
+                            notification.RecipientUserProfileId ==
+                                ownerProfileId &&
+                            notification.Type ==
+                                NotificationType
+                                    .MaintenanceRequestCreated &&
+                            notification.TargetPath ==
+                                $"/maintenance/{serviceCreatedRequestId}");
+
+                Assert.Equal(
+                    tenantProfileId,
+                    requestCreatedNotification
+                        .ActorUserProfileId);
+                Assert.Equal(
+                    "New maintenance request",
+                    requestCreatedNotification.Title);
+                Assert.Equal(
+                    "Bathroom fan stopped working was submitted.",
+                    requestCreatedNotification.Message);
+                Assert.False(
+                    requestCreatedNotification.IsRead);
+
+                Assert.False(
+                    await context.UserNotifications
+                        .AnyAsync(notification =>
+                            notification.RecipientUserProfileId ==
+                                tenantProfileId &&
+                            notification.TargetPath ==
+                                $"/maintenance/{serviceCreatedRequestId}"));
+
                 testClock.Advance(TimeSpan.FromMinutes(1));
 
                 await maintenanceService.UpdateDetailsAsync(

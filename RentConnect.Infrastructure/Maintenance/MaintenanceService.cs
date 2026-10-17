@@ -254,6 +254,8 @@ public sealed class MaintenanceService(
                 "The tenancy was not found.");
         }
 
+        var now = timeProvider.GetUtcNow();
+
         var request = new MaintenanceRequest(
             Guid.NewGuid(),
             tenancy.Id,
@@ -263,9 +265,32 @@ public sealed class MaintenanceService(
             command.Category,
             command.Priority,
             command.Visibility,
-            timeProvider.GetUtcNow());
+            now);
+
+        var ownerUserProfileIds = await (
+                from unit in context.RentalUnits.AsNoTracking()
+                join owner in context.PropertyOwners.AsNoTracking()
+                    on unit.PropertyId equals owner.PropertyId
+                where unit.Id == tenancy.RentalUnitId &&
+                      owner.UserProfileId != userProfileId
+                select owner.UserProfileId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+
+        var notifications = ownerUserProfileIds
+            .Select(ownerUserProfileId =>
+                new UserNotification(
+                    Guid.NewGuid(),
+                    ownerUserProfileId,
+                    userProfileId,
+                    NotificationType.MaintenanceRequestCreated,
+                    "New maintenance request",
+                    $"{request.Title} was submitted.",
+                    $"/maintenance/{request.Id}",
+                    now));
 
         context.MaintenanceRequests.Add(request);
+        context.UserNotifications.AddRange(notifications);
         await context.SaveChangesAsync(cancellationToken);
 
         return request.Id;
