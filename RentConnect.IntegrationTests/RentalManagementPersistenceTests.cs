@@ -11,6 +11,7 @@ using RentConnect.Infrastructure.Maintenance;
 
 namespace RentConnect.IntegrationTests;
 
+[Collection(SqlServerIntegrationCollection.Name)]
 public sealed class RentalManagementPersistenceTests
 {
     [Fact]

@@ -7,6 +7,8 @@ using RentConnect.Components.Account;
 using RentConnect.Data;
 using RentConnect.Infrastructure.Maintenance;
 using RentConnect.Services;
+using RentConnect.Application.Notifications;
+using RentConnect.Infrastructure.Notifications;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -18,6 +20,7 @@ builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<CurrentUserProfileService>();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
 
 builder.Services.AddAuthentication(options =>
     {
