@@ -1,0 +1,22 @@
+<a class="back-navigation"
+   href="@Href"
+   aria-label="Back to @Label">
+    <span class="back-navigation-icon" aria-hidden="true">
+        <svg viewBox="0 0 20 20" focusable="false">
+            <path d="M11.75 4.75 6.5 10l5.25 5.25" />
+            <path d="M7 10h7" />
+        </svg>
+    </span>
+    <span class="back-navigation-copy">
+        <small>Back to</small>
+        <strong>@Label</strong>
+    </span>
+</a>
+
+@code {
+    [Parameter, EditorRequired]
+    public string Href { get; set; } = string.Empty;
+
+    [Parameter, EditorRequired]
+    public string Label { get; set; } = string.Empty;
+}

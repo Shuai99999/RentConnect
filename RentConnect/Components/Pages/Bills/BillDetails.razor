@@ -13,7 +13,7 @@
 <PageTitle>@(_details?.Title ?? "Shared Bill")</PageTitle>
 
 <main class="details-page">
-    <a class="back-link" href="/bills">← Back to bills</a>
+    <BackNavigation Href="/bills" Label="Shared bills" />
 
     @if (_isLoading)
     {
