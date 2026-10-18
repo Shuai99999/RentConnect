@@ -75,6 +75,26 @@ public class RentalUnitTests
     }
 
     [Fact]
+    public void ChangeType_WithValidType_ChangesType()
+    {
+        var unit = CreateUnit();
+
+        unit.ChangeType(RentalUnitType.Room);
+
+        Assert.Equal(RentalUnitType.Room, unit.Type);
+    }
+
+    [Fact]
+    public void ChangeType_WithInvalidType_ThrowsException()
+    {
+        var unit = CreateUnit();
+
+        var action = () => unit.ChangeType((RentalUnitType)999);
+
+        Assert.Throws<ArgumentOutOfRangeException>(action);
+    }
+
+    [Fact]
     public void Deactivate_WhenActive_MakesUnitInactive()
     {
         var unit = CreateUnit();

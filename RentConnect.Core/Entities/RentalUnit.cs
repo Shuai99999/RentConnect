@@ -60,6 +60,18 @@ public sealed class RentalUnit
         SetName(name);
     }
 
+    public void ChangeType(RentalUnitType type)
+    {
+        if (!Enum.IsDefined(type))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(type),
+                "Rental unit type is invalid.");
+        }
+
+        Type = type;
+    }
+
     public void Deactivate()
     {
         IsActive = false;

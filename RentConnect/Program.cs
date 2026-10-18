@@ -11,6 +11,8 @@ using RentConnect.Application.Notifications;
 using RentConnect.Infrastructure.Notifications;
 using RentConnect.Application.Billing;
 using RentConnect.Infrastructure.Billing;
+using RentConnect.Application.Properties;
+using RentConnect.Infrastructure.Properties;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -24,6 +26,7 @@ builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISharedBillService, SharedBillService>();
+builder.Services.AddScoped<IPropertyService, PropertyService>();
 
 builder.Services.AddAuthentication(options =>
     {
