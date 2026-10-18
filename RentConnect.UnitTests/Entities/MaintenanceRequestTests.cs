@@ -126,6 +126,38 @@ public class MaintenanceRequestTests
     }
 
     [Fact]
+    public void AssignTo_OpenRequest_TracksAndClearsAssignee()
+    {
+        var request = CreateRequest();
+        var assigneeId = Guid.NewGuid();
+        var assignedAt = CreatedAtUtc.AddMinutes(15);
+
+        request.AssignTo(assigneeId, assignedAt);
+
+        Assert.Equal(assigneeId, request.AssignedToUserProfileId);
+        Assert.Equal(assignedAt, request.AssignedAtUtc);
+        Assert.Equal(assignedAt, request.UpdatedAtUtc);
+
+        request.AssignTo(null, assignedAt.AddMinutes(1));
+
+        Assert.Null(request.AssignedToUserProfileId);
+        Assert.Null(request.AssignedAtUtc);
+    }
+
+    [Fact]
+    public void AssignTo_ClosedRequest_ThrowsException()
+    {
+        var request = CreateResolvedRequest();
+        request.Close(
+            Guid.NewGuid(),
+            request.CreatedByUserProfileId,
+            CreatedAtUtc.AddHours(5));
+
+        Assert.Throws<InvalidOperationException>(() =>
+            request.AssignTo(Guid.NewGuid(), CreatedAtUtc.AddHours(6)));
+    }
+
+    [Fact]
     public void UpdateDetails_AfterAcknowledgement_ThrowsException()
     {
         var request = CreateRequest();

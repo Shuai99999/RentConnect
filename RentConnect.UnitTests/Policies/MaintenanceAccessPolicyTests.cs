@@ -264,6 +264,8 @@ public class MaintenanceAccessPolicyTests
             MaintenanceAccessPolicy.CanAcknowledge(request, owner));
         Assert.False(
             MaintenanceAccessPolicy.CanAcknowledge(request, tenant));
+        Assert.True(MaintenanceAccessPolicy.CanAssign(request, owner));
+        Assert.False(MaintenanceAccessPolicy.CanAssign(request, tenant));
 
         request.Acknowledge(
             Guid.NewGuid(),

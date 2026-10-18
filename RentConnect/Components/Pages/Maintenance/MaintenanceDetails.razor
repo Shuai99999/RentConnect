@@ -114,7 +114,41 @@
                     @FormatDateTime(_request.UpdatedAtUtc)
                 </strong>
             </article>
+
+            <article class="detail-card">
+                <span>Assigned to</span>
+                <strong>@(_request.AssignedToDisplayName ?? "Unassigned")</strong>
+            </article>
         </section>
+
+        @if (_request.Permissions.CanAssign)
+        {
+            <section class="content-card assignment-card">
+                <div class="section-heading">
+                    <h2>Request owner</h2>
+                    <p>Assign a property manager to coordinate the next steps.</p>
+                </div>
+                <div class="assignment-controls">
+                    <select @bind="_selectedAssigneeId" aria-label="Assigned manager">
+                        <option value="">Unassigned</option>
+                        @foreach (var assignee in _assigneeOptions)
+                        {
+                            <option value="@assignee.UserProfileId">@assignee.DisplayName</option>
+                        }
+                    </select>
+                    <button type="button"
+                            class="secondary-button"
+                            disabled="@_isAssigning"
+                            @onclick="AssignAsync">
+                        @(_isAssigning ? "Saving…" : "Save assignment")
+                    </button>
+                </div>
+                @if (_assignmentError is not null)
+                {
+                    <div class="form-alert" role="alert">@_assignmentError</div>
+                }
+            </section>
+        }
 
         <section class="content-card">
             <div class="section-heading">
@@ -674,6 +708,10 @@
     private IBrowserFile? _selectedAttachment;
     private bool _isUploadingAttachment;
     private int _attachmentInputVersion;
+    private IReadOnlyList<MaintenanceAssigneeOption> _assigneeOptions = [];
+    private Guid? _selectedAssigneeId;
+    private bool _isAssigning;
+    private string? _assignmentError;
 
     private MessageInputModel MessageInput { get; set; } =
         new();
@@ -700,6 +738,14 @@
                 await MaintenanceService.GetDetailsAsync(
                     RequestId,
                     _currentUserProfileId);
+
+            if (_request?.Permissions.CanAssign == true)
+            {
+                _assigneeOptions = await MaintenanceService.GetAssigneeOptionsAsync(
+                    RequestId,
+                    _currentUserProfileId);
+                _selectedAssigneeId = _request.AssignedToUserProfileId;
+            }
         }
         catch (Exception exception)
         {
@@ -711,6 +757,42 @@
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    private async Task AssignAsync()
+    {
+        if (_isAssigning)
+        {
+            return;
+        }
+
+        _isAssigning = true;
+        _assignmentError = null;
+
+        try
+        {
+            await MaintenanceService.AssignAsync(
+                new AssignMaintenanceRequestCommand(RequestId, _selectedAssigneeId),
+                _currentUserProfileId);
+            await ReloadRequestAsync();
+        }
+        catch (KeyNotFoundException)
+        {
+            _assignmentError = "This request is unavailable, or you cannot assign it.";
+        }
+        catch (ArgumentException exception)
+        {
+            _assignmentError = exception.Message;
+        }
+        catch (Exception exception)
+        {
+            _assignmentError = "The assignment could not be saved. Please try again.";
+            Console.Error.WriteLine(exception);
+        }
+        finally
+        {
+            _isAssigning = false;
         }
     }
 

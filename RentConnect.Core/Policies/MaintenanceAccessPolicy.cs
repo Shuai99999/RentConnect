@@ -110,6 +110,15 @@ public static class MaintenanceAccessPolicy
                request.Status == MaintenanceStatus.Submitted;
     }
 
+    public static bool CanAssign(
+        MaintenanceRequest request,
+        MaintenanceAccessContext access)
+    {
+        return access.IsPropertyOwner &&
+               request.Status is not MaintenanceStatus.Closed and
+                   not MaintenanceStatus.Cancelled;
+    }
+
     public static bool CanSchedule(
         MaintenanceRequest request,
         MaintenanceAccessContext access)

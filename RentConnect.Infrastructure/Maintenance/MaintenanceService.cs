@@ -101,6 +101,12 @@ public sealed class MaintenanceService(
                 request.Priority,
                 request.Visibility,
                 request.Status,
+                request.AssignedToUserProfileId.HasValue
+                    ? context.UserProfiles
+                        .Where(profile => profile.Id == request.AssignedToUserProfileId.Value)
+                        .Select(profile => profile.DisplayName)
+                        .SingleOrDefault()
+                    : null,
                 request.UpdatedAtUtc))
             .ToArrayAsync(cancellationToken);
     }
@@ -203,6 +209,14 @@ public sealed class MaintenanceService(
                             access)))
             .ToArray();
 
+        var assignedToDisplayName = request.AssignedToUserProfileId.HasValue
+            ? await context.UserProfiles
+                .AsNoTracking()
+                .Where(profile => profile.Id == request.AssignedToUserProfileId.Value)
+                .Select(profile => profile.DisplayName)
+                .SingleOrDefaultAsync(cancellationToken)
+            : null;
+
         return new MaintenanceRequestDetails(
             request.Id,
             request.TenancyId,
@@ -217,10 +231,47 @@ public sealed class MaintenanceService(
             request.UpdatedAtUtc,
             request.ScheduledForUtc,
             request.ResolutionNotes,
+            request.AssignedToUserProfileId,
+            assignedToDisplayName,
+            request.AssignedAtUtc,
             statusHistory,
             messageItems,
             attachmentItems,
             CreatePermissions(request, access));
+    }
+
+    public async Task<IReadOnlyList<MaintenanceAssigneeOption>>
+        GetAssigneeOptionsAsync(
+            Guid maintenanceRequestId,
+            Guid userProfileId,
+            CancellationToken cancellationToken = default)
+    {
+        EnsureId(maintenanceRequestId, nameof(maintenanceRequestId));
+        EnsureUserProfileId(userProfileId);
+
+        var request = await GetRequestAsync(
+            maintenanceRequestId,
+            includeStatusHistory: false,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            request,
+            userProfileId,
+            cancellationToken);
+        Demand(MaintenanceAccessPolicy.CanAssign(request, access));
+
+        return await (
+            from tenancy in context.Tenancies.AsNoTracking()
+            join unit in context.RentalUnits.AsNoTracking()
+                on tenancy.RentalUnitId equals unit.Id
+            join owner in context.PropertyOwners.AsNoTracking()
+                on unit.PropertyId equals owner.PropertyId
+            join profile in context.UserProfiles.AsNoTracking()
+                on owner.UserProfileId equals profile.Id
+            where tenancy.Id == request.TenancyId
+            orderby profile.DisplayName
+            select new MaintenanceAssigneeOption(profile.Id, profile.DisplayName))
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
     }
 
     public async Task<Guid> CreateAsync(
@@ -781,6 +832,65 @@ public sealed class MaintenanceService(
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task AssignAsync(
+        AssignMaintenanceRequestCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureUserProfileId(userProfileId);
+
+        var request = await GetRequestAsync(
+            command.MaintenanceRequestId,
+            includeStatusHistory: false,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            request,
+            userProfileId,
+            cancellationToken);
+        Demand(MaintenanceAccessPolicy.CanAssign(request, access));
+
+        if (command.AssignedToUserProfileId.HasValue)
+        {
+            var isPropertyOwner = await (
+                    from tenancy in context.Tenancies.AsNoTracking()
+                    join unit in context.RentalUnits.AsNoTracking()
+                        on tenancy.RentalUnitId equals unit.Id
+                    join owner in context.PropertyOwners.AsNoTracking()
+                        on unit.PropertyId equals owner.PropertyId
+                    where tenancy.Id == request.TenancyId &&
+                          owner.UserProfileId == command.AssignedToUserProfileId.Value
+                    select owner.UserProfileId)
+                .AnyAsync(cancellationToken);
+
+            if (!isPropertyOwner)
+            {
+                throw new ArgumentException(
+                    "The assignee must be a manager for this property.",
+                    nameof(command));
+            }
+        }
+
+        var now = timeProvider.GetUtcNow();
+        request.AssignTo(command.AssignedToUserProfileId, now);
+
+        if (command.AssignedToUserProfileId is Guid assigneeId &&
+            assigneeId != userProfileId)
+        {
+            context.UserNotifications.Add(new UserNotification(
+                Guid.NewGuid(),
+                assigneeId,
+                userProfileId,
+                NotificationType.MaintenanceStatusChanged,
+                "Maintenance request assigned",
+                $"You were assigned to {request.Title}.",
+                $"/maintenance/{request.Id}",
+                now));
+        }
+
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
     private async Task<UserNotification[]>
         CreateVisibleUserNotificationsAsync(
             MaintenanceRequest request,
@@ -979,6 +1089,7 @@ public sealed class MaintenanceService(
         MaintenanceAccessContext access)
     {
         return new MaintenancePermissions(
+            MaintenanceAccessPolicy.CanAssign(request, access),
             MaintenanceAccessPolicy.CanPostMessage(request, access),
             MaintenanceAccessPolicy.CanAddAttachment(request, access),
             MaintenanceAccessPolicy.CanUpdateDetails(request, access),
