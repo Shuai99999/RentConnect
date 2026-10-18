@@ -17,6 +17,7 @@ using RentConnect.Application.Tenancies;
 using RentConnect.Infrastructure.Tenancies;
 using Azure.Communication.Email;
 using Azure.Identity;
+using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -32,6 +33,17 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISharedBillService, SharedBillService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
 builder.Services.AddScoped<ITenancyService, TenancyService>();
+
+var isAzureAppService = !string.IsNullOrWhiteSpace(
+    Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));
+
+if (isAzureAppService)
+{
+    builder.Services.AddDataProtection()
+        .SetApplicationName("RentConnect")
+        .PersistKeysToFileSystem(
+            new DirectoryInfo("/home/data-protection-keys"));
+}
 
 var emailEndpoint = builder.Configuration["Email:AzureCommunicationServicesEndpoint"];
 var emailSenderAddress = builder.Configuration["Email:SenderAddress"];
@@ -110,10 +122,22 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {
         options.SignIn.RequireConfirmedAccount = true;
         options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
+        options.Lockout.AllowedForNewUsers = true;
+        options.Lockout.MaxFailedAccessAttempts = 5;
+        options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+
+builder.Services.ConfigureApplicationCookie(options =>
+{
+    options.Cookie.HttpOnly = true;
+    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SameSite = SameSiteMode.Lax;
+    options.ExpireTimeSpan = TimeSpan.FromHours(8);
+    options.SlidingExpiration = true;
+});
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
@@ -144,6 +168,23 @@ else
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
+
+app.Use(async (httpContext, next) =>
+{
+    httpContext.Response.OnStarting(() =>
+    {
+        var headers = httpContext.Response.Headers;
+        headers.TryAdd("X-Content-Type-Options", "nosniff");
+        headers.TryAdd("X-Frame-Options", "DENY");
+        headers.TryAdd("Referrer-Policy", "strict-origin-when-cross-origin");
+        headers.TryAdd(
+            "Permissions-Policy",
+            "camera=(), microphone=(), geolocation=(), payment=()");
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
 
 app.UseAntiforgery();
 
