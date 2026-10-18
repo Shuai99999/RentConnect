@@ -94,6 +94,44 @@ public sealed class SharedBillTests
     }
 
     [Fact]
+    public void Publish_WhenPayingUserHasShare_SettlesTheirShare()
+    {
+        var payingUserId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+        var bill = new SharedBill(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            payingUserId,
+            payingUserId,
+            "Electricity",
+            SharedBillCategory.Electricity,
+            new Money(100m, "CAD"),
+            new DateOnly(2026, 10, 1),
+            new DateOnly(2026, 10, 31),
+            new DateOnly(2026, 11, 15),
+            CreatedAtUtc);
+
+        bill.AllocateEqually(
+            [
+                (Guid.NewGuid(), payingUserId),
+                (Guid.NewGuid(), otherUserId)
+            ],
+            decimalPlaces: 2,
+            CreatedAtUtc.AddMinutes(1));
+        bill.Publish(CreatedAtUtc.AddMinutes(2));
+
+        Assert.Equal(
+            SharedBillStatus.PartiallySettled,
+            bill.Status);
+        var payingUsersShare = bill.Shares.Single(
+            share => share.UserProfileId == payingUserId);
+        Assert.True(payingUsersShare.IsPaymentDeclared);
+        Assert.True(payingUsersShare.IsSettled);
+        Assert.False(bill.Shares.Single(
+            share => share.UserProfileId == otherUserId).IsSettled);
+    }
+
+    [Fact]
     public void Publish_WithoutShares_ThrowsException()
     {
         var bill = CreateBill();

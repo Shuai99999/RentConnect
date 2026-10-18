@@ -192,6 +192,16 @@ public sealed class SharedBill
 
         Status = SharedBillStatus.Published;
         UpdatedAtUtc = normalizedPublishedAtUtc;
+
+        var payingUsersShare = _shares.SingleOrDefault(
+            share => share.UserProfileId == PaidByUserProfileId);
+
+        if (payingUsersShare is not null)
+        {
+            payingUsersShare.DeclarePayment(normalizedPublishedAtUtc);
+            payingUsersShare.ConfirmPayment(normalizedPublishedAtUtc);
+            RefreshSettlementStatus();
+        }
     }
 
     public void Void(DateTimeOffset voidedAtUtc)

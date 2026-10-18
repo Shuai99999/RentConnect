@@ -147,15 +147,6 @@ public sealed class SharedBillServiceTests
                 new PublishSharedBillCommand(billId),
                 ownerId);
 
-            await service.DeclarePaymentAsync(
-                new DeclareBillPaymentCommand(billId),
-                firstTenantId);
-            await service.ConfirmPaymentAsync(
-                new ConfirmBillPaymentCommand(
-                    billId,
-                    firstTenantId),
-                firstTenantId);
-
             var partiallySettledDetails =
                 await service.GetDetailsAsync(
                     billId,

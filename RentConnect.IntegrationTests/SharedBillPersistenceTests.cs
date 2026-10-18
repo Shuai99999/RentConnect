@@ -137,23 +137,17 @@ public sealed class SharedBillPersistenceTests
                 reloadedBill.Shares.Sum(
                     share => share.Amount.Amount));
 
-            reloadedBill.DeclareSharePayment(
-                firstTenantProfileId,
-                createdAtUtc.AddMinutes(3));
-            reloadedBill.ConfirmSharePayment(
-                firstTenantProfileId,
-                createdAtUtc.AddMinutes(4));
             reloadedBill.RaiseDispute(
                 disputeId,
                 secondTenantProfileId,
                 "The invoice needs to be checked.",
-                createdAtUtc.AddMinutes(5));
+                createdAtUtc.AddMinutes(3));
             reloadedBill.DeclareSharePayment(
                 secondTenantProfileId,
-                createdAtUtc.AddMinutes(6));
+                createdAtUtc.AddMinutes(4));
             reloadedBill.ConfirmSharePayment(
                 secondTenantProfileId,
-                createdAtUtc.AddMinutes(7));
+                createdAtUtc.AddMinutes(5));
 
             Assert.Equal(
                 SharedBillStatus.Disputed,
@@ -163,7 +157,7 @@ public sealed class SharedBillPersistenceTests
                 disputeId,
                 ownerProfileId,
                 "The invoice was verified.",
-                createdAtUtc.AddMinutes(8));
+                createdAtUtc.AddMinutes(6));
 
             await context.SaveChangesAsync();
             context.ChangeTracker.Clear();
