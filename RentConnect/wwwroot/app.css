@@ -16,8 +16,14 @@
     --color-text-subtle: #7e8d89;
     --color-border: #dde3df;
     --color-border-strong: #cbd5d1;
+    --color-neutral-soft: #eeefeb;
+    --color-danger: #a33b35;
+    --color-danger-soft: #f9e9e6;
     --color-primary-rgb: 40 112 104;
     --color-shadow-rgb: 31 65 60;
+    --shadow-sm: 0 5px 16px rgb(var(--color-shadow-rgb) / 7%);
+    --shadow-md: 0 12px 28px rgb(var(--color-shadow-rgb) / 12%);
+    --shadow-lg: 0 22px 54px rgb(var(--color-shadow-rgb) / 16%);
     font-family:
         Inter,
         ui-sans-serif,

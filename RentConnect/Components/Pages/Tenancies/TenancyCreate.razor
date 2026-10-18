@@ -1,0 +1,94 @@
+@page "/tenancies/new"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Tenancies
+@using RentConnect.Services
+
+@inject ITenancyService TenancyService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Tenancy</PageTitle>
+
+<main class="form-page">
+    <header class="form-header">
+        <div><p class="eyebrow">Rental setup</p><h1>Create a tenancy</h1><p>Choose a vacant rental space and define the lease period.</p></div>
+        <BackNavigation Href="/tenancies" Label="Tenancies" />
+    </header>
+
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading available rental spaces...</section>
+    }
+    else if (_units.Count == 0)
+    {
+        <section class="state-card empty-card"><h2>No vacant spaces available</h2><p>Add an active rental space first, or close its current tenancy.</p><a class="secondary-button" href="/properties">View properties</a></section>
+    }
+    else
+    {
+        <EditForm Model="Input" OnValidSubmit="CreateAsync" FormName="create-tenancy">
+            <DataAnnotationsValidator />
+            @if (_error is not null) { <div class="form-alert" role="alert">@_error</div> }
+            <ValidationSummary class="validation-summary" />
+            <section class="form-card">
+                <div class="section-heading"><h2>Rental space</h2><p>Only active spaces without a current or upcoming tenancy are shown.</p></div>
+                <div class="field">
+                    <label for="rental-unit">Property and space</label>
+                    <InputSelect id="rental-unit" class="form-control" @bind-Value="Input.RentalUnitId">
+                        <option value="">Select a rental space</option>
+                        @foreach (var unit in _units) { <option value="@unit.RentalUnitId">@unit.PropertyName — @unit.RentalUnitName</option> }
+                    </InputSelect>
+                    <ValidationMessage For="() => Input.RentalUnitId" />
+                </div>
+            </section>
+            <section class="form-card">
+                <div class="section-heading"><h2>Lease period</h2><p>Leave the end date blank for a month-to-month or ongoing tenancy.</p></div>
+                <div class="form-grid">
+                    <div class="field"><label for="start-date">Start date</label><InputDate id="start-date" class="form-control" @bind-Value="Input.StartDate" /><ValidationMessage For="() => Input.StartDate" /></div>
+                    <div class="field"><label for="end-date">End date <span>Optional</span></label><InputDate id="end-date" class="form-control" @bind-Value="Input.EndDate" /><ValidationMessage For="() => Input.EndDate" /></div>
+                </div>
+            </section>
+            <div class="form-actions"><a href="/tenancies">Cancel</a><button class="primary-button" type="submit" disabled="@_isSaving">@(_isSaving ? "Creating..." : "Create tenancy")</button></div>
+        </EditForm>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<TenancyUnitOption> _units = [];
+    private readonly TenancyInput Input = new();
+    private Guid _userId;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _userId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
+        _units = await TenancyService.GetAvailableUnitsAsync(_userId);
+        _isLoading = false;
+    }
+
+    private async Task CreateAsync()
+    {
+        if (_isSaving) return;
+        if (Input.RentalUnitId == Guid.Empty) { _error = "Select a rental space."; return; }
+        if (Input.EndDate.HasValue && Input.EndDate < Input.StartDate) { _error = "End date cannot be before the start date."; return; }
+        _isSaving = true; _error = null;
+        try
+        {
+            var id = await TenancyService.CreateAsync(new CreateTenancyCommand(Input.RentalUnitId, Input.StartDate, Input.EndDate), _userId);
+            NavigationManager.NavigateTo($"/tenancies/{id}");
+        }
+        catch (Exception exception) { Console.Error.WriteLine(exception); _error = exception is InvalidOperationException ? exception.Message : "The tenancy could not be created."; _isSaving = false; }
+    }
+
+    private sealed class TenancyInput
+    {
+        [Required(ErrorMessage = "Select a rental space.")] public Guid RentalUnitId { get; set; }
+        [Required] public DateOnly StartDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
+        public DateOnly? EndDate { get; set; }
+    }
+}

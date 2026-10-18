@@ -1,0 +1,26 @@
+.tenancy-details-page { max-width: 1080px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+.tenancy-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; margin: 1.2rem 0 1.5rem; }
+.tenancy-header h1 { margin: .5rem 0 .2rem; }
+.tenancy-header > div > p { margin: 0; color: var(--color-text-muted); }
+.heading-meta { display: flex; gap: .7rem; align-items: center; color: var(--color-text-muted); font-size: .84rem; }
+.overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
+.overview-card { display: flex; flex-direction: column; gap: .3rem; padding: 1.2rem; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); }
+.overview-card span, .overview-card small { color: var(--color-text-muted); }
+.large-value { font-size: 1.65rem; }
+.panel { padding: 1.4rem; margin-top: 1rem; border: 1px solid var(--color-border); border-radius: 18px; background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
+.section-heading h2 { margin: .15rem 0; }
+.section-heading p:last-child { color: var(--color-text-muted); margin: .3rem 0 0; }
+.invite-form { margin: 1.2rem 0; padding: 1rem; border-radius: 14px; background: var(--color-surface-muted); }
+.invitation-link { display: grid; gap: .8rem; margin: 1rem 0; padding: 1rem; border: 1px solid var(--color-primary); border-radius: 14px; background: var(--color-primary-soft); }
+.invitation-link p { margin: .2rem 0 0; color: var(--color-text-muted); }
+.copy-row { display: flex; gap: .6rem; }
+.copy-row input { min-width: 0; flex: 1; padding: .7rem; border: 1px solid var(--color-border); border-radius: 9px; background: var(--color-surface); }
+.member-list, .invitation-list { display: grid; margin-top: 1rem; }
+.member-row, .invitation-list article { display: flex; align-items: center; gap: .9rem; padding: 1rem 0; border-top: 1px solid var(--color-border); }
+.member-avatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary-strong); font-weight: 800; }
+.member-row div, .invitation-list article div { flex: 1; }
+.member-row p, .member-row small, .invitation-list p { margin: .15rem 0 0; color: var(--color-text-muted); }
+.invitation-status { padding: .25rem .55rem; border-radius: 999px; background: var(--color-neutral-soft); color: var(--color-text-muted); font-size: .75rem; font-weight: 700; }
+.empty-row { padding: 1.5rem 0 .5rem; text-align: center; color: var(--color-text-muted); }
+@media (max-width: 700px) { .tenancy-details-page { padding: 1.5rem 1rem 3rem; } .tenancy-header, .section-heading { flex-direction: column; } .overview-grid { grid-template-columns: 1fr; } .copy-row, .member-row { align-items: stretch; flex-direction: column; } }

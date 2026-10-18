@@ -1,0 +1,14 @@
+.invitation-page { min-height: calc(100vh - 140px); display: grid; place-items: center; padding: 2rem 1rem; background: radial-gradient(circle at 50% 0, var(--color-primary-soft), transparent 48%); }
+.invitation-card { width: min(100%, 540px); padding: 2rem; border: 1px solid var(--color-border); border-radius: 22px; background: var(--color-surface); box-shadow: var(--shadow-lg); text-align: center; }
+.invitation-card h1 { margin: .4rem 0; }
+.unit-name { margin: 0 0 1.5rem; color: var(--color-text-muted); font-size: 1.05rem; }
+.invitation-icon { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 1rem; border-radius: 20px; background: var(--color-primary-soft); color: var(--color-primary-strong); font-size: 2rem; font-weight: 700; }
+.invitation-icon svg { width: 32px; fill: none; stroke: currentColor; stroke-width: 1.8; }
+.invitation-icon.muted { background: var(--color-neutral-soft); color: var(--color-text-muted); }
+.invitation-icon.error { background: var(--color-danger-soft); color: var(--color-danger); }
+.invitation-card dl { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1.4rem 0; padding: 1rem; border-radius: 14px; background: var(--color-surface-muted); text-align: left; }
+.invitation-card dt { color: var(--color-text-muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .05em; }
+.invitation-card dd { margin: .25rem 0 0; font-weight: 700; overflow-wrap: anywhere; }
+.accept-button { width: 100%; justify-content: center; margin-top: .6rem; }
+.text-link { display: inline-block; margin-top: 1rem; color: var(--color-text-muted); }
+@media (max-width: 520px) { .invitation-card { padding: 1.4rem; } .invitation-card dl { grid-template-columns: 1fr; } }

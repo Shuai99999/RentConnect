@@ -1,0 +1,14 @@
+.tenancies-page { max-width: 1180px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
+.tenancy-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 1rem; }
+.tenancy-card { display: block; padding: 1.4rem; border: 1px solid var(--color-border); border-radius: 18px; background: var(--color-surface); color: var(--color-text); text-decoration: none; box-shadow: var(--shadow-sm); transition: transform .18s ease, box-shadow .18s ease; }
+.tenancy-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.tenancy-card h2 { margin: 1rem 0 .2rem; font-size: 1.2rem; }
+.tenancy-card > p { margin: 0 0 1.2rem; color: var(--color-text-muted); }
+.card-heading { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.tenancy-state { padding: .25rem .55rem; border-radius: 999px; background: var(--color-neutral-soft); color: var(--color-text-muted); font-size: .75rem; font-weight: 700; }
+.tenancy-state.active { background: var(--color-primary-soft); color: var(--color-primary-strong); }
+.tenancy-state.cancelled { background: var(--color-danger-soft); color: var(--color-danger); }
+.tenancy-card dl { display: grid; grid-template-columns: repeat(3, 1fr); gap: .75rem; margin: 0; padding-top: 1rem; border-top: 1px solid var(--color-border); }
+.tenancy-card dt { color: var(--color-text-muted); font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; }
+.tenancy-card dd { margin: .2rem 0 0; font-size: .86rem; font-weight: 700; }
+@media (max-width: 640px) { .tenancies-page { padding: 1.5rem 1rem 3rem; } .tenancy-card dl { grid-template-columns: 1fr; } }

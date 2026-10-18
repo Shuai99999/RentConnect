@@ -1,0 +1,83 @@
+@page "/invitations/{Token}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Tenancies
+@using RentConnect.Services
+
+@inject ITenancyService TenancyService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Tenancy Invitation</PageTitle>
+
+<main class="invitation-page">
+    @if (_isLoading)
+    {
+        <section class="invitation-card">Loading invitation...</section>
+    }
+    else if (_invitation is null)
+    {
+        <section class="invitation-card error-card"><span class="invitation-icon error" aria-hidden="true">×</span><h1>Invitation not found</h1><p>This link is invalid or no longer exists.</p><a class="secondary-button" href="/tenancies">View tenancies</a></section>
+    }
+    else if (!_invitation.IsAvailable)
+    {
+        <section class="invitation-card"><span class="invitation-icon muted" aria-hidden="true">—</span><h1>Invitation unavailable</h1><p>It may have expired, been revoked, already been accepted, or the tenancy was cancelled.</p><a class="secondary-button" href="/tenancies">View tenancies</a></section>
+    }
+    else
+    {
+        <section class="invitation-card">
+            <span class="invitation-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m3 11 9-7 9 7M5 10v10h14V10M9 20v-6h6v6" /></svg>
+            </span>
+            <p class="eyebrow">You are invited</p>
+            <h1>Join @_invitation.PropertyName</h1>
+            <p class="unit-name">@_invitation.RentalUnitName</p>
+            <dl><div><dt>Invited email</dt><dd>@_invitation.Email</dd></div><div><dt>Link expires</dt><dd>@_invitation.ExpiresAtUtc.ToLocalTime().ToString("MMMM d, yyyy")</dd></div></dl>
+
+            @if (_emailMismatch)
+            {
+                <div class="form-alert" role="alert">You are signed in as @_profile!.Email. Sign out and use @_invitation.Email to accept this invitation.</div>
+            }
+            @if (_error is not null) { <div class="form-alert" role="alert">@_error</div> }
+
+            <button type="button" class="primary-button accept-button" disabled="@(_isAccepting || _emailMismatch)" @onclick="AcceptAsync">@(_isAccepting ? "Joining..." : "Accept and join tenancy")</button>
+            <a href="/tenancies" class="text-link">Not now</a>
+        </section>
+    }
+</main>
+
+@code {
+    [Parameter] public string Token { get; set; } = string.Empty;
+    private TenancyInvitationPreview? _invitation;
+    private CurrentUserProfile? _profile;
+    private bool _isLoading = true, _isAccepting;
+    private bool _emailMismatch;
+    private string? _error;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _profile = await CurrentUserProfileService.GetRequiredUserProfileAsync();
+        _invitation = await TenancyService.GetInvitationAsync(Token);
+        _emailMismatch = _invitation is not null && !string.Equals(_invitation.Email.Trim(), _profile.Email.Trim(), StringComparison.OrdinalIgnoreCase);
+        _isLoading = false;
+    }
+
+    private async Task AcceptAsync()
+    {
+        if (_profile is null || _isAccepting) return;
+        _isAccepting = true; _error = null;
+        try
+        {
+            var tenancyId = await TenancyService.AcceptInvitationAsync(Token, _profile.Id, _profile.Email);
+            NavigationManager.NavigateTo($"/tenancies/{tenancyId}");
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _error = exception is InvalidOperationException or UnauthorizedAccessException ? exception.Message : "The invitation could not be accepted. Please try again.";
+            _isAccepting = false;
+        }
+    }
+}

@@ -1,0 +1,85 @@
+@page "/tenancies"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Tenancies
+@using RentConnect.Services
+
+@inject ITenancyService TenancyService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>Tenancies</PageTitle>
+
+<main class="tenancies-page">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">Rental relationships</p>
+            <h1>Tenancies</h1>
+            <p>Manage lease periods, household members, and invitations.</p>
+        </div>
+        <a class="primary-button" href="/tenancies/new">Create tenancy</a>
+    </header>
+
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading tenancies...</section>
+    }
+    else if (_error is not null)
+    {
+        <section class="state-card error-card" role="alert"><h2>Unable to load tenancies</h2><p>@_error</p></section>
+    }
+    else if (_tenancies.Count == 0)
+    {
+        <section class="state-card empty-card">
+            <h2>No tenancies yet</h2>
+            <p>Owners can create a tenancy for a vacant rental space. Residents will see one here after accepting an invitation.</p>
+            <a class="secondary-button" href="/tenancies/new">Create a tenancy</a>
+        </section>
+    }
+    else
+    {
+        <section class="tenancy-grid" aria-label="Tenancies">
+            @foreach (var tenancy in _tenancies)
+            {
+                <a class="tenancy-card" href="@($"/tenancies/{tenancy.Id}")">
+                    <div class="card-heading">
+                        <span class="access-badge @(tenancy.CanManage ? "owner" : "resident")">@(tenancy.CanManage ? "Manager" : "Resident")</span>
+                        <span class="tenancy-state @GetStateClass(tenancy)">@GetState(tenancy)</span>
+                    </div>
+                    <h2>@tenancy.PropertyName</h2>
+                    <p>@tenancy.RentalUnitName</p>
+                    <dl>
+                        <div><dt>Start</dt><dd>@tenancy.StartDate.ToString("MMM d, yyyy")</dd></div>
+                        <div><dt>End</dt><dd>@(tenancy.EndDate?.ToString("MMM d, yyyy") ?? "Ongoing")</dd></div>
+                        <div><dt>Members</dt><dd>@tenancy.MemberCount</dd></div>
+                    </dl>
+                </a>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<TenancySummary> _tenancies = [];
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var userId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
+            _tenancies = await TenancyService.GetVisibleAsync(userId);
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _error = "Please try again. If the problem continues, contact support.";
+        }
+        finally { _isLoading = false; }
+    }
+
+    private static string GetState(TenancySummary tenancy) => tenancy.IsCancelled ? "Cancelled" : tenancy.EndDate is { } end && end < DateOnly.FromDateTime(DateTime.UtcNow) ? "Ended" : tenancy.StartDate > DateOnly.FromDateTime(DateTime.UtcNow) ? "Upcoming" : "Active";
+    private static string GetStateClass(TenancySummary tenancy) => GetState(tenancy).ToLowerInvariant();
+}

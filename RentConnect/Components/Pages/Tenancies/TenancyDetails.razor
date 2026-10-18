@@ -1,0 +1,175 @@
+@page "/tenancies/{TenancyId:guid}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Tenancies
+@using RentConnect.Services
+
+@inject ITenancyService TenancyService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(_tenancy is null ? "Tenancy" : $"{_tenancy.PropertyName} tenancy")</PageTitle>
+
+<main class="tenancy-details-page">
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading tenancy...</section>
+    }
+    else if (_tenancy is null)
+    {
+        <section class="state-card error-card"><h1>Tenancy not found</h1><p>It does not exist or you no longer have access.</p><a class="secondary-button" href="/tenancies">Return to tenancies</a></section>
+    }
+    else
+    {
+        <BackNavigation Href="/tenancies" Label="Tenancies" />
+        <header class="tenancy-header">
+            <div>
+                <div class="heading-meta"><span class="access-badge @(_tenancy.CanManage ? "owner" : "resident")">@(_tenancy.CanManage ? "Manager view" : "Resident view")</span><span>@GetState()</span></div>
+                <h1>@_tenancy.PropertyName</h1>
+                <p>@_tenancy.RentalUnitName</p>
+            </div>
+            @if (_tenancy.CanManage && !_tenancy.IsCancelled)
+            {
+                <button type="button" class="secondary-button" @onclick="ToggleEditor">@(_showEditor ? "Close editor" : "Edit tenancy")</button>
+            }
+        </header>
+
+        @if (_message is not null) { <div class="action-message success-message" role="status">@_message</div> }
+        @if (_error is not null) { <div class="action-message error-message" role="alert">@_error</div> }
+
+        <section class="overview-grid">
+            <article class="overview-card"><span>Start date</span><strong>@_tenancy.StartDate.ToString("MMMM d, yyyy")</strong></article>
+            <article class="overview-card"><span>End date</span><strong>@(_tenancy.EndDate?.ToString("MMMM d, yyyy") ?? "Ongoing")</strong></article>
+            <article class="overview-card"><span>Household</span><strong class="large-value">@_tenancy.Members.Count(member => !member.LeftOn.HasValue)</strong><small>current members</small></article>
+        </section>
+
+        @if (_tenancy.CanManage && _showEditor)
+        {
+            <section class="panel editor-panel">
+                <div class="section-heading"><div><p class="eyebrow">Lease period</p><h2>Edit tenancy</h2></div></div>
+                <EditForm Model="EndDateInput" OnValidSubmit="SaveEndDateAsync" FormName="edit-tenancy">
+                    <div class="field"><label for="tenancy-end">End date <span>Optional</span></label><InputDate id="tenancy-end" class="form-control" @bind-Value="EndDateInput.EndDate" /></div>
+                    <div class="form-actions"><button type="button" class="text-button danger-text" @onclick="CancelTenancyAsync" disabled="@_isSaving">Cancel tenancy</button><button type="submit" class="primary-button" disabled="@_isSaving">Save end date</button></div>
+                </EditForm>
+            </section>
+        }
+
+        <section class="panel members-panel">
+            <div class="section-heading">
+                <div><p class="eyebrow">People</p><h2>Household members</h2><p>Members can access shared bills and tenancy-visible maintenance requests.</p></div>
+                @if (_tenancy.CanManage && !_tenancy.IsCancelled) { <button type="button" class="primary-button" @onclick="ToggleInvite">@(_showInvite ? "Close form" : "Invite member")</button> }
+            </div>
+
+            @if (_tenancy.CanManage && _showInvite)
+            {
+                <EditForm Model="InviteInput" OnValidSubmit="InviteAsync" FormName="invite-member" class="invite-form">
+                    <DataAnnotationsValidator />
+                    <div class="form-grid">
+                        <div class="field"><label for="invite-email">Email address</label><InputText id="invite-email" class="form-control" type="email" @bind-Value="InviteInput.Email" placeholder="tenant@example.com" /><ValidationMessage For="() => InviteInput.Email" /></div>
+                        <div class="field"><label for="join-date">Membership starts</label><InputDate id="join-date" class="form-control" @bind-Value="InviteInput.JoinedOn" /></div>
+                    </div>
+                    <div class="form-actions"><button type="submit" class="primary-button" disabled="@_isSaving">@(_isSaving ? "Creating invitation..." : "Create invitation")</button></div>
+                </EditForm>
+            }
+
+            @if (_invitationUrl is not null)
+            {
+                <div class="invitation-link" role="status">
+                    <div><strong>Invitation ready</strong><p>Share this private link with @_invitedEmail. It expires in 7 days.</p></div>
+                    <div class="copy-row"><input value="@_invitationUrl" readonly aria-label="Invitation link" /><button type="button" class="secondary-button" @onclick="CopyInvitationAsync">@(_copied ? "Copied" : "Copy link")</button></div>
+                </div>
+            }
+
+            @if (_tenancy.Members.Count == 0)
+            {
+                <div class="empty-row"><strong>No members yet</strong><p>Create an invitation to connect the first resident.</p></div>
+            }
+            else
+            {
+                <div class="member-list">
+                    @foreach (var member in _tenancy.Members)
+                    {
+                        <article class="member-row">
+                            <span class="member-avatar">@GetInitial(member.DisplayName)</span>
+                            <div><strong>@member.DisplayName</strong><p>@member.Email</p><small>Joined @member.JoinedOn.ToString("MMM d, yyyy")@(member.LeftOn.HasValue ? $" · Left {member.LeftOn.Value:MMM d, yyyy}" : string.Empty)</small></div>
+                            @if (_tenancy.CanManage && !member.LeftOn.HasValue && !_tenancy.IsCancelled)
+                            {
+                                <button type="button" class="text-button danger-text" disabled="@_isSaving" @onclick="() => MarkLeftAsync(member)">End membership</button>
+                            }
+                        </article>
+                    }
+                </div>
+            }
+        </section>
+
+        @if (_tenancy.CanManage && _tenancy.Invitations.Count > 0)
+        {
+            <section class="panel invitations-panel">
+                <div class="section-heading"><div><p class="eyebrow">Access</p><h2>Invitation history</h2></div></div>
+                <div class="invitation-list">
+                    @foreach (var invitation in _tenancy.Invitations)
+                    {
+                        <article><div><strong>@invitation.Email</strong><p>Created @invitation.CreatedAtUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</p></div><span class="invitation-status">@InvitationStatus(invitation)</span>@if (IsPending(invitation)) { <button class="text-button danger-text" type="button" @onclick="() => RevokeAsync(invitation.Id)">Revoke</button> }</article>
+                    }
+                </div>
+            </section>
+        }
+    }
+</main>
+
+@code {
+    [Parameter] public Guid TenancyId { get; set; }
+    private RentConnect.Application.Tenancies.TenancyDetails? _tenancy;
+    private Guid _userId;
+    private bool _isLoading = true, _isSaving, _showEditor, _showInvite, _copied;
+    private string? _message, _error, _invitationUrl, _invitedEmail;
+    private EndDateModel EndDateInput { get; } = new();
+    private InviteModel InviteInput { get; } = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _userId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
+        await ReloadAsync(); _isLoading = false;
+    }
+
+    private async Task ReloadAsync() => _tenancy = await TenancyService.GetDetailsAsync(TenancyId, _userId);
+    private void ToggleEditor() { _showEditor = !_showEditor; if (_showEditor && _tenancy is not null) EndDateInput.EndDate = _tenancy.EndDate; }
+    private void ToggleInvite() { _showInvite = !_showInvite; if (_showInvite && _tenancy is not null) { InviteInput.Email = string.Empty; InviteInput.JoinedOn = _tenancy.StartDate > DateOnly.FromDateTime(DateTime.Today) ? _tenancy.StartDate : DateOnly.FromDateTime(DateTime.Today); } }
+
+    private Task SaveEndDateAsync() => RunAsync(async () => { await TenancyService.UpdateEndDateAsync(new UpdateTenancyEndDateCommand(TenancyId, EndDateInput.EndDate), _userId); _showEditor = false; }, "Tenancy end date updated.");
+    private Task CancelTenancyAsync() => RunAsync(async () => { await TenancyService.CancelAsync(TenancyId, _userId); _showEditor = false; }, "Tenancy cancelled.");
+    private Task MarkLeftAsync(TenancyMemberItem member) => RunAsync(() => TenancyService.MarkMemberLeftAsync(new MarkTenancyMemberLeftCommand(TenancyId, member.UserProfileId, DateOnly.FromDateTime(DateTime.Today)), _userId), $"{member.DisplayName}'s membership ended.");
+    private Task RevokeAsync(Guid id) => RunAsync(() => TenancyService.RevokeInvitationAsync(id, _userId), "Invitation revoked.");
+
+    private async Task InviteAsync()
+    {
+        await RunAsync(async () =>
+        {
+            var invitation = await TenancyService.InviteAsync(new InviteTenancyMemberCommand(TenancyId, InviteInput.Email, InviteInput.JoinedOn), _userId);
+            _invitationUrl = NavigationManager.ToAbsoluteUri($"/invitations/{invitation.Token}").ToString();
+            _invitedEmail = InviteInput.Email; _copied = false; _showInvite = false;
+        }, "Invitation created. Copy the link below to share it.");
+    }
+
+    private async Task CopyInvitationAsync() { if (_invitationUrl is null) return; await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _invitationUrl); _copied = true; }
+
+    private async Task RunAsync(Func<Task> action, string success)
+    {
+        if (_isSaving) return; _isSaving = true; _error = null; _message = null;
+        try { await action(); await ReloadAsync(); _message = success; }
+        catch (Exception exception) { Console.Error.WriteLine(exception); _error = exception is InvalidOperationException or ArgumentException ? exception.Message : "The change could not be saved. Please try again."; }
+        finally { _isSaving = false; }
+    }
+
+    private string GetState() => _tenancy!.IsCancelled ? "Cancelled" : _tenancy.EndDate is { } end && end < DateOnly.FromDateTime(DateTime.Today) ? "Ended" : _tenancy.StartDate > DateOnly.FromDateTime(DateTime.Today) ? "Upcoming" : "Active";
+    private static string GetInitial(string value) => string.IsNullOrWhiteSpace(value) ? "?" : value.Trim()[..1].ToUpperInvariant();
+    private static bool IsPending(TenancyInvitationItem item) => !item.AcceptedAtUtc.HasValue && !item.RevokedAtUtc.HasValue && item.ExpiresAtUtc > DateTimeOffset.UtcNow;
+    private static string InvitationStatus(TenancyInvitationItem item) => item.AcceptedAtUtc.HasValue ? "Accepted" : item.RevokedAtUtc.HasValue ? "Revoked" : item.ExpiresAtUtc <= DateTimeOffset.UtcNow ? "Expired" : "Pending";
+
+    private sealed class EndDateModel { public DateOnly? EndDate { get; set; } }
+    private sealed class InviteModel { [Required, EmailAddress] public string Email { get; set; } = string.Empty; [Required] public DateOnly JoinedOn { get; set; } }
+}
