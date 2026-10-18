@@ -641,6 +641,60 @@ namespace RentConnect.Migrations
                         });
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.TenancyInvitation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("AcceptedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<DateTimeOffset>("ExpiresAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("InvitedByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("JoinedOn")
+                        .HasColumnType("date");
+
+                    b.Property<string>("NormalizedEmail")
+                        .IsRequired()
+                        .HasMaxLength(320)
+                        .HasColumnType("nvarchar(320)");
+
+                    b.Property<DateTimeOffset?>("RevokedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("TenancyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InvitedByUserProfileId");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.HasIndex("TenancyId", "NormalizedEmail");
+
+                    b.ToTable("TenancyInvitations", (string)null);
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.TenancyMember", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1122,6 +1176,21 @@ namespace RentConnect.Migrations
                     b.HasOne("RentConnect.Core.Entities.RentalUnit", null)
                         .WithMany()
                         .HasForeignKey("RentalUnitId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.TenancyInvitation", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("InvitedByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.Tenancy", null)
+                        .WithMany()
+                        .HasForeignKey("TenancyId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

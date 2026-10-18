@@ -26,6 +26,9 @@ public class ApplicationDbContext(
     public DbSet<TenancyMember> TenancyMembers =>
         Set<TenancyMember>();
 
+    public DbSet<TenancyInvitation> TenancyInvitations =>
+        Set<TenancyInvitation>();
+
     public DbSet<MaintenanceRequest> MaintenanceRequests =>
         Set<MaintenanceRequest>();
 
