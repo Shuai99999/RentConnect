@@ -2,10 +2,12 @@
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Identity
+@using Microsoft.EntityFrameworkCore
 @using RentConnect.Data
 
 @inject UserManager<ApplicationUser> UserManager
 @inject SignInManager<ApplicationUser> SignInManager
+@inject IDbContextFactory<ApplicationDbContext> DbContextFactory
 @inject IdentityRedirectManager RedirectManager
 
 <PageTitle>Profile</PageTitle>
@@ -23,6 +25,15 @@
                 <label for="username" class="form-label">Username</label>
             </div>
             <div class="form-floating mb-3">
+                <InputText @bind-Value="Input.DisplayName"
+                           id="Input.DisplayName"
+                           class="form-control"
+                           autocomplete="name"
+                           placeholder="Enter your display name" />
+                <label for="Input.DisplayName" class="form-label">Display name</label>
+                <ValidationMessage For="() => Input.DisplayName" class="text-danger" />
+            </div>
+            <div class="form-floating mb-3">
                 <InputText @bind-Value="Input.PhoneNumber" id="Input.PhoneNumber" class="form-control" placeholder="Enter your phone number" />
                 <label for="Input.PhoneNumber" class="form-label">Phone number</label>
                 <ValidationMessage For="() => Input.PhoneNumber" class="text-danger" />
@@ -36,6 +47,7 @@
     private ApplicationUser? user;
     private string? username;
     private string? phoneNumber;
+    private string? displayName;
 
     [CascadingParameter]
     private HttpContext HttpContext { get; set; } = default!;
@@ -57,7 +69,33 @@
         username = await UserManager.GetUserNameAsync(user);
         phoneNumber = await UserManager.GetPhoneNumberAsync(user);
 
+        if (!user.UserProfileId.HasValue)
+        {
+            RedirectManager.RedirectToCurrentPageWithStatus(
+                "Error: Your user profile could not be found.",
+                HttpContext);
+            return;
+        }
+
+        await using var context =
+            await DbContextFactory.CreateDbContextAsync();
+
+        displayName = await context.UserProfiles
+            .AsNoTracking()
+            .Where(profile => profile.Id == user.UserProfileId.Value)
+            .Select(profile => profile.DisplayName)
+            .SingleOrDefaultAsync();
+
+        if (displayName is null)
+        {
+            RedirectManager.RedirectToCurrentPageWithStatus(
+                "Error: Your user profile could not be found.",
+                HttpContext);
+            return;
+        }
+
         Input.PhoneNumber ??= phoneNumber;
+        Input.DisplayName ??= displayName;
     }
 
     private async Task OnValidSubmitAsync()
@@ -66,6 +104,38 @@
         {
             RedirectManager.RedirectToInvalidUser(UserManager, HttpContext);
             return;
+        }
+
+        if (!user.UserProfileId.HasValue)
+        {
+            RedirectManager.RedirectToCurrentPageWithStatus(
+                "Error: Your user profile could not be found.",
+                HttpContext);
+            return;
+        }
+
+        if (!string.Equals(
+                Input.DisplayName,
+                displayName,
+                StringComparison.Ordinal))
+        {
+            await using var context =
+                await DbContextFactory.CreateDbContextAsync();
+            var profile = await context.UserProfiles
+                .SingleOrDefaultAsync(
+                    profile =>
+                        profile.Id == user.UserProfileId.Value);
+
+            if (profile is null)
+            {
+                RedirectManager.RedirectToCurrentPageWithStatus(
+                    "Error: Your user profile could not be found.",
+                    HttpContext);
+                return;
+            }
+
+            profile.Rename(Input.DisplayName);
+            await context.SaveChangesAsync();
         }
 
         if (Input.PhoneNumber != phoneNumber)
@@ -84,6 +154,11 @@
 
     private sealed class InputModel
     {
+        [Required]
+        [StringLength(100, ErrorMessage = "The display name cannot exceed {1} characters.")]
+        [Display(Name = "Display name")]
+        public string DisplayName { get; set; } = string.Empty;
+
         [Phone]
         [Display(Name = "Phone number")]
         public string? PhoneNumber { get; set; }
