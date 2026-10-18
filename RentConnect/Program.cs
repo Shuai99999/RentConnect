@@ -119,6 +119,18 @@ builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSe
 
 var app = builder.Build();
 
+if (builder.Configuration.GetValue(
+        "Database:ApplyMigrationsOnStartup",
+        defaultValue: true))
+{
+    await using var migrationScope = app.Services.CreateAsyncScope();
+    var dbContextFactory = migrationScope.ServiceProvider
+        .GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+    await using var migrationContext =
+        await dbContextFactory.CreateDbContextAsync();
+    await migrationContext.Database.MigrateAsync();
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
@@ -214,6 +226,19 @@ app.MapGet(
                 enableRangeProcessing: false);
         })
     .RequireAuthorization();
+
+app.MapGet(
+    "/health",
+    async (
+        IDbContextFactory<ApplicationDbContext> dbContextFactory,
+        CancellationToken cancellationToken) =>
+    {
+        await using var context = await dbContextFactory
+            .CreateDbContextAsync(cancellationToken);
+        return await context.Database.CanConnectAsync(cancellationToken)
+            ? Results.Ok(new { status = "healthy" })
+            : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
+    });
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
