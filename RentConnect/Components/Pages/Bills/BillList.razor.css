@@ -2,7 +2,7 @@
     width: min(1100px, calc(100% - 2rem));
     margin: 0 auto;
     padding: 3rem 0 5rem;
-    color: #172033;
+    color: var(--color-text);
 }
 
 .page-header {
@@ -15,7 +15,7 @@
 
 .eyebrow {
     margin: 0 0 0.4rem;
-    color: #5267d8;
+    color: var(--color-primary);
     font-size: 0.78rem;
     font-weight: 800;
     letter-spacing: 0.12em;
@@ -27,7 +27,7 @@
     font-size: clamp(2.1rem, 5vw, 3.4rem);
 }
 
-.page-header p:last-child { margin: 0.65rem 0 0; color: #667085; }
+.page-header p:last-child { margin: 0.65rem 0 0; color: var(--color-text-muted); }
 
 .primary-link,
 .secondary-link {
@@ -41,8 +41,8 @@
     text-decoration: none;
 }
 
-.primary-link { background: #5267d8; color: white; box-shadow: 0 10px 24px rgb(82 103 216 / 22%); }
-.secondary-link { border: 1px solid #d7dcec; color: #4054c4; }
+.primary-link { background: var(--color-primary); color: white; box-shadow: 0 10px 24px rgb(var(--color-primary-rgb) / 22%); }
+.secondary-link { border: 1px solid var(--color-border-strong); color: var(--color-primary-strong); }
 
 .bill-grid {
     display: grid;
@@ -54,34 +54,34 @@
     display: grid;
     min-height: 235px;
     padding: 1.35rem;
-    border: 1px solid #e1e6f0;
+    border: 1px solid var(--color-border);
     border-radius: 1.1rem;
     background: white;
     color: inherit;
     text-decoration: none;
-    box-shadow: 0 10px 30px rgb(31 43 79 / 6%);
+    box-shadow: 0 10px 30px rgb(var(--color-shadow-rgb) / 6%);
     transition: 160ms ease;
 }
 
-.bill-card:hover { transform: translateY(-2px); border-color: #aeb9ef; box-shadow: 0 14px 34px rgb(31 43 79 / 11%); }
+.bill-card:hover { transform: translateY(-2px); border-color: var(--color-primary-border); box-shadow: 0 14px 34px rgb(var(--color-shadow-rgb) / 11%); }
 
 .card-heading,
 .card-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 
-.category { color: #667085; font-size: 0.82rem; font-weight: 700; text-transform: uppercase; }
-.status { padding: 0.3rem 0.55rem; border-radius: 999px; background: #eef1ff; color: #4054c4; font-size: 0.72rem; font-weight: 750; }
+.category { color: var(--color-text-muted); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; }
+.status { padding: 0.3rem 0.55rem; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary-strong); font-size: 0.72rem; font-weight: 750; }
 .status-settled { background: #e7f8ee; color: #197044; }
 .status-disputed { background: #fff0e5; color: #a54812; }
-.status-void { background: #f0f2f5; color: #667085; }
+.status-void { background: var(--color-surface-muted); color: var(--color-text-muted); }
 .bill-card h2 { margin: 1.15rem 0 0.65rem; font-size: 1.25rem; }
-.amount { align-self: center; color: #172033; font-size: 1.9rem; font-weight: 800; }
-.card-footer { align-self: end; color: #667085; font-size: 0.82rem; }
+.amount { align-self: center; color: var(--color-text); font-size: 1.9rem; font-weight: 800; }
+.card-footer { align-self: end; color: var(--color-text-muted); font-size: 0.82rem; }
 
-.state-card { padding: 3.5rem 1.5rem; border: 1px solid #e1e6f0; border-radius: 1.1rem; background: white; text-align: center; }
+.state-card { padding: 3.5rem 1.5rem; border: 1px solid var(--color-border); border-radius: 1.1rem; background: white; text-align: center; }
 .state-card h2 { margin: 0.8rem 0 0.5rem; }
-.state-card p { color: #667085; }
+.state-card p { color: var(--color-text-muted); }
 .error-card { border-color: #f5c2c0; background: #fff7f7; }
-.empty-icon { display: inline-grid; width: 50px; height: 50px; place-items: center; border-radius: 50%; background: #eef1ff; color: #4054c4; font-size: 1.25rem; font-weight: 800; }
+.empty-icon { display: inline-grid; width: 50px; height: 50px; place-items: center; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary-strong); font-size: 1.25rem; font-weight: 800; }
 
 @media (max-width: 640px) {
     .page-header { align-items: stretch; flex-direction: column; }

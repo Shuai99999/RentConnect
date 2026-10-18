@@ -1,8 +1,8 @@
-﻿.maintenance-form-page {
+.maintenance-form-page {
     width: min(880px, calc(100% - 2rem));
     margin: 0 auto;
     padding: 3rem 0 5rem;
-    color: #172033;
+    color: var(--color-text);
 }
 
 .form-page-header {
@@ -15,7 +15,7 @@
 
 .page-eyebrow {
     margin: 0 0 0.4rem;
-    color: #5267d8;
+    color: var(--color-primary);
     font-size: 0.8rem;
     font-weight: 700;
     letter-spacing: 0.12em;
@@ -31,20 +31,9 @@
 .page-description {
     max-width: 620px;
     margin: 0.8rem 0 0;
-    color: #667085;
+    color: var(--color-text-muted);
     line-height: 1.7;
 }
-
-.back-link {
-    flex: 0 0 auto;
-    color: #4054c4;
-    font-weight: 700;
-    text-decoration: none;
-}
-
-    .back-link:hover {
-        text-decoration: underline;
-    }
 
 .maintenance-form {
     display: grid;
@@ -54,10 +43,10 @@
 .form-section,
 .form-state-panel {
     padding: 1.5rem;
-    border: 1px solid #e3e7f0;
+    border: 1px solid var(--color-border);
     border-radius: 1rem;
     background: white;
-    box-shadow: 0 8px 30px rgb(31 43 79 / 5%);
+    box-shadow: 0 8px 30px rgb(var(--color-shadow-rgb) / 5%);
 }
 
 .form-state-panel {
@@ -72,7 +61,7 @@
     .form-state-panel p {
         max-width: 620px;
         margin: 0 auto 1.5rem;
-        color: #667085;
+        color: var(--color-text-muted);
         line-height: 1.7;
     }
 
@@ -92,7 +81,7 @@
 
     .section-heading p {
         margin: 0.4rem 0 0;
-        color: #667085;
+        color: var(--color-text-muted);
         line-height: 1.6;
     }
 
@@ -120,21 +109,21 @@
     width: 100%;
     min-height: 46px;
     padding: 0.75rem 0.85rem;
-    border: 1px solid #cfd5e3;
+    border: 1px solid var(--color-border-strong);
     border-radius: 0.7rem;
     background: white;
-    color: #172033;
+    color: var(--color-text);
     transition: border-color 150ms ease, box-shadow 150ms ease;
 }
 
     .form-control:hover {
-        border-color: #aeb9ef;
+        border-color: var(--color-primary-border);
     }
 
     .form-control:focus {
-        border-color: #5267d8;
+        border-color: var(--color-primary);
         outline: none;
-        box-shadow: 0 0 0 3px rgb(82 103 216 / 14%);
+        box-shadow: 0 0 0 3px rgb(var(--color-primary-rgb) / 14%);
     }
 
 .description-input {
@@ -144,7 +133,7 @@
 }
 
 .field-hint {
-    color: #7b8496;
+    color: var(--color-text-subtle);
     font-size: 0.85rem;
     line-height: 1.5;
 }
@@ -185,20 +174,20 @@
     align-items: flex-start;
     gap: 0.8rem;
     padding: 1rem;
-    border: 1px solid #d7dcec;
+    border: 1px solid var(--color-border-strong);
     border-radius: 0.8rem;
     cursor: pointer;
     transition: border-color 150ms ease, background 150ms ease;
 }
 
     .visibility-option:hover {
-        border-color: #aeb9ef;
-        background: #fafbff;
+        border-color: var(--color-primary-border);
+        background: var(--color-surface-subtle);
     }
 
     .visibility-option input {
         margin-top: 0.25rem;
-        accent-color: #5267d8;
+        accent-color: var(--color-primary);
     }
 
     .visibility-option span {
@@ -207,11 +196,11 @@
     }
 
     .visibility-option strong {
-        color: #172033;
+        color: var(--color-text);
     }
 
     .visibility-option small {
-        color: #667085;
+        color: var(--color-text-muted);
         line-height: 1.5;
     }
 
@@ -237,25 +226,25 @@
 
 .primary-button {
     border: 0;
-    background: #5267d8;
+    background: var(--color-primary);
     color: white;
-    box-shadow: 0 10px 24px rgb(82 103 216 / 22%);
+    box-shadow: 0 10px 24px rgb(var(--color-primary-rgb) / 22%);
 }
 
     .primary-button:hover {
-        background: #4054c4;
+        background: var(--color-primary-strong);
         color: white;
     }
 
 .secondary-button {
-    border: 1px solid #d7dcec;
+    border: 1px solid var(--color-border-strong);
     background: white;
-    color: #344054;
+    color: var(--color-text-secondary);
 }
 
     .secondary-button:hover {
-        border-color: #aeb9ef;
-        color: #4054c4;
+        border-color: var(--color-primary-border);
+        color: var(--color-primary-strong);
     }
 
 @media (max-width: 640px) {
