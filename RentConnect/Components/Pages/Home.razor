@@ -1,7 +1,409 @@
-﻿@page "/"
+@page "/"
+@attribute [Authorize]
+@rendermode InteractiveServer
 
-<PageTitle>Home</PageTitle>
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Billing
+@using RentConnect.Application.Maintenance
+@using RentConnect.Application.Notifications
+@using RentConnect.Core.Enums
+@using RentConnect.Services
 
-<h1>Hello, world!</h1>
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject IMaintenanceService MaintenanceService
+@inject ISharedBillService SharedBillService
+@inject INotificationService NotificationService
 
-Welcome to your new app.
+<PageTitle>Dashboard</PageTitle>
+
+<main class="dashboard-page">
+    @if (_isLoading)
+    {
+        <section class="dashboard-state" aria-live="polite">
+            <span class="state-spinner" aria-hidden="true"></span>
+            <p>Preparing your dashboard...</p>
+        </section>
+    }
+    else if (_errorMessage is not null)
+    {
+        <section class="dashboard-state error-state" role="alert">
+            <span class="state-symbol" aria-hidden="true">!</span>
+            <h1>We couldn't load your dashboard</h1>
+            <p>@_errorMessage</p>
+            <button type="button" class="secondary-button" @onclick="LoadDashboardAsync">
+                Try again
+            </button>
+        </section>
+    }
+    else
+    {
+        <header class="dashboard-hero">
+            <div class="hero-copy">
+                <p class="eyebrow">Rental overview</p>
+                <h1>Welcome back, @GetFirstName(_displayName)</h1>
+                <p>
+                    Keep up with your home, maintenance work, and shared expenses
+                    from one place.
+                </p>
+            </div>
+
+            <div class="quick-actions" aria-label="Quick actions">
+                <a class="primary-action" href="/maintenance/new">
+                    <span aria-hidden="true">+</span>
+                    New request
+                </a>
+                <a class="secondary-action" href="/bills/new">Add a bill</a>
+            </div>
+        </header>
+
+        <section class="summary-grid" aria-label="Account summary">
+            <a class="summary-card" href="/maintenance">
+                <span class="summary-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="m14.5 6.5 3-3a4 4 0 0 1-5 5l-6.8 6.8a2.4 2.4 0 1 1-3-3l6.8-6.8a4 4 0 0 1 5-5l-3 3 3 3Z" />
+                    </svg>
+                </span>
+                <span class="summary-copy">
+                    <small>Active requests</small>
+                    <strong>@_activeRequestCount</strong>
+                    <span>@GetRequestSummary()</span>
+                </span>
+                <span class="card-arrow" aria-hidden="true">→</span>
+            </a>
+
+            <a class="summary-card" href="/bills">
+                <span class="summary-icon bill-icon" aria-hidden="true">$</span>
+                <span class="summary-copy">
+                    <small>Bills to review</small>
+                    <strong>@_attentionBillCount</strong>
+                    <span>@GetBillSummary()</span>
+                </span>
+                <span class="card-arrow" aria-hidden="true">→</span>
+            </a>
+
+            <a class="summary-card" href="/notifications">
+                <span class="summary-icon notification-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
+                        <path d="M10 21h4" />
+                    </svg>
+                </span>
+                <span class="summary-copy">
+                    <small>Unread updates</small>
+                    <strong>@_unreadNotificationCount</strong>
+                    <span>@(_unreadNotificationCount == 0 ? "You're all caught up" : "New activity needs a look")</span>
+                </span>
+                <span class="card-arrow" aria-hidden="true">→</span>
+            </a>
+
+            <article class="summary-card rental-summary">
+                <span class="summary-icon rental-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" focusable="false">
+                        <path d="m3 11 9-7 9 7" />
+                        <path d="M5 10v10h14V10M9 20v-6h6v6" />
+                    </svg>
+                </span>
+                <span class="summary-copy">
+                    <small>Rental spaces</small>
+                    <strong>@_tenancies.Count</strong>
+                    <span>@GetRentalSummary()</span>
+                </span>
+            </article>
+        </section>
+
+        <div class="dashboard-columns">
+            <section class="dashboard-panel">
+                <header class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Maintenance</p>
+                        <h2>Recent requests</h2>
+                    </div>
+                    <a href="/maintenance">View all <span aria-hidden="true">→</span></a>
+                </header>
+
+                @if (_recentRequests.Count == 0)
+                {
+                    <div class="compact-empty">
+                        <span aria-hidden="true">✓</span>
+                        <div>
+                            <strong>No maintenance activity</strong>
+                            <p>New requests and status changes will appear here.</p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="item-list">
+                        @foreach (var request in _recentRequests)
+                        {
+                            <a class="list-item" href="@($"/maintenance/{request.Id}")">
+                                <span class="item-marker @GetPriorityCssClass(request.Priority)"></span>
+                                <span class="item-main">
+                                    <strong>@request.Title</strong>
+                                    <small>@FormatMaintenanceCategory(request.Category) · @FormatRelativeDate(request.UpdatedAtUtc)</small>
+                                </span>
+                                <span class="status-pill @GetMaintenanceStatusCssClass(request.Status)">
+                                    @FormatMaintenanceStatus(request.Status)
+                                </span>
+                            </a>
+                        }
+                    </div>
+                }
+            </section>
+
+            <section class="dashboard-panel">
+                <header class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Shared finances</p>
+                        <h2>Upcoming bills</h2>
+                    </div>
+                    <a href="/bills">View all <span aria-hidden="true">→</span></a>
+                </header>
+
+                @if (_upcomingBills.Count == 0)
+                {
+                    <div class="compact-empty">
+                        <span aria-hidden="true">$</span>
+                        <div>
+                            <strong>No bills need attention</strong>
+                            <p>Published household expenses will appear here.</p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="item-list">
+                        @foreach (var bill in _upcomingBills)
+                        {
+                            <a class="list-item" href="@($"/bills/{bill.Id}")">
+                                <span class="bill-date" aria-hidden="true">
+                                    <small>@bill.DueDate.ToString("MMM")</small>
+                                    <strong>@bill.DueDate.Day</strong>
+                                </span>
+                                <span class="item-main">
+                                    <strong>@bill.Title</strong>
+                                    <small>@FormatBillCategory(bill.Category) · Due @FormatDueDate(bill.DueDate)</small>
+                                </span>
+                                <span class="bill-amount">@FormatMoney(bill.TotalAmount, bill.Currency)</span>
+                            </a>
+                        }
+                    </div>
+                }
+            </section>
+        </div>
+
+        <section class="dashboard-panel activity-panel">
+            <header class="panel-heading">
+                <div>
+                    <p class="eyebrow">Latest activity</p>
+                    <h2>Updates for you</h2>
+                </div>
+                <a href="/notifications">Open notifications <span aria-hidden="true">→</span></a>
+            </header>
+
+            @if (_recentNotifications.Count == 0)
+            {
+                <div class="compact-empty">
+                    <span aria-hidden="true">•</span>
+                    <div>
+                        <strong>Nothing new yet</strong>
+                        <p>Updates about requests and bills will be collected here.</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <div class="activity-list">
+                    @foreach (var notification in _recentNotifications)
+                    {
+                        <a class="activity-item @(notification.IsRead ? string.Empty : "unread")"
+                           href="@notification.TargetPath">
+                            <span class="activity-dot" aria-hidden="true"></span>
+                            <span>
+                                <strong>@notification.Title</strong>
+                                <small>@notification.Message</small>
+                            </span>
+                            <time datetime="@notification.CreatedAtUtc.ToString("O")">
+                                @FormatRelativeDate(notification.CreatedAtUtc)
+                            </time>
+                        </a>
+                    }
+                </div>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private readonly List<MaintenanceTenancyOption> _tenancies = [];
+    private readonly List<MaintenanceRequestSummary> _recentRequests = [];
+    private readonly List<SharedBillSummary> _upcomingBills = [];
+    private readonly List<UserNotificationItem> _recentNotifications = [];
+    private string _displayName = "there";
+    private string? _errorMessage;
+    private int _activeRequestCount;
+    private int _attentionBillCount;
+    private int _urgentRequestCount;
+    private int _overdueBillCount;
+    private int _unreadNotificationCount;
+    private bool _isLoading = true;
+
+    protected override Task OnInitializedAsync() => LoadDashboardAsync();
+
+    private async Task LoadDashboardAsync()
+    {
+        _isLoading = true;
+        _errorMessage = null;
+
+        try
+        {
+            var profile = await CurrentUserProfileService
+                .GetRequiredUserProfileAsync();
+            _displayName = profile.DisplayName;
+
+            var tenancies = await MaintenanceService
+                .GetAvailableTenanciesAsync(profile.Id);
+            var requests = await MaintenanceService
+                .GetVisibleRequestsAsync(profile.Id);
+            var bills = await SharedBillService
+                .GetVisibleBillsAsync(profile.Id);
+            var notifications = await NotificationService
+                .GetRecentAsync(profile.Id, 6);
+            _unreadNotificationCount = await NotificationService
+                .GetUnreadCountAsync(profile.Id);
+
+            _tenancies.Clear();
+            _tenancies.AddRange(tenancies);
+
+            _activeRequestCount = requests.Count(request =>
+                request.Status is not MaintenanceStatus.Closed and
+                    not MaintenanceStatus.Cancelled);
+            _urgentRequestCount = requests.Count(request =>
+                request.Status is not MaintenanceStatus.Closed and
+                    not MaintenanceStatus.Cancelled &&
+                request.Priority is MaintenancePriority.High or
+                    MaintenancePriority.Emergency);
+            _recentRequests.Clear();
+            _recentRequests.AddRange(requests.Take(4));
+
+            var today = DateOnly.FromDateTime(DateTime.UtcNow);
+            var attentionBills = bills
+                .Where(bill => bill.Status is
+                    SharedBillStatus.Published or
+                    SharedBillStatus.PartiallySettled or
+                    SharedBillStatus.Disputed)
+                .OrderBy(bill => bill.DueDate)
+                .ToArray();
+            _attentionBillCount = attentionBills.Length;
+            _overdueBillCount = attentionBills.Count(bill =>
+                bill.DueDate < today);
+            _upcomingBills.Clear();
+            _upcomingBills.AddRange(attentionBills.Take(4));
+
+            _recentNotifications.Clear();
+            _recentNotifications.AddRange(notifications.Take(4));
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _errorMessage =
+                "Please try again. If the problem continues, contact support.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private string GetRequestSummary() =>
+        _urgentRequestCount > 0
+            ? $"{_urgentRequestCount} high priority"
+            : _activeRequestCount == 0
+                ? "No open work"
+                : "Work currently in progress";
+
+    private string GetBillSummary() =>
+        _overdueBillCount > 0
+            ? $"{_overdueBillCount} overdue"
+            : _attentionBillCount == 0
+                ? "Nothing outstanding"
+                : "Published or in review";
+
+    private string GetRentalSummary()
+    {
+        if (_tenancies.Count == 0)
+        {
+            return "No active rental linked";
+        }
+
+        var first = _tenancies[0];
+        return _tenancies.Count == 1
+            ? $"{first.PropertyName} · {first.RentalUnitName}"
+            : $"{first.PropertyName} and {_tenancies.Count - 1} more";
+    }
+
+    private static string GetFirstName(string displayName)
+    {
+        var parts = displayName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 0 ? "there" : parts[0];
+    }
+
+    private static string FormatRelativeDate(DateTimeOffset value)
+    {
+        var elapsed = DateTimeOffset.UtcNow - value.ToUniversalTime();
+
+        if (elapsed < TimeSpan.FromMinutes(1)) return "Just now";
+        if (elapsed < TimeSpan.FromHours(1)) return $"{Math.Max(1, (int)elapsed.TotalMinutes)}m ago";
+        if (elapsed < TimeSpan.FromDays(1)) return $"{Math.Max(1, (int)elapsed.TotalHours)}h ago";
+        if (elapsed < TimeSpan.FromDays(7)) return $"{Math.Max(1, (int)elapsed.TotalDays)}d ago";
+        return value.ToString("MMM d, yyyy");
+    }
+
+    private static string FormatDueDate(DateOnly dueDate)
+    {
+        var today = DateOnly.FromDateTime(DateTime.UtcNow);
+        var days = dueDate.DayNumber - today.DayNumber;
+
+        return days switch
+        {
+            < 0 => $"{Math.Abs(days)}d overdue",
+            0 => "today",
+            1 => "tomorrow",
+            _ => dueDate.ToString("MMM d")
+        };
+    }
+
+    private static string FormatMoney(decimal amount, string currency) =>
+        currency == "JPY" ? $"{currency} {amount:N0}" : $"{currency} {amount:N2}";
+
+    private static string FormatMaintenanceStatus(MaintenanceStatus status) =>
+        status switch
+        {
+            MaintenanceStatus.InProgress => "In progress",
+            _ => status.ToString()
+        };
+
+    private static string GetMaintenanceStatusCssClass(MaintenanceStatus status) =>
+        $"status-{status.ToString().ToLowerInvariant()}";
+
+    private static string GetPriorityCssClass(MaintenancePriority priority) =>
+        priority switch
+        {
+            MaintenancePriority.High => "priority-high",
+            MaintenancePriority.Emergency => "priority-emergency",
+            _ => string.Empty
+        };
+
+    private static string FormatMaintenanceCategory(MaintenanceCategory category) =>
+        category switch
+        {
+            MaintenanceCategory.HeatingCooling => "Heating and cooling",
+            MaintenanceCategory.LocksAndSecurity => "Locks and security",
+            MaintenanceCategory.PestControl => "Pest control",
+            _ => category.ToString()
+        };
+
+    private static string FormatBillCategory(SharedBillCategory category) =>
+        category.ToString();
+}
