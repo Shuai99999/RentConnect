@@ -15,6 +15,8 @@ using RentConnect.Application.Properties;
 using RentConnect.Infrastructure.Properties;
 using RentConnect.Application.Tenancies;
 using RentConnect.Infrastructure.Tenancies;
+using Azure.Communication.Email;
+using Azure.Identity;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -30,6 +32,29 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISharedBillService, SharedBillService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
 builder.Services.AddScoped<ITenancyService, TenancyService>();
+
+var emailEndpoint = builder.Configuration["Email:AzureCommunicationServicesEndpoint"];
+var emailSenderAddress = builder.Configuration["Email:SenderAddress"];
+var applicationBaseUrl = builder.Configuration["Email:ApplicationBaseUrl"];
+
+if (!string.IsNullOrWhiteSpace(emailEndpoint) &&
+    !string.IsNullOrWhiteSpace(emailSenderAddress) &&
+    !string.IsNullOrWhiteSpace(applicationBaseUrl))
+{
+    builder.Services.AddSingleton(
+        new EmailClient(new Uri(emailEndpoint), new DefaultAzureCredential()));
+    builder.Services.AddSingleton<ITenancyInvitationEmailSender>(services =>
+        new AzureCommunicationTenancyInvitationEmailSender(
+            services.GetRequiredService<EmailClient>(),
+            emailSenderAddress,
+            new Uri(applicationBaseUrl),
+            services.GetRequiredService<ILogger<AzureCommunicationTenancyInvitationEmailSender>>()));
+}
+else
+{
+    builder.Services.AddSingleton<ITenancyInvitationEmailSender>(
+        NullTenancyInvitationEmailSender.Instance);
+}
 
 builder.Services.AddAuthentication(options =>
     {

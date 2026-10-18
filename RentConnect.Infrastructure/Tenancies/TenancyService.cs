@@ -10,7 +10,8 @@ namespace RentConnect.Infrastructure.Tenancies;
 
 public sealed class TenancyService(
     IDbContextFactory<ApplicationDbContext> contextFactory,
-    TimeProvider timeProvider) : ITenancyService
+    TimeProvider timeProvider,
+    ITenancyInvitationEmailSender invitationEmailSender) : ITenancyService
 {
     public async Task<IReadOnlyList<TenancySummary>> GetVisibleAsync(
         Guid userProfileId,
@@ -254,7 +255,27 @@ public sealed class TenancyService(
         context.TenancyInvitations.Add(invitationRecord);
 
         await context.SaveChangesAsync(cancellationToken);
-        return new CreatedTenancyInvitation(invitationRecord.Id, token, invitationRecord.ExpiresAtUtc);
+
+        var tenancyLabel = await (
+                from unit in context.RentalUnits.AsNoTracking()
+                join property in context.Properties.AsNoTracking() on unit.PropertyId equals property.Id
+                where unit.Id == tenancy.RentalUnitId
+                select new { PropertyName = property.Name, RentalUnitName = unit.Name })
+            .SingleAsync(cancellationToken);
+        var emailSent = await invitationEmailSender.SendAsync(
+            new TenancyInvitationEmail(
+                invitationRecord.Email,
+                tenancyLabel.PropertyName,
+                tenancyLabel.RentalUnitName,
+                token,
+                invitationRecord.ExpiresAtUtc),
+            cancellationToken);
+
+        return new CreatedTenancyInvitation(
+            invitationRecord.Id,
+            token,
+            invitationRecord.ExpiresAtUtc,
+            emailSent);
     }
 
     public async Task RevokeInvitationAsync(Guid invitationId, Guid userProfileId, CancellationToken cancellationToken = default)

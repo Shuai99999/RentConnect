@@ -79,7 +79,10 @@
             @if (_invitationUrl is not null)
             {
                 <div class="invitation-link" role="status">
-                    <div><strong>Invitation ready</strong><p>Share this private link with @_invitedEmail. It expires in 7 days.</p></div>
+                    <div>
+                        <strong>@(_emailSent ? "Invitation emailed" : "Invitation ready")</strong>
+                        <p>@(_emailSent ? $"An email was queued for {_invitedEmail}. You can also share this private link." : $"Email delivery is not configured yet. Share this private link with {_invitedEmail}.") It expires in 7 days.</p>
+                    </div>
                     <div class="copy-row"><input value="@_invitationUrl" readonly aria-label="Invitation link" /><button type="button" class="secondary-button" @onclick="CopyInvitationAsync">@(_copied ? "Copied" : "Copy link")</button></div>
                 </div>
             }
@@ -125,7 +128,7 @@
     [Parameter] public Guid TenancyId { get; set; }
     private RentConnect.Application.Tenancies.TenancyDetails? _tenancy;
     private Guid _userId;
-    private bool _isLoading = true, _isSaving, _showEditor, _showInvite, _copied;
+    private bool _isLoading = true, _isSaving, _showEditor, _showInvite, _copied, _emailSent;
     private string? _message, _error, _invitationUrl, _invitedEmail;
     private EndDateModel EndDateInput { get; } = new();
     private InviteModel InviteInput { get; } = new();
@@ -152,7 +155,8 @@
             var invitation = await TenancyService.InviteAsync(new InviteTenancyMemberCommand(TenancyId, InviteInput.Email, InviteInput.JoinedOn), _userId);
             _invitationUrl = NavigationManager.ToAbsoluteUri($"/invitations/{invitation.Token}").ToString();
             _invitedEmail = InviteInput.Email; _copied = false; _showInvite = false;
-        }, "Invitation created. Copy the link below to share it.");
+            _emailSent = invitation.EmailSent;
+        }, "Invitation created.");
     }
 
     private async Task CopyInvitationAsync() { if (_invitationUrl is null) return; await JSRuntime.InvokeVoidAsync("navigator.clipboard.writeText", _invitationUrl); _copied = true; }

@@ -43,7 +43,11 @@ public sealed class TenancyServiceTests
             context.RentalUnits.Add(new RentalUnit(unitId, propertyId, "Garden Suite", RentalUnitType.Apartment));
             await context.SaveChangesAsync();
 
-            var service = new TenancyService(factory, new TestTimeProvider(now));
+            var emailSender = new RecordingEmailSender();
+            var service = new TenancyService(
+                factory,
+                new TestTimeProvider(now),
+                emailSender);
             var tenancyId = await service.CreateAsync(
                 new CreateTenancyCommand(unitId, new DateOnly(2026, 11, 1), new DateOnly(2027, 10, 31)), ownerId);
 
@@ -55,6 +59,12 @@ public sealed class TenancyServiceTests
                 new InviteTenancyMemberCommand(tenancyId, "tenant@example.com", new DateOnly(2026, 11, 1)), ownerId);
             var secondInvite = await service.InviteAsync(
                 new InviteTenancyMemberCommand(tenancyId, "tenant@example.com", new DateOnly(2026, 11, 1)), ownerId);
+
+            Assert.True(firstInvite.EmailSent);
+            Assert.True(secondInvite.EmailSent);
+            Assert.Equal(2, emailSender.Messages.Count);
+            Assert.Equal("Maple House", emailSender.Messages[0].PropertyName);
+            Assert.Equal(secondInvite.Token, emailSender.Messages[1].Token);
 
             Assert.False((await service.GetInvitationAsync(firstInvite.Token))!.IsAvailable);
             Assert.True((await service.GetInvitationAsync(secondInvite.Token))!.IsAvailable);
@@ -125,5 +135,18 @@ public sealed class TenancyServiceTests
     private sealed class TestTimeProvider(DateTimeOffset now) : TimeProvider
     {
         public override DateTimeOffset GetUtcNow() => now;
+    }
+
+    private sealed class RecordingEmailSender : ITenancyInvitationEmailSender
+    {
+        public List<TenancyInvitationEmail> Messages { get; } = [];
+
+        public Task<bool> SendAsync(
+            TenancyInvitationEmail message,
+            CancellationToken cancellationToken = default)
+        {
+            Messages.Add(message);
+            return Task.FromResult(true);
+        }
     }
 }
