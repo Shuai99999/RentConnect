@@ -37,7 +37,23 @@ public sealed record BillDisputeItem(
     string? Resolution,
     DateTimeOffset? ResolvedAtUtc);
 
+public sealed record BillAttachmentItem(
+    Guid Id,
+    Guid UploadedByUserProfileId,
+    string UploadedByDisplayName,
+    string OriginalFileName,
+    string ContentType,
+    long FileSizeBytes,
+    DateTimeOffset UploadedAtUtc,
+    bool CanDelete);
+
+public sealed record BillAttachmentDownload(
+    string OriginalFileName,
+    string ContentType,
+    Stream Content);
+
 public sealed record SharedBillPermissions(
+    bool CanAddAttachment,
     bool CanPublish,
     bool CanVoid,
     bool CanDeclarePayment,
@@ -65,4 +81,5 @@ public sealed record SharedBillDetails(
     DateTimeOffset UpdatedAtUtc,
     IReadOnlyList<BillShareItem> Shares,
     IReadOnlyList<BillDisputeItem> Disputes,
+    IReadOnlyList<BillAttachmentItem> Attachments,
     SharedBillPermissions Permissions);

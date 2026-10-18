@@ -9,7 +9,8 @@ namespace RentConnect.Infrastructure.Billing;
 
 public sealed class SharedBillService(
     IDbContextFactory<ApplicationDbContext> contextFactory,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IBillAttachmentStorage attachmentStorage)
     : ISharedBillService
 {
     public async Task<IReadOnlyList<SharedBillTenancyOption>>
@@ -127,6 +128,12 @@ public sealed class SharedBillService(
             return null;
         }
 
+        var attachmentEntities = await context.BillAttachments
+            .AsNoTracking()
+            .Where(attachment => attachment.SharedBillId == bill.Id)
+            .OrderByDescending(attachment => attachment.UploadedAtUtc)
+            .ToArrayAsync(cancellationToken);
+
         var profileIds = bill.Shares
             .Select(share => share.UserProfileId)
             .Append(bill.CreatedByUserProfileId)
@@ -138,6 +145,8 @@ public sealed class SharedBillService(
                     dispute.ResolvedByUserProfileId.HasValue)
                 .Select(dispute =>
                     dispute.ResolvedByUserProfileId!.Value))
+            .Concat(attachmentEntities.Select(
+                attachment => attachment.UploadedByUserProfileId))
             .Distinct()
             .ToArray();
 
@@ -178,6 +187,21 @@ public sealed class SharedBillService(
                 dispute.ResolvedAtUtc))
             .ToArray();
 
+        var attachments = attachmentEntities
+            .Select(attachment => new BillAttachmentItem(
+                attachment.Id,
+                attachment.UploadedByUserProfileId,
+                displayNames[attachment.UploadedByUserProfileId],
+                attachment.OriginalFileName,
+                attachment.ContentType,
+                attachment.FileSizeBytes,
+                attachment.UploadedAtUtc,
+                SharedBillAccessPolicy.CanDeleteAttachment(
+                    bill,
+                    attachment,
+                    access)))
+            .ToArray();
+
         return new SharedBillDetails(
             bill.Id,
             bill.TenancyId,
@@ -198,6 +222,7 @@ public sealed class SharedBillService(
             bill.UpdatedAtUtc,
             shares,
             disputes,
+            attachments,
             CreatePermissions(bill, access));
     }
 
@@ -462,6 +487,180 @@ public sealed class SharedBillService(
         await context.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<Guid> AddAttachmentAsync(
+        AddBillAttachmentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bill = await GetBillAsync(
+            context,
+            command.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(SharedBillAccessPolicy.CanAddAttachment(bill, access));
+
+        var contentType = NormalizeAttachmentContentType(command.ContentType);
+        await using var bufferedContent = await BufferAndValidateAttachmentAsync(
+            command.Content,
+            contentType,
+            cancellationToken);
+
+        var attachmentId = Guid.NewGuid();
+        var storageKey = CreateAttachmentStorageKey(
+            bill.Id,
+            attachmentId,
+            contentType);
+        var attachment = new BillAttachment(
+            attachmentId,
+            bill.Id,
+            userProfileId,
+            command.OriginalFileName,
+            contentType,
+            bufferedContent.Length,
+            storageKey,
+            GetUtcNow());
+
+        var fileWasStored = false;
+
+        try
+        {
+            await attachmentStorage.SaveAsync(
+                storageKey,
+                bufferedContent,
+                cancellationToken);
+            fileWasStored = true;
+
+            context.BillAttachments.Add(attachment);
+            await context.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            var entry = context.Entry(attachment);
+            if (entry.State != EntityState.Detached)
+            {
+                entry.State = EntityState.Detached;
+            }
+
+            if (fileWasStored)
+            {
+                try
+                {
+                    await attachmentStorage.DeleteAsync(
+                        storageKey,
+                        CancellationToken.None);
+                }
+                catch
+                {
+                    // Preserve the database failure. A cleanup job can remove an orphan.
+                }
+            }
+
+            throw;
+        }
+
+        return attachmentId;
+    }
+
+    public async Task<BillAttachmentDownload?> OpenAttachmentAsync(
+        Guid attachmentId,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureId(attachmentId, nameof(attachmentId));
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var attachment = await context.BillAttachments
+            .AsNoTracking()
+            .SingleOrDefaultAsync(
+                item => item.Id == attachmentId,
+                cancellationToken);
+
+        if (attachment is null)
+        {
+            return null;
+        }
+
+        var bill = await context.SharedBills
+            .AsNoTracking()
+            .Include(item => item.Shares)
+            .SingleOrDefaultAsync(
+                item => item.Id == attachment.SharedBillId,
+                cancellationToken);
+
+        if (bill is null)
+        {
+            return null;
+        }
+
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        if (!SharedBillAccessPolicy.CanView(access))
+        {
+            return null;
+        }
+
+        var content = await attachmentStorage.OpenReadAsync(
+            attachment.StorageKey,
+            cancellationToken);
+
+        return content is null
+            ? null
+            : new BillAttachmentDownload(
+                attachment.OriginalFileName,
+                attachment.ContentType,
+                content);
+    }
+
+    public async Task DeleteAttachmentAsync(
+        DeleteBillAttachmentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var attachment = await context.BillAttachments
+            .SingleOrDefaultAsync(
+                item => item.Id == command.AttachmentId,
+                cancellationToken)
+            ?? throw new KeyNotFoundException("The shared bill was not found.");
+        var bill = await GetBillAsync(
+            context,
+            attachment.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(SharedBillAccessPolicy.CanDeleteAttachment(bill, attachment, access));
+
+        context.BillAttachments.Remove(attachment);
+        await context.SaveChangesAsync(cancellationToken);
+        await attachmentStorage.DeleteAsync(
+            attachment.StorageKey,
+            cancellationToken);
+    }
+
     private static async Task<SharedBill> GetBillAsync(
         ApplicationDbContext context,
         Guid sharedBillId,
@@ -550,12 +749,149 @@ public sealed class SharedBillService(
         SharedBillAccessContext access)
     {
         return new SharedBillPermissions(
+            SharedBillAccessPolicy.CanAddAttachment(bill, access),
             SharedBillAccessPolicy.CanPublish(bill, access),
             SharedBillAccessPolicy.CanVoid(bill, access),
             SharedBillAccessPolicy.CanDeclarePayment(bill, access),
             SharedBillAccessPolicy.CanConfirmPayment(bill, access),
             SharedBillAccessPolicy.CanRaiseDispute(bill, access),
             SharedBillAccessPolicy.CanResolveDispute(bill, access));
+    }
+
+    private static async Task<MemoryStream> BufferAndValidateAttachmentAsync(
+        Stream content,
+        string contentType,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(content);
+
+        if (!content.CanRead)
+        {
+            throw new ArgumentException(
+                "The attachment stream must be readable.",
+                nameof(content));
+        }
+
+        var bufferedContent = new MemoryStream();
+        var buffer = new byte[81920];
+
+        try
+        {
+            while (true)
+            {
+                var bytesRead = await content.ReadAsync(
+                    buffer.AsMemory(),
+                    cancellationToken);
+
+                if (bytesRead == 0)
+                {
+                    break;
+                }
+
+                if (bufferedContent.Length + bytesRead > BillAttachment.MaxFileSizeBytes)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(content),
+                        "Attachment size cannot exceed 10 MB.");
+                }
+
+                await bufferedContent.WriteAsync(
+                    buffer.AsMemory(0, bytesRead),
+                    cancellationToken);
+            }
+
+            if (bufferedContent.Length == 0)
+            {
+                throw new ArgumentException(
+                    "The attachment cannot be empty.",
+                    nameof(content));
+            }
+
+            if (!bufferedContent.TryGetBuffer(out var contentBuffer))
+            {
+                throw new InvalidOperationException(
+                    "The attachment buffer could not be inspected.");
+            }
+
+            var headerLength = (int)Math.Min(12, bufferedContent.Length);
+            if (!HasValidAttachmentSignature(
+                    contentType,
+                    contentBuffer.AsSpan(0, headerLength)))
+            {
+                throw new ArgumentException(
+                    "The file content does not match its declared type.",
+                    nameof(content));
+            }
+
+            bufferedContent.Position = 0;
+            return bufferedContent;
+        }
+        catch
+        {
+            await bufferedContent.DisposeAsync();
+            throw;
+        }
+    }
+
+    private static string NormalizeAttachmentContentType(string contentType)
+    {
+        if (string.IsNullOrWhiteSpace(contentType))
+        {
+            throw new ArgumentException("Content type is required.", nameof(contentType));
+        }
+
+        var normalized = contentType.Trim().ToLowerInvariant();
+        if (normalized is not
+            ("image/jpeg" or "image/png" or "image/webp" or "application/pdf"))
+        {
+            throw new ArgumentException(
+                "Only JPEG, PNG, WebP, and PDF files are supported.",
+                nameof(contentType));
+        }
+
+        return normalized;
+    }
+
+    private static bool HasValidAttachmentSignature(
+        string contentType,
+        ReadOnlySpan<byte> header)
+    {
+        return contentType switch
+        {
+            "image/jpeg" =>
+                header.Length >= 3 &&
+                header[0] == 0xFF && header[1] == 0xD8 && header[2] == 0xFF,
+            "image/png" =>
+                header.Length >= 8 &&
+                header[..8].SequenceEqual(new byte[]
+                {
+                    0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A
+                }),
+            "image/webp" =>
+                header.Length >= 12 &&
+                header[..4].SequenceEqual("RIFF"u8) &&
+                header[8..12].SequenceEqual("WEBP"u8),
+            "application/pdf" =>
+                header.Length >= 5 && header[..5].SequenceEqual("%PDF-"u8),
+            _ => false
+        };
+    }
+
+    private static string CreateAttachmentStorageKey(
+        Guid sharedBillId,
+        Guid attachmentId,
+        string contentType)
+    {
+        var extension = contentType switch
+        {
+            "image/jpeg" => ".jpg",
+            "image/png" => ".png",
+            "image/webp" => ".webp",
+            "application/pdf" => ".pdf",
+            _ => throw new ArgumentOutOfRangeException(nameof(contentType))
+        };
+
+        return $"bills/{sharedBillId:N}/{attachmentId:N}{extension}";
     }
 
     private DateOnly GetToday()

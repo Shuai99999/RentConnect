@@ -88,9 +88,11 @@ public sealed class SharedBillServiceTests
                 tenancy);
             await context.SaveChangesAsync();
 
+            var attachmentStorage = new InMemoryBillAttachmentStorage();
             var service = new SharedBillService(
                 contextFactory,
-                new TestTimeProvider(now));
+                new TestTimeProvider(now),
+                attachmentStorage);
 
             var billId = await service.CreateEqualSplitAsync(
                 new CreateEqualSharedBillCommand(
@@ -130,6 +132,51 @@ public sealed class SharedBillServiceTests
                 creatorDetails.Shares.Sum(share => share.Amount));
             Assert.True(creatorDetails.Permissions.CanPublish);
 
+            var pdfContent = new MemoryStream(
+                "%PDF-1.7\nRentConnect test receipt"u8.ToArray());
+            var attachmentId = await service.AddAttachmentAsync(
+                new AddBillAttachmentCommand(
+                    billId,
+                    "october-receipt.pdf",
+                    "application/pdf",
+                    pdfContent),
+                firstTenantId);
+
+            creatorDetails = await service.GetDetailsAsync(
+                billId,
+                firstTenantId);
+            var receipt = Assert.Single(creatorDetails!.Attachments);
+            Assert.Equal(attachmentId, receipt.Id);
+            Assert.True(receipt.CanDelete);
+
+            var roommateDownload = await service.OpenAttachmentAsync(
+                attachmentId,
+                secondTenantId);
+            Assert.NotNull(roommateDownload);
+            await roommateDownload.Content.DisposeAsync();
+
+            Assert.Null(await service.OpenAttachmentAsync(
+                attachmentId,
+                unrelatedUserId));
+
+            await Assert.ThrowsAsync<KeyNotFoundException>(() =>
+                service.AddAttachmentAsync(
+                    new AddBillAttachmentCommand(
+                        billId,
+                        "not-allowed.pdf",
+                        "application/pdf",
+                        new MemoryStream("%PDF-test"u8.ToArray())),
+                    secondTenantId));
+
+            await Assert.ThrowsAsync<ArgumentException>(() =>
+                service.AddAttachmentAsync(
+                    new AddBillAttachmentCommand(
+                        billId,
+                        "fake.pdf",
+                        "application/pdf",
+                        new MemoryStream("not a pdf"u8.ToArray())),
+                    firstTenantId));
+
             var roommateDetails =
                 await service.GetDetailsAsync(
                     billId,
@@ -142,6 +189,13 @@ public sealed class SharedBillServiceTests
                 ownerId);
             Assert.NotNull(ownerDetails);
             Assert.True(ownerDetails.Permissions.CanPublish);
+
+            await service.DeleteAttachmentAsync(
+                new DeleteBillAttachmentCommand(attachmentId),
+                ownerId);
+            Assert.Null(await service.OpenAttachmentAsync(
+                attachmentId,
+                firstTenantId));
 
             await service.PublishAsync(
                 new PublishSharedBillCommand(billId),
@@ -271,6 +325,42 @@ public sealed class SharedBillServiceTests
         public override DateTimeOffset GetUtcNow()
         {
             return now;
+        }
+    }
+
+    private sealed class InMemoryBillAttachmentStorage
+        : IBillAttachmentStorage
+    {
+        private readonly Dictionary<string, byte[]> _files = [];
+
+        public async Task SaveAsync(
+            string storageKey,
+            Stream content,
+            CancellationToken cancellationToken = default)
+        {
+            await using var copy = new MemoryStream();
+            await content.CopyToAsync(copy, cancellationToken);
+            _files.Add(storageKey, copy.ToArray());
+        }
+
+        public Task<Stream?> OpenReadAsync(
+            string storageKey,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult<Stream?>(
+                _files.TryGetValue(storageKey, out var content)
+                    ? new MemoryStream(content, writable: false)
+                    : null);
+        }
+
+        public Task DeleteAsync(
+            string storageKey,
+            CancellationToken cancellationToken = default)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            _files.Remove(storageKey);
+            return Task.CompletedTask;
         }
     }
 }

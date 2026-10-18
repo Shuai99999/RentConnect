@@ -77,12 +77,16 @@ var blobServiceUri =
 
 if (string.IsNullOrWhiteSpace(blobServiceUri))
 {
-    builder.Services.AddSingleton<IMaintenanceAttachmentStorage>(
+    builder.Services.AddSingleton(
         _ => new LocalMaintenanceAttachmentStorage(
             Path.Combine(
                 builder.Environment.ContentRootPath,
                 "App_Data",
                 "MaintenanceAttachments")));
+    builder.Services.AddSingleton<IMaintenanceAttachmentStorage>(
+        services => services.GetRequiredService<LocalMaintenanceAttachmentStorage>());
+    builder.Services.AddSingleton<IBillAttachmentStorage>(
+        services => services.GetRequiredService<LocalMaintenanceAttachmentStorage>());
 }
 else
 {
@@ -92,10 +96,14 @@ else
         ?? throw new InvalidOperationException(
             "Azure Storage maintenance container name is not configured.");
 
-    builder.Services.AddSingleton<IMaintenanceAttachmentStorage>(
+    builder.Services.AddSingleton(
         _ => new AzureBlobMaintenanceAttachmentStorage(
             new Uri(blobServiceUri),
             maintenanceContainerName));
+    builder.Services.AddSingleton<IMaintenanceAttachmentStorage>(
+        services => services.GetRequiredService<AzureBlobMaintenanceAttachmentStorage>());
+    builder.Services.AddSingleton<IBillAttachmentStorage>(
+        services => services.GetRequiredService<AzureBlobMaintenanceAttachmentStorage>());
 }
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
@@ -165,6 +173,44 @@ app.MapGet(
             return Results.File(
                 download.Content,
                 download.ContentType,
+                enableRangeProcessing: false);
+        })
+    .RequireAuthorization();
+
+app.MapGet(
+        "/bills/attachments/{attachmentId:guid}/content",
+        async (
+            Guid attachmentId,
+            HttpContext httpContext,
+            UserManager<ApplicationUser> userManager,
+            ISharedBillService sharedBillService,
+            CancellationToken cancellationToken) =>
+        {
+            var user = await userManager.GetUserAsync(httpContext.User);
+
+            if (user?.UserProfileId is not Guid userProfileId)
+            {
+                return Results.NotFound();
+            }
+
+            var download = await sharedBillService.OpenAttachmentAsync(
+                attachmentId,
+                userProfileId,
+                cancellationToken);
+
+            if (download is null)
+            {
+                return Results.NotFound();
+            }
+
+            httpContext.Response.Headers["X-Content-Type-Options"] = "nosniff";
+            httpContext.Response.Headers["Cache-Control"] = "private, no-store";
+            httpContext.Response.Headers["Pragma"] = "no-cache";
+
+            return Results.File(
+                download.Content,
+                download.ContentType,
+                download.OriginalFileName,
                 enableRangeProcessing: false);
         })
     .RequireAuthorization();

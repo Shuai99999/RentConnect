@@ -177,6 +177,53 @@ namespace RentConnect.Migrations
                     b.ToTable("AspNetUserTokens", (string)null);
                 });
 
+            modelBuilder.Entity("RentConnect.Core.Entities.BillAttachment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<long>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("nvarchar(255)");
+
+                    b.Property<Guid>("SharedBillId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTimeOffset>("UploadedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<Guid>("UploadedByUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StorageKey")
+                        .IsUnique();
+
+                    b.HasIndex("UploadedByUserProfileId");
+
+                    b.HasIndex("SharedBillId", "UploadedAtUtc");
+
+                    b.ToTable("BillAttachments", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_BillAttachments_FileSize", "[FileSizeBytes] > 0 AND [FileSizeBytes] <= 10485760");
+                        });
+                });
+
             modelBuilder.Entity("RentConnect.Core.Entities.BillDispute", b =>
                 {
                     b.Property<Guid>("Id")
@@ -965,6 +1012,21 @@ namespace RentConnect.Migrations
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.BillAttachment", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.SharedBill", null)
+                        .WithMany()
+                        .HasForeignKey("SharedBillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 

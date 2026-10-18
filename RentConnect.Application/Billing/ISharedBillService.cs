@@ -50,4 +50,19 @@ public interface ISharedBillService
         ResolveBillDisputeCommand command,
         Guid userProfileId,
         CancellationToken cancellationToken = default);
+
+    Task<Guid> AddAttachmentAsync(
+        AddBillAttachmentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task<BillAttachmentDownload?> OpenAttachmentAsync(
+        Guid attachmentId,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task DeleteAttachmentAsync(
+        DeleteBillAttachmentCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
 }

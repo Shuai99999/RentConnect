@@ -7,7 +7,8 @@ using RentConnect.Application.Maintenance;
 namespace RentConnect.Infrastructure.Maintenance;
 
 public sealed class AzureBlobMaintenanceAttachmentStorage
-    : IMaintenanceAttachmentStorage
+    : IMaintenanceAttachmentStorage,
+      RentConnect.Application.Billing.IBillAttachmentStorage
 {
     private readonly BlobContainerClient _containerClient;
 

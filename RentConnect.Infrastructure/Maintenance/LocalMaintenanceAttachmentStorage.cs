@@ -3,7 +3,8 @@
 namespace RentConnect.Infrastructure.Maintenance;
 
 public sealed class LocalMaintenanceAttachmentStorage
-    : IMaintenanceAttachmentStorage
+    : IMaintenanceAttachmentStorage,
+      RentConnect.Application.Billing.IBillAttachmentStorage
 {
     private readonly string _rootPath;
     private readonly string _rootPathWithSeparator;

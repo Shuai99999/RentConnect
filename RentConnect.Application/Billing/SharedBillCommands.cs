@@ -2,6 +2,14 @@ using RentConnect.Core.Enums;
 
 namespace RentConnect.Application.Billing;
 
+public sealed record AddBillAttachmentCommand(
+    Guid SharedBillId,
+    string OriginalFileName,
+    string ContentType,
+    Stream Content);
+
+public sealed record DeleteBillAttachmentCommand(Guid AttachmentId);
+
 public sealed record CreateEqualSharedBillCommand(
     Guid TenancyId,
     Guid PaidByUserProfileId,

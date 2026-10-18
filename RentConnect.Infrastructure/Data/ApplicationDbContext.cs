@@ -55,6 +55,9 @@ public class ApplicationDbContext(
     public DbSet<BillDispute> BillDisputes =>
         Set<BillDispute>();
 
+    public DbSet<BillAttachment> BillAttachments =>
+        Set<BillAttachment>();
+
     protected override void OnModelCreating(
         ModelBuilder builder)
     {

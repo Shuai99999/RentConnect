@@ -16,6 +16,29 @@ public static class SharedBillAccessPolicy
         return CanView(access);
     }
 
+    public static bool CanAddAttachment(
+        SharedBill bill,
+        SharedBillAccessContext access)
+    {
+        return bill.Status != SharedBillStatus.Void &&
+               CanView(access) &&
+               (access.IsPropertyOwner ||
+                bill.CreatedByUserProfileId == access.CurrentUserProfileId ||
+                bill.PaidByUserProfileId == access.CurrentUserProfileId);
+    }
+
+    public static bool CanDeleteAttachment(
+        SharedBill bill,
+        BillAttachment attachment,
+        SharedBillAccessContext access)
+    {
+        return bill.Status != SharedBillStatus.Void &&
+               CanView(access) &&
+               (access.IsPropertyOwner ||
+                bill.CreatedByUserProfileId == access.CurrentUserProfileId ||
+                attachment.UploadedByUserProfileId == access.CurrentUserProfileId);
+    }
+
     public static bool CanPublish(
         SharedBill bill,
         SharedBillAccessContext access)

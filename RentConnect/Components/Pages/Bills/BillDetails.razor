@@ -3,7 +3,9 @@
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
 @using RentConnect.Application.Billing
+@using RentConnect.Core.Entities
 @using RentConnect.Core.Enums
 @using RentConnect.Services
 
@@ -101,6 +103,98 @@
                 </div>
             </section>
         }
+
+        <section class="panel receipt-panel">
+            <div class="panel-heading">
+                <div>
+                    <h2>Receipts &amp; documents</h2>
+                    <p>Keep the provider invoice or payment receipt with this bill.</p>
+                </div>
+                <strong>@_details.Attachments.Count file@(_details.Attachments.Count == 1 ? "" : "s")</strong>
+            </div>
+
+            @if (_attachmentError is not null)
+            {
+                <div class="action-message error-message" role="alert">@_attachmentError</div>
+            }
+
+            @if (_details.Attachments.Count == 0)
+            {
+                <div class="empty-inline">No receipts or documents have been added.</div>
+            }
+            else
+            {
+                <div class="receipt-list">
+                    @foreach (var attachment in _details.Attachments)
+                    {
+                        <article class="receipt-row">
+                            <span class="file-icon" aria-hidden="true">
+                                @(attachment.ContentType == "application/pdf" ? "PDF" : "IMG")
+                            </span>
+                            <div class="receipt-details">
+                                <a href="@GetAttachmentContentUrl(attachment.Id)"
+                                   target="_blank"
+                                   rel="noopener noreferrer">
+                                    @attachment.OriginalFileName
+                                </a>
+                                <small>
+                                    @FormatFileSize(attachment.FileSizeBytes) ·
+                                    uploaded by @attachment.UploadedByDisplayName ·
+                                    @FormatTimestamp(attachment.UploadedAtUtc)
+                                </small>
+                            </div>
+                            @if (attachment.CanDelete)
+                            {
+                                <div class="receipt-actions">
+                                    @if (_deleteConfirmationAttachmentId == attachment.Id)
+                                    {
+                                        <span>Delete this file?</span>
+                                        <button class="danger-button"
+                                                disabled="@_isUpdating"
+                                                @onclick="() => DeleteAttachmentAsync(attachment.Id)">
+                                            Confirm
+                                        </button>
+                                        <button class="text-button" @onclick="CancelAttachmentDelete">Keep</button>
+                                    }
+                                    else
+                                    {
+                                        <button class="text-button"
+                                                @onclick="() => BeginAttachmentDelete(attachment.Id)">
+                                            Delete
+                                        </button>
+                                    }
+                                </div>
+                            }
+                        </article>
+                    }
+                </div>
+            }
+
+            @if (_details.Permissions.CanAddAttachment)
+            {
+                <div class="receipt-uploader">
+                    <div>
+                        <label for="bill-receipt">Add a receipt or invoice</label>
+                        <p>JPEG, PNG, WebP, or PDF. Maximum 10 MB.</p>
+                    </div>
+                    <InputFile @key="_attachmentInputVersion"
+                               id="bill-receipt"
+                               accept="image/jpeg,image/png,image/webp,application/pdf"
+                               OnChange="SelectAttachment" />
+                    @if (_selectedAttachment is not null)
+                    {
+                        <span class="selected-file">
+                            @_selectedAttachment.Name (@FormatFileSize(_selectedAttachment.Size))
+                        </span>
+                    }
+                    <button class="secondary-button"
+                            disabled="@(_selectedAttachment is null || _isUploadingAttachment)"
+                            @onclick="UploadAttachmentAsync">
+                        @(_isUploadingAttachment ? "Uploading…" : "Upload file")
+                    </button>
+                </div>
+            }
+        </section>
 
         <section class="panel">
             <div class="panel-heading">
@@ -236,6 +330,11 @@
     private string? _successMessage;
     private string _disputeReason = string.Empty;
     private string _disputeResolution = string.Empty;
+    private IBrowserFile? _selectedAttachment;
+    private Guid? _deleteConfirmationAttachmentId;
+    private int _attachmentInputVersion;
+    private bool _isUploadingAttachment;
+    private string? _attachmentError;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -324,6 +423,114 @@
         _disputeResolution = string.Empty;
     }
 
+    private void SelectAttachment(InputFileChangeEventArgs eventArgs)
+    {
+        _attachmentError = null;
+        _selectedAttachment = null;
+        var file = eventArgs.File;
+        var contentType = file.ContentType.Trim().ToLowerInvariant();
+
+        if (file.Size <= 0)
+        {
+            _attachmentError = "Select a file that is not empty.";
+        }
+        else if (file.Size > BillAttachment.MaxFileSizeBytes)
+        {
+            _attachmentError = "The file cannot exceed 10 MB.";
+        }
+        else if (contentType is not
+                 ("image/jpeg" or "image/png" or "image/webp" or "application/pdf"))
+        {
+            _attachmentError = "Select a JPEG, PNG, WebP, or PDF file.";
+        }
+        else
+        {
+            _selectedAttachment = file;
+        }
+    }
+
+    private async Task UploadAttachmentAsync()
+    {
+        if (_selectedAttachment is not IBrowserFile file || _isUploadingAttachment)
+        {
+            return;
+        }
+
+        _attachmentError = null;
+        _isUploadingAttachment = true;
+
+        try
+        {
+            await using var content = file.OpenReadStream(BillAttachment.MaxFileSizeBytes);
+            await SharedBillService.AddAttachmentAsync(
+                new AddBillAttachmentCommand(Id, file.Name, file.ContentType, content),
+                _currentUserProfileId);
+
+            _selectedAttachment = null;
+            _attachmentInputVersion++;
+            await LoadDetailsAsync();
+            _successMessage = "The receipt was uploaded.";
+        }
+        catch (KeyNotFoundException)
+        {
+            _attachmentError = "This bill is unavailable, or you cannot add files to it.";
+        }
+        catch (ArgumentException exception)
+        {
+            _attachmentError = exception.Message;
+        }
+        catch (Exception exception)
+        {
+            _attachmentError = "The file could not be uploaded. Please try again.";
+            Console.Error.WriteLine(exception);
+        }
+        finally
+        {
+            _isUploadingAttachment = false;
+        }
+    }
+
+    private void BeginAttachmentDelete(Guid attachmentId)
+    {
+        _attachmentError = null;
+        _deleteConfirmationAttachmentId = attachmentId;
+    }
+
+    private void CancelAttachmentDelete()
+    {
+        _attachmentError = null;
+        _deleteConfirmationAttachmentId = null;
+    }
+
+    private async Task DeleteAttachmentAsync(Guid attachmentId)
+    {
+        _attachmentError = null;
+        _isUpdating = true;
+
+        try
+        {
+            await SharedBillService.DeleteAttachmentAsync(
+                new DeleteBillAttachmentCommand(attachmentId),
+                _currentUserProfileId);
+            _deleteConfirmationAttachmentId = null;
+            await LoadDetailsAsync();
+            _successMessage = "The file was deleted.";
+        }
+        catch (KeyNotFoundException)
+        {
+            _attachmentError = "This file is unavailable, or you cannot delete it.";
+        }
+        catch (Exception exception)
+        {
+            _attachmentError = "The file could not be deleted. Please try again.";
+            Console.Error.WriteLine(exception);
+        }
+        finally
+        {
+            _isUpdating = false;
+        }
+    }
+
     private async Task ExecuteAsync(Func<Task> action, string successMessage)
     {
         if (_isUpdating)
@@ -402,4 +609,12 @@
 
     private static string FormatTimestamp(DateTimeOffset timestamp) =>
         $"{timestamp:MMM d, yyyy 'at' HH:mm} UTC";
+
+    private static string GetAttachmentContentUrl(Guid attachmentId) =>
+        $"/bills/attachments/{attachmentId}/content";
+
+    private static string FormatFileSize(long bytes) =>
+        bytes >= 1024 * 1024
+            ? $"{bytes / 1024d / 1024d:N1} MB"
+            : $"{Math.Max(1, bytes / 1024d):N1} KB";
 }
