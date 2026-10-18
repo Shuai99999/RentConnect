@@ -67,8 +67,17 @@
                         }
                     </NavLink>
 
-                    <NavLink href="Account/Manage">
-                        Account
+                    <NavLink class="account-profile"
+                             href="Account/Manage"
+                             title="@_currentUserEmail">
+                        <span class="user-avatar" aria-hidden="true">
+                            @_currentUserInitial
+                        </span>
+
+                        <span class="user-summary">
+                            <strong>@_currentUserDisplayName</strong>
+                            <small>@_currentUserEmail</small>
+                        </span>
                     </NavLink>
 
                     <form action="Account/Logout"
@@ -103,6 +112,9 @@
 
 @code {
     private int _unreadCount;
+    private string _currentUserDisplayName = "Account";
+    private string _currentUserEmail = string.Empty;
+    private string _currentUserInitial = "U";
 
     protected override async Task OnInitializedAsync()
     {
@@ -116,17 +128,30 @@
             return;
         }
 
-        var userProfileId =
+        var userProfile =
             await CurrentUserProfileService
-                .GetRequiredUserProfileIdAsync();
+                .GetRequiredUserProfileAsync();
+
+        _currentUserDisplayName = userProfile.DisplayName;
+        _currentUserEmail = userProfile.Email;
+        _currentUserInitial = GetInitial(userProfile.DisplayName);
 
         _unreadCount =
             await NotificationService
-                .GetUnreadCountAsync(userProfileId);
+                .GetUnreadCountAsync(userProfile.Id);
     }
 
     private static string FormatUnreadCount(int count)
     {
         return count > 99 ? "99+" : count.ToString();
+    }
+
+    private static string GetInitial(string displayName)
+    {
+        var trimmedName = displayName.Trim();
+
+        return trimmedName.Length == 0
+            ? "U"
+            : trimmedName[..1].ToUpperInvariant();
     }
 }

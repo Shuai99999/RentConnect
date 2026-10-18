@@ -11,6 +11,13 @@ public sealed class CurrentUserProfileService(
 {
     public async Task<Guid> GetRequiredUserProfileIdAsync()
     {
+        var profile = await GetRequiredUserProfileAsync();
+
+        return profile.Id;
+    }
+
+    public async Task<CurrentUserProfile> GetRequiredUserProfileAsync()
+    {
         var authenticationState =
             await authenticationStateProvider
                 .GetAuthenticationStateAsync();
@@ -35,18 +42,26 @@ public sealed class CurrentUserProfileService(
         await using var context =
             await contextFactory.CreateDbContextAsync();
 
-        var userProfileId = await context.Users
+        var profile = await context.Users
             .AsNoTracking()
             .Where(user => user.Id == userId)
-            .Select(user => user.UserProfileId)
+            .Select(user => new CurrentUserProfile(
+                user.UserProfileId ?? Guid.Empty,
+                user.UserProfile!.DisplayName,
+                user.Email ?? user.UserName ?? string.Empty))
             .SingleOrDefaultAsync();
 
-        if (userProfileId is not Guid requiredUserProfileId)
+        if (profile is null || profile.Id == Guid.Empty)
         {
             throw new InvalidOperationException(
                 "The current user does not have a user profile.");
         }
 
-        return requiredUserProfileId;
+        return profile;
     }
 }
+
+public sealed record CurrentUserProfile(
+    Guid Id,
+    string DisplayName,
+    string Email);
