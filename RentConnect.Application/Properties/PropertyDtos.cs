@@ -19,6 +19,7 @@ public sealed record RentalUnitItem(
     RentalUnitType Type,
     bool IsActive,
     bool HasActiveTenancy,
+    Guid? CurrentTenancyId,
     int CurrentTenantCount,
     DateOnly? CurrentTenancyStartDate,
     DateOnly? CurrentTenancyEndDate);

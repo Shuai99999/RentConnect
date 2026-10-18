@@ -57,6 +57,9 @@
 </main>
 
 @code {
+    [SupplyParameterFromQuery(Name = "unitId")]
+    public Guid? UnitId { get; set; }
+
     private IReadOnlyList<TenancyUnitOption> _units = [];
     private readonly TenancyInput Input = new();
     private Guid _userId;
@@ -68,6 +71,10 @@
     {
         _userId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
         _units = await TenancyService.GetAvailableUnitsAsync(_userId);
+        if (UnitId.HasValue && _units.Any(unit => unit.RentalUnitId == UnitId.Value))
+        {
+            Input.RentalUnitId = UnitId.Value;
+        }
         _isLoading = false;
     }
 

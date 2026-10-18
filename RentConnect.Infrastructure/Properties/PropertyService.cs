@@ -178,6 +178,7 @@ public sealed class PropertyService(
                 item.Unit.Type,
                 item.Unit.IsActive,
                 tenancy is not null,
+                tenancy?.Id,
                 tenantCount,
                 tenancy?.StartDate,
                 tenancy?.EndDate);
