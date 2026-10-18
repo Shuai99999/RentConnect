@@ -58,9 +58,80 @@
     }
     else
     {
+        <section class="overview-strip" aria-label="Maintenance overview">
+            <article>
+                <span>Open</span>
+                <strong>@CountOpenRequests()</strong>
+            </article>
+            <article>
+                <span>Awaiting review</span>
+                <strong>@_requests.Count(request => request.Status == MaintenanceStatus.Submitted)</strong>
+            </article>
+            <article>
+                <span>In progress</span>
+                <strong>@_requests.Count(request => request.Status is MaintenanceStatus.Acknowledged or MaintenanceStatus.Scheduled or MaintenanceStatus.InProgress)</strong>
+            </article>
+            <article>
+                <span>Urgent</span>
+                <strong>@_requests.Count(request => IsOpen(request.Status) && request.Priority is MaintenancePriority.High or MaintenancePriority.Emergency)</strong>
+            </article>
+        </section>
+
+        <section class="filter-panel" aria-label="Filter maintenance requests">
+            <label class="search-field">
+                <span>Search</span>
+                <input type="search"
+                       placeholder="Search request titles"
+                       @bind="_searchText"
+                       @bind:event="oninput" />
+            </label>
+            <label>
+                <span>Status</span>
+                <select @bind="_statusFilter">
+                    <option value="open">Open requests</option>
+                    <option value="all">All statuses</option>
+                    @foreach (var status in Enum.GetValues<MaintenanceStatus>())
+                    {
+                        <option value="@status.ToString()">@GetStatusText(status)</option>
+                    }
+                </select>
+            </label>
+            <label>
+                <span>Category</span>
+                <select @bind="_categoryFilter">
+                    <option value="all">All categories</option>
+                    @foreach (var category in Enum.GetValues<MaintenanceCategory>())
+                    {
+                        <option value="@category.ToString()">@GetCategoryText(category)</option>
+                    }
+                </select>
+            </label>
+            <label>
+                <span>Priority</span>
+                <select @bind="_priorityFilter">
+                    <option value="all">All priorities</option>
+                    @foreach (var priority in Enum.GetValues<MaintenancePriority>())
+                    {
+                        <option value="@priority.ToString()">@GetPriorityText(priority)</option>
+                    }
+                </select>
+            </label>
+            <button type="button" class="clear-button" @onclick="ClearFilters">Clear</button>
+        </section>
+
+        @if (FilteredRequests.Count == 0)
+        {
+            <div class="state-panel filter-empty">
+                <h2>No matching requests</h2>
+                <p>Try clearing one or more filters.</p>
+                <button type="button" class="secondary-button" @onclick="ClearFilters">Clear filters</button>
+            </div>
+        }
+        else
+        {
         <section class="request-grid"
                  aria-label="Maintenance requests">
-            @foreach (var request in _requests)
+            @foreach (var request in FilteredRequests)
             {
                 <a class="request-card"
                    href="@($"/maintenance/{request.Id}")">
@@ -106,6 +177,7 @@
                 </a>
             }
         </section>
+        }
     }
 </main>
 
@@ -115,6 +187,26 @@
 
     private bool _isLoading = true;
     private string? _errorMessage;
+    private string _searchText = string.Empty;
+    private string _statusFilter = "open";
+    private string _categoryFilter = "all";
+    private string _priorityFilter = "all";
+
+    private IReadOnlyList<MaintenanceRequestSummary> FilteredRequests =>
+        _requests
+            .Where(request => string.IsNullOrWhiteSpace(_searchText) ||
+                request.Title.Contains(_searchText.Trim(), StringComparison.OrdinalIgnoreCase))
+            .Where(request => _statusFilter switch
+            {
+                "all" => true,
+                "open" => IsOpen(request.Status),
+                _ => request.Status.ToString() == _statusFilter
+            })
+            .Where(request => _categoryFilter == "all" ||
+                request.Category.ToString() == _categoryFilter)
+            .Where(request => _priorityFilter == "all" ||
+                request.Priority.ToString() == _priorityFilter)
+            .ToArray();
 
     protected override async Task OnInitializedAsync()
     {
@@ -139,6 +231,20 @@
         {
             _isLoading = false;
         }
+    }
+
+    private int CountOpenRequests() =>
+        _requests.Count(request => IsOpen(request.Status));
+
+    private static bool IsOpen(MaintenanceStatus status) =>
+        status is not MaintenanceStatus.Closed and not MaintenanceStatus.Cancelled;
+
+    private void ClearFilters()
+    {
+        _searchText = string.Empty;
+        _statusFilter = "open";
+        _categoryFilter = "all";
+        _priorityFilter = "all";
     }
 
     private static string GetStatusText(
