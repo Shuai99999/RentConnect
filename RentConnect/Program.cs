@@ -40,12 +40,32 @@ builder.Services.AddDbContextFactory<ApplicationDbContext>(options =>
 builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
-builder.Services.AddSingleton<IMaintenanceAttachmentStorage>(
-    _ => new LocalMaintenanceAttachmentStorage(
-        Path.Combine(
-            builder.Environment.ContentRootPath,
-            "App_Data",
-            "MaintenanceAttachments")));
+
+var blobServiceUri =
+    builder.Configuration["AzureStorage:BlobServiceUri"];
+
+if (string.IsNullOrWhiteSpace(blobServiceUri))
+{
+    builder.Services.AddSingleton<IMaintenanceAttachmentStorage>(
+        _ => new LocalMaintenanceAttachmentStorage(
+            Path.Combine(
+                builder.Environment.ContentRootPath,
+                "App_Data",
+                "MaintenanceAttachments")));
+}
+else
+{
+    var maintenanceContainerName =
+        builder.Configuration[
+            "AzureStorage:MaintenanceContainerName"]
+        ?? throw new InvalidOperationException(
+            "Azure Storage maintenance container name is not configured.");
+
+    builder.Services.AddSingleton<IMaintenanceAttachmentStorage>(
+        _ => new AzureBlobMaintenanceAttachmentStorage(
+            new Uri(blobServiceUri),
+            maintenanceContainerName));
+}
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
     {

@@ -363,6 +363,16 @@ Core 中不引用 Blazor、Entity Framework Core、SQL Server 或 Azure SDK。
 
 本地开发使用 LocalDB；生产环境使用 Azure SQL。连接字符串和密钥不能提交到 Git，应使用 User Secrets、环境变量和 Key Vault。
 
+报修附件存储通过 `IMaintenanceAttachmentStorage` 抽象：未配置
+`AzureStorage:BlobServiceUri` 时使用应用目录下的本地文件；在 Azure 中配置该地址后，
+使用 `DefaultAzureCredential` 和托管身份访问 Blob Storage。App Service 需要配置：
+
+- `AzureStorage__BlobServiceUri`：Storage Account 的 Blob 服务地址；
+- `AzureStorage__MaintenanceContainerName`：报修附件容器名；
+- 为 App Service 的托管身份授予 Storage Blob Data Contributor 角色。
+
+生产环境不保存 Storage Account Key 或连接字符串，容器保持私有访问。
+
 ## 13. 安全、隐私与审计
 
 - 对每个查询和命令执行资源级授权；
