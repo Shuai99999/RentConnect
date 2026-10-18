@@ -19,7 +19,7 @@
         <div>
             <p class="eyebrow">Rental finances</p>
             <h1>New Shared Bill</h1>
-            <p>Record an expense and split it equally between current tenants.</p>
+            <p>Record an expense and choose how current tenants will share it.</p>
         </div>
         <BackNavigation Href="/bills" Label="Shared bills" />
     </header>
@@ -67,7 +67,8 @@
                     <label for="bill-tenancy">Rental</label>
                     <InputSelect id="bill-tenancy"
                                  class="form-control"
-                                 @bind-Value="Input.TenancyId">
+                                 @bind-Value="Input.TenancyId"
+                                 @bind-Value:after="LoadParticipantsAsync">
                         @foreach (var tenancy in _tenancies)
                         {
                             <option value="@tenancy.TenancyId">
@@ -149,9 +150,63 @@
                 </div>
             </section>
 
-            <section class="split-note">
-                <strong>Equal split</strong>
-                <p>Every current tenant will receive a share. Any rounding remainder is distributed deterministically so all shares exactly match the total.</p>
+            <section class="form-card">
+                <div class="section-heading">
+                    <h2>Split method</h2>
+                    <p>Choose a fair allocation for the current tenants.</p>
+                </div>
+
+                <div class="field">
+                    <label for="split-method">Method</label>
+                    <InputSelect id="split-method"
+                                 class="form-control"
+                                 @bind-Value="Input.SplitMethod"
+                                 @bind-Value:after="ResetAllocationValues">
+                        <option value="@BillSplitMethod.Equal">Equal split</option>
+                        <option value="@BillSplitMethod.Percentage">Percentage</option>
+                        <option value="@BillSplitMethod.FixedAmount">Fixed amount</option>
+                    </InputSelect>
+                </div>
+
+                @if (Input.SplitMethod == BillSplitMethod.Equal)
+                {
+                    <div class="split-note">
+                        <strong>Equal split</strong>
+                        <p>Rounding is distributed deterministically so every share adds up exactly to the total.</p>
+                    </div>
+                }
+                else
+                {
+                    <div class="allocation-list">
+                        @foreach (var participant in _participants)
+                        {
+                            <div class="allocation-row">
+                                <div class="participant-name">
+                                    <span>@GetInitial(participant.DisplayName)</span>
+                                    <strong>@participant.DisplayName</strong>
+                                </div>
+                                <div class="allocation-input">
+                                    @if (Input.SplitMethod == BillSplitMethod.FixedAmount)
+                                    {
+                                        <span>@Input.Currency</span>
+                                    }
+                                    <InputNumber class="form-control"
+                                                 min="0"
+                                                 step="0.01"
+                                                 @bind-Value="participant.Value" />
+                                    @if (Input.SplitMethod == BillSplitMethod.Percentage)
+                                    {
+                                        <span>%</span>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                    <div class="allocation-total @GetAllocationTotalClass()">
+                        <span>@GetAllocationTotalLabel()</span>
+                        <strong>@FormatAllocationTotal()</strong>
+                    </div>
+                }
             </section>
 
             <div class="form-actions">
@@ -169,6 +224,7 @@
 @code {
     private readonly CreateBillInput Input = new();
     private IReadOnlyList<SharedBillTenancyOption> _tenancies = [];
+    private List<ParticipantAllocationInput> _participants = [];
     private Guid _currentUserProfileId;
     private bool _isLoading = true;
     private bool _isSubmitting;
@@ -192,6 +248,7 @@
             if (_tenancies.Count > 0)
             {
                 Input.TenancyId = _tenancies[0].TenancyId;
+                await LoadParticipantsAsync();
             }
         }
         catch (Exception exception)
@@ -216,8 +273,17 @@
 
         try
         {
-            var billId = await SharedBillService.CreateEqualSplitAsync(
-                new CreateEqualSharedBillCommand(
+            if (!HasValidAllocationTotal())
+            {
+                _submitError = Input.SplitMethod == BillSplitMethod.Percentage
+                    ? "Percentages must be positive and add up to 100%."
+                    : "Fixed amounts must be positive and add up to the bill total.";
+                _isSubmitting = false;
+                return;
+            }
+
+            var billId = await SharedBillService.CreateAsync(
+                new CreateSharedBillCommand(
                     Input.TenancyId,
                     _currentUserProfileId,
                     Input.Title,
@@ -227,7 +293,15 @@
                     Input.Currency == "JPY" ? 0 : 2,
                     Input.PeriodStart,
                     Input.PeriodEnd,
-                    Input.DueDate),
+                    Input.DueDate,
+                    Input.SplitMethod,
+                    Input.SplitMethod == BillSplitMethod.Equal
+                        ? []
+                        : _participants
+                            .Select(participant => new BillAllocationInput(
+                                participant.UserProfileId,
+                                participant.Value))
+                            .ToArray()),
                 _currentUserProfileId);
 
             NavigationManager.NavigateTo($"/bills/{billId}");
@@ -238,6 +312,84 @@
             _isSubmitting = false;
         }
     }
+
+    private async Task LoadParticipantsAsync()
+    {
+        if (Input.TenancyId == Guid.Empty || _currentUserProfileId == Guid.Empty)
+        {
+            return;
+        }
+
+        var participants = await SharedBillService.GetTenancyParticipantsAsync(
+            Input.TenancyId,
+            _currentUserProfileId);
+        _participants = participants
+            .Select(item => new ParticipantAllocationInput
+            {
+                UserProfileId = item.UserProfileId,
+                DisplayName = item.DisplayName
+            })
+            .ToList();
+        ResetAllocationValues();
+    }
+
+    private void ResetAllocationValues()
+    {
+        if (_participants.Count == 0)
+        {
+            return;
+        }
+
+        foreach (var participant in _participants)
+        {
+            participant.Value = Input.SplitMethod switch
+            {
+                BillSplitMethod.Percentage =>
+                    decimal.Round(100m / _participants.Count, 2),
+                BillSplitMethod.FixedAmount when Input.TotalAmount > 0 =>
+                    decimal.Round(Input.TotalAmount / _participants.Count, 2),
+                _ => 0m
+            };
+        }
+
+        if (Input.SplitMethod == BillSplitMethod.Percentage)
+        {
+            _participants[0].Value += 100m - _participants.Sum(item => item.Value);
+        }
+        else if (Input.SplitMethod == BillSplitMethod.FixedAmount && Input.TotalAmount > 0)
+        {
+            _participants[0].Value += Input.TotalAmount - _participants.Sum(item => item.Value);
+        }
+    }
+
+    private bool HasValidAllocationTotal()
+    {
+        if (Input.SplitMethod == BillSplitMethod.Equal)
+        {
+            return true;
+        }
+
+        return _participants.Count > 0 &&
+               _participants.All(item => item.Value > 0) &&
+               _participants.Sum(item => item.Value) ==
+                   (Input.SplitMethod == BillSplitMethod.Percentage ? 100m : Input.TotalAmount);
+    }
+
+    private string GetAllocationTotalClass() =>
+        HasValidAllocationTotal() ? "allocation-valid" : "allocation-invalid";
+
+    private string GetAllocationTotalLabel() =>
+        Input.SplitMethod == BillSplitMethod.Percentage
+            ? "Percentage total"
+            : "Allocated total";
+
+    private string FormatAllocationTotal() =>
+        Input.SplitMethod == BillSplitMethod.Percentage
+            ? $"{_participants.Sum(item => item.Value):N2}% / 100.00%"
+            : $"{Input.Currency} {_participants.Sum(item => item.Value):N2} / {Input.TotalAmount:N2}";
+
+    private static char GetInitial(string displayName) =>
+        string.IsNullOrWhiteSpace(displayName) ? '?' : char.ToUpperInvariant(displayName.Trim()[0]);
 
     private static string FormatCategory(SharedBillCategory category)
     {
@@ -266,8 +418,17 @@
 
         public string Currency { get; set; } = "CAD";
 
+        public BillSplitMethod SplitMethod { get; set; } = BillSplitMethod.Equal;
+
         public DateOnly PeriodStart { get; set; }
         public DateOnly PeriodEnd { get; set; }
         public DateOnly DueDate { get; set; }
+    }
+
+    private sealed class ParticipantAllocationInput
+    {
+        public Guid UserProfileId { get; init; }
+        public string DisplayName { get; init; } = string.Empty;
+        public decimal Value { get; set; }
     }
 }

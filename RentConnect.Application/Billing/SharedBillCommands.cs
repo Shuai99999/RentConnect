@@ -10,6 +10,24 @@ public sealed record AddBillAttachmentCommand(
 
 public sealed record DeleteBillAttachmentCommand(Guid AttachmentId);
 
+public sealed record BillAllocationInput(
+    Guid UserProfileId,
+    decimal Value);
+
+public sealed record CreateSharedBillCommand(
+    Guid TenancyId,
+    Guid PaidByUserProfileId,
+    string Title,
+    SharedBillCategory Category,
+    decimal TotalAmount,
+    string Currency,
+    int CurrencyDecimalPlaces,
+    DateOnly PeriodStart,
+    DateOnly PeriodEnd,
+    DateOnly DueDate,
+    BillSplitMethod SplitMethod,
+    IReadOnlyList<BillAllocationInput> Allocations);
+
 public sealed record CreateEqualSharedBillCommand(
     Guid TenancyId,
     Guid PaidByUserProfileId,

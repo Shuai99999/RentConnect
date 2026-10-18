@@ -270,6 +270,63 @@ public sealed class SharedBillServiceTests
                         new DateOnly(2026, 10, 31),
                         new DateOnly(2026, 11, 15)),
                     firstTenantId));
+
+            var participants = await service.GetTenancyParticipantsAsync(
+                tenancyId,
+                ownerId);
+            Assert.Equal(2, participants.Count);
+
+            var percentageBillId = await service.CreateAsync(
+                new CreateSharedBillCommand(
+                    tenancyId,
+                    firstTenantId,
+                    "Percentage internet",
+                    SharedBillCategory.Internet,
+                    100m,
+                    "CAD",
+                    2,
+                    new DateOnly(2026, 10, 1),
+                    new DateOnly(2026, 10, 31),
+                    new DateOnly(2026, 11, 15),
+                    BillSplitMethod.Percentage,
+                    [
+                        new BillAllocationInput(firstTenantId, 60m),
+                        new BillAllocationInput(secondTenantId, 40m)
+                    ]),
+                firstTenantId);
+            var percentageBill = await service.GetDetailsAsync(
+                percentageBillId,
+                firstTenantId);
+            Assert.NotNull(percentageBill);
+            Assert.Equal(BillSplitMethod.Percentage, percentageBill.SplitMethod);
+            Assert.Equal(
+                [40m, 60m],
+                percentageBill.Shares.Select(item => item.Amount).Order().ToArray());
+
+            var fixedBillId = await service.CreateAsync(
+                new CreateSharedBillCommand(
+                    tenancyId,
+                    firstTenantId,
+                    "Fixed cleaning",
+                    SharedBillCategory.Cleaning,
+                    100m,
+                    "CAD",
+                    2,
+                    new DateOnly(2026, 10, 1),
+                    new DateOnly(2026, 10, 31),
+                    new DateOnly(2026, 11, 15),
+                    BillSplitMethod.FixedAmount,
+                    [
+                        new BillAllocationInput(firstTenantId, 70m),
+                        new BillAllocationInput(secondTenantId, 30m)
+                    ]),
+                ownerId);
+            var fixedBill = await service.GetDetailsAsync(fixedBillId, ownerId);
+            Assert.NotNull(fixedBill);
+            Assert.Equal(BillSplitMethod.FixedAmount, fixedBill.SplitMethod);
+            Assert.Equal(
+                [30m, 70m],
+                fixedBill.Shares.Select(item => item.Amount).Order().ToArray());
         }
         finally
         {

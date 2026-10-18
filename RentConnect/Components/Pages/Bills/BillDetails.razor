@@ -72,7 +72,7 @@
             </article>
             <article>
                 <span>Split method</span>
-                <strong>Equal split</strong>
+                <strong>@FormatSplitMethod(_details.SplitMethod)</strong>
             </article>
             <article>
                 <span>Paid by</span>
@@ -598,6 +598,16 @@
         status == SharedBillStatus.PartiallySettled
             ? "Partially settled"
             : status.ToString();
+
+    private static string FormatSplitMethod(BillSplitMethod splitMethod) =>
+        splitMethod switch
+        {
+            BillSplitMethod.Equal => "Equal split",
+            BillSplitMethod.Percentage => "Percentage",
+            BillSplitMethod.FixedAmount => "Fixed amount",
+            BillSplitMethod.OccupancyDays => "Occupancy days",
+            _ => "Custom"
+        };
 
     private static string GetStatusClass(SharedBillStatus status) =>
         $"status-{status.ToString().ToLowerInvariant()}";

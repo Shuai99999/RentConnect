@@ -7,6 +7,10 @@ public sealed record SharedBillTenancyOption(
     string PropertyName,
     string RentalUnitName);
 
+public sealed record SharedBillParticipantOption(
+    Guid UserProfileId,
+    string DisplayName);
+
 public sealed record SharedBillSummary(
     Guid Id,
     Guid TenancyId,

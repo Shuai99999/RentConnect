@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using RentConnect.Application.Billing;
 using RentConnect.Core.Entities;
+using RentConnect.Core.Enums;
 using RentConnect.Core.Policies;
 using RentConnect.Core.ValueObjects;
 using RentConnect.Data;
@@ -90,6 +91,39 @@ public sealed class SharedBillService(
                 bill.DueDate,
                 bill.Status,
                 bill.UpdatedAtUtc))
+            .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<SharedBillParticipantOption>>
+        GetTenancyParticipantsAsync(
+            Guid tenancyId,
+            Guid userProfileId,
+            CancellationToken cancellationToken = default)
+    {
+        EnsureId(tenancyId, nameof(tenancyId));
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var today = GetToday();
+        var canAccess = await GetActiveTenancyIds(context, userProfileId, today)
+                .Concat(GetOwnedTenancyIds(context, userProfileId))
+                .AnyAsync(id => id == tenancyId, cancellationToken);
+
+        if (!canAccess)
+        {
+            throw new KeyNotFoundException("The tenancy was not found.");
+        }
+
+        return await (
+            from member in context.TenancyMembers.AsNoTracking()
+            join profile in context.UserProfiles.AsNoTracking()
+                on member.UserProfileId equals profile.Id
+            where member.TenancyId == tenancyId &&
+                  member.JoinedOn <= today &&
+                  (!member.LeftOn.HasValue || member.LeftOn.Value >= today)
+            orderby profile.DisplayName
+            select new SharedBillParticipantOption(profile.Id, profile.DisplayName))
             .ToArrayAsync(cancellationToken);
     }
 
@@ -311,6 +345,133 @@ public sealed class SharedBillService(
         context.SharedBills.Add(bill);
         await context.SaveChangesAsync(cancellationToken);
 
+        return bill.Id;
+    }
+
+    public async Task<Guid> CreateAsync(
+        CreateSharedBillCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        if (command.SplitMethod is not
+            (BillSplitMethod.Equal or BillSplitMethod.FixedAmount or BillSplitMethod.Percentage))
+        {
+            throw new ArgumentException("The selected split method is not supported.", nameof(command));
+        }
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var tenancy = await context.Tenancies
+            .Include(item => item.Members)
+            .SingleOrDefaultAsync(item => item.Id == command.TenancyId, cancellationToken)
+            ?? throw new KeyNotFoundException("The tenancy was not found.");
+        var today = GetToday();
+        var activeMemberIds = tenancy.Members
+            .Where(member => member.IsActiveOn(today))
+            .Select(member => member.UserProfileId)
+            .Distinct()
+            .ToArray();
+        var ownerIds = await (
+                from unit in context.RentalUnits.AsNoTracking()
+                join owner in context.PropertyOwners.AsNoTracking()
+                    on unit.PropertyId equals owner.PropertyId
+                where unit.Id == tenancy.RentalUnitId
+                select owner.UserProfileId)
+            .Distinct()
+            .ToArrayAsync(cancellationToken);
+        var access = new SharedBillAccessContext(
+            userProfileId,
+            ownerIds.Contains(userProfileId),
+            tenancy.IsMemberActiveOn(userProfileId, today),
+            activeMemberIds.Contains(userProfileId));
+
+        if (!tenancy.IsActiveOn(today) || !SharedBillAccessPolicy.CanCreate(access))
+        {
+            throw new KeyNotFoundException("The tenancy was not found.");
+        }
+
+        if (activeMemberIds.Length == 0)
+        {
+            throw new InvalidOperationException("The tenancy has no active members to share this bill.");
+        }
+
+        if (!activeMemberIds.Contains(command.PaidByUserProfileId) &&
+            !ownerIds.Contains(command.PaidByUserProfileId))
+        {
+            throw new ArgumentException(
+                "The paying user must be an active member or property owner.",
+                nameof(command));
+        }
+
+        var allocations = command.Allocations ?? [];
+        if (command.SplitMethod != BillSplitMethod.Equal)
+        {
+            var allocationIds = allocations.Select(item => item.UserProfileId).ToArray();
+            if (allocationIds.Length != activeMemberIds.Length ||
+                allocationIds.Distinct().Count() != allocationIds.Length ||
+                activeMemberIds.Any(id => !allocationIds.Contains(id)))
+            {
+                throw new ArgumentException(
+                    "Enter one allocation for every active tenant.",
+                    nameof(command));
+            }
+        }
+
+        var now = GetUtcNow();
+        var bill = new SharedBill(
+            Guid.NewGuid(),
+            tenancy.Id,
+            userProfileId,
+            command.PaidByUserProfileId,
+            command.Title,
+            command.Category,
+            new Money(command.TotalAmount, command.Currency),
+            command.PeriodStart,
+            command.PeriodEnd,
+            command.DueDate,
+            now);
+
+        switch (command.SplitMethod)
+        {
+            case BillSplitMethod.Equal:
+                bill.AllocateEqually(
+                    activeMemberIds.Select(id => (Guid.NewGuid(), id)),
+                    command.CurrencyDecimalPlaces,
+                    now);
+                break;
+
+            case BillSplitMethod.Percentage:
+                if (allocations.Any(item => item.Value <= 0) ||
+                    allocations.Sum(item => item.Value) != 100m)
+                {
+                    throw new ArgumentException(
+                        "Percentages must be positive and add up to 100%.",
+                        nameof(command));
+                }
+
+                bill.AllocateProportionally(
+                    allocations.Select(item =>
+                        (Guid.NewGuid(), item.UserProfileId, item.Value)),
+                    BillSplitMethod.Percentage,
+                    command.CurrencyDecimalPlaces,
+                    now);
+                break;
+
+            case BillSplitMethod.FixedAmount:
+                bill.AllocateFixed(
+                    allocations.Select(item =>
+                        (Guid.NewGuid(),
+                         item.UserProfileId,
+                         new Money(item.Value, command.Currency))),
+                    now);
+                break;
+        }
+
+        context.SharedBills.Add(bill);
+        await context.SaveChangesAsync(cancellationToken);
         return bill.Id;
     }
 

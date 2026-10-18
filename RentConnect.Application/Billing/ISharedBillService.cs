@@ -7,6 +7,12 @@ public interface ISharedBillService
             Guid userProfileId,
             CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<SharedBillParticipantOption>>
+        GetTenancyParticipantsAsync(
+            Guid tenancyId,
+            Guid userProfileId,
+            CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<SharedBillSummary>> GetVisibleBillsAsync(
         Guid userProfileId,
         CancellationToken cancellationToken = default);
@@ -18,6 +24,11 @@ public interface ISharedBillService
 
     Task<Guid> CreateEqualSplitAsync(
         CreateEqualSharedBillCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task<Guid> CreateAsync(
+        CreateSharedBillCommand command,
         Guid userProfileId,
         CancellationToken cancellationToken = default);
 

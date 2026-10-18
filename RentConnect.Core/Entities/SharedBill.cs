@@ -175,6 +175,91 @@ public sealed class SharedBill
         UpdatedAtUtc = normalizedChangedAtUtc;
     }
 
+    public void AllocateProportionally(
+        IEnumerable<(Guid ShareId, Guid UserProfileId, decimal Weight)> participants,
+        BillSplitMethod splitMethod,
+        int decimalPlaces,
+        DateTimeOffset changedAtUtc)
+    {
+        if (splitMethod is not (BillSplitMethod.Percentage or BillSplitMethod.OccupancyDays))
+        {
+            throw new ArgumentOutOfRangeException(nameof(splitMethod));
+        }
+
+        var participantArray = participants?.ToArray()
+            ?? throw new ArgumentNullException(nameof(participants));
+        var allocations = WeightedBillSplitter.Split(
+            Total,
+            participantArray.Select(item => (item.UserProfileId, item.Weight)),
+            decimalPlaces);
+
+        ReplaceShares(
+            participantArray.Select(item => (item.ShareId, item.UserProfileId)),
+            allocations,
+            splitMethod,
+            changedAtUtc);
+    }
+
+    public void AllocateFixed(
+        IEnumerable<(Guid ShareId, Guid UserProfileId, Money Amount)> participants,
+        DateTimeOffset changedAtUtc)
+    {
+        var participantArray = participants?.ToArray()
+            ?? throw new ArgumentNullException(nameof(participants));
+
+        if (participantArray.Length == 0 ||
+            participantArray.Any(item => item.Amount is null || item.Amount.Amount < 0) ||
+            participantArray.Any(item => item.Amount.Currency != Total.Currency) ||
+            participantArray.Sum(item => item.Amount.Amount) != Total.Amount)
+        {
+            throw new ArgumentException(
+                "Fixed shares must use the bill currency and add up to the bill total.",
+                nameof(participants));
+        }
+
+        ReplaceShares(
+            participantArray.Select(item => (item.ShareId, item.UserProfileId)),
+            participantArray.Select(item => new BillAllocation(item.UserProfileId, item.Amount)),
+            BillSplitMethod.FixedAmount,
+            changedAtUtc);
+    }
+
+    private void ReplaceShares(
+        IEnumerable<(Guid ShareId, Guid UserProfileId)> participants,
+        IEnumerable<BillAllocation> allocations,
+        BillSplitMethod splitMethod,
+        DateTimeOffset changedAtUtc)
+    {
+        EnsureDraft();
+        var participantArray = participants.ToArray();
+
+        if (participantArray.Length == 0 ||
+            participantArray.Any(item => item.ShareId == Guid.Empty || item.UserProfileId == Guid.Empty) ||
+            participantArray.Select(item => item.ShareId).Distinct().Count() != participantArray.Length ||
+            participantArray.Select(item => item.UserProfileId).Distinct().Count() != participantArray.Length)
+        {
+            throw new ArgumentException("Bill share participants must be unique and valid.", nameof(participants));
+        }
+
+        var allocationsByUser = allocations.ToDictionary(item => item.UserProfileId);
+        if (allocationsByUser.Count != participantArray.Length ||
+            participantArray.Any(item => !allocationsByUser.ContainsKey(item.UserProfileId)))
+        {
+            throw new ArgumentException("Every participant must have one allocation.", nameof(allocations));
+        }
+
+        var normalizedChangedAtUtc = RequireValidChangeTime(changedAtUtc);
+        _shares.Clear();
+        _shares.AddRange(participantArray.Select(item => new BillShare(
+            item.ShareId,
+            Id,
+            item.UserProfileId,
+            allocationsByUser[item.UserProfileId].Amount)));
+        SplitMethod = splitMethod;
+        UpdatedAtUtc = normalizedChangedAtUtc;
+        ValidateShareTotal();
+    }
+
     public void Publish(DateTimeOffset publishedAtUtc)
     {
         EnsureDraft();
