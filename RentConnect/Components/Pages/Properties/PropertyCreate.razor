@@ -1,0 +1,159 @@
+@page "/properties/new"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Properties
+@using RentConnect.Services
+
+@inject IPropertyService PropertyService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Add Property</PageTitle>
+
+<main class="form-page">
+    <header class="form-header">
+        <div>
+            <p class="eyebrow">Property portfolio</p>
+            <h1>Add a property</h1>
+            <p>Create the property first, then add its individual rental spaces.</p>
+        </div>
+        <BackNavigation Href="/properties" Label="Properties" />
+    </header>
+
+    <EditForm Model="Input" OnValidSubmit="CreatePropertyAsync" FormName="create-property">
+        <DataAnnotationsValidator />
+
+        @if (_submitError is not null)
+        {
+            <div class="form-alert" role="alert">@_submitError</div>
+        }
+        <ValidationSummary class="validation-summary" />
+
+        <section class="form-card">
+            <div class="section-heading">
+                <h2>Property identity</h2>
+                <p>Use a familiar name that residents will recognize.</p>
+            </div>
+            <div class="field">
+                <label for="property-name">Property name</label>
+                <InputText id="property-name" class="form-control" @bind-Value="Input.Name" placeholder="For example: Maple House" />
+                <ValidationMessage For="() => Input.Name" />
+            </div>
+        </section>
+
+        <section class="form-card">
+            <div class="section-heading">
+                <h2>Address</h2>
+                <p>This address is shown only to people connected to the property.</p>
+            </div>
+            <div class="field">
+                <label for="address-line-1">Street address</label>
+                <InputText id="address-line-1" class="form-control" @bind-Value="Input.AddressLine1" autocomplete="address-line1" />
+                <ValidationMessage For="() => Input.AddressLine1" />
+            </div>
+            <div class="field">
+                <label for="address-line-2">Apartment, suite, or building <span>Optional</span></label>
+                <InputText id="address-line-2" class="form-control" @bind-Value="Input.AddressLine2" autocomplete="address-line2" />
+            </div>
+            <div class="form-grid">
+                <div class="field">
+                    <label for="city">City</label>
+                    <InputText id="city" class="form-control" @bind-Value="Input.City" autocomplete="address-level2" />
+                    <ValidationMessage For="() => Input.City" />
+                </div>
+                <div class="field">
+                    <label for="region">Province or state</label>
+                    <InputText id="region" class="form-control" @bind-Value="Input.Region" autocomplete="address-level1" />
+                </div>
+                <div class="field">
+                    <label for="postal-code">Postal code</label>
+                    <InputText id="postal-code" class="form-control" @bind-Value="Input.PostalCode" autocomplete="postal-code" />
+                </div>
+                <div class="field">
+                    <label for="country-code">Country</label>
+                    <InputSelect id="country-code" class="form-control" @bind-Value="Input.CountryCode" autocomplete="country">
+                        <option value="CA">Canada</option>
+                        <option value="US">United States</option>
+                        <option value="GB">United Kingdom</option>
+                        <option value="AU">Australia</option>
+                        <option value="NZ">New Zealand</option>
+                    </InputSelect>
+                </div>
+            </div>
+        </section>
+
+        <div class="form-actions">
+            <a href="/properties">Cancel</a>
+            <button type="submit" class="primary-button" disabled="@_isSubmitting">
+                @(_isSubmitting ? "Adding property..." : "Add property")
+            </button>
+        </div>
+    </EditForm>
+</main>
+
+@code {
+    private readonly PropertyInput Input = new();
+    private bool _isSubmitting;
+    private string? _submitError;
+
+    private async Task CreatePropertyAsync()
+    {
+        if (_isSubmitting) return;
+        _isSubmitting = true;
+        _submitError = null;
+
+        try
+        {
+            var profileId = await CurrentUserProfileService
+                .GetRequiredUserProfileIdAsync();
+            var propertyId = await PropertyService.CreateAsync(
+                new CreatePropertyCommand(
+                    Input.Name,
+                    Input.AddressLine1,
+                    Input.AddressLine2,
+                    Input.City,
+                    Input.Region,
+                    Input.PostalCode,
+                    Input.CountryCode),
+                profileId);
+            NavigationManager.NavigateTo($"/properties/{propertyId}");
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _submitError = "The property could not be added. Check the address and try again.";
+            _isSubmitting = false;
+        }
+    }
+
+    private sealed class PropertyInput
+    {
+        [Required(ErrorMessage = "Enter a property name.")]
+        [StringLength(150)]
+        public string Name { get; set; } = string.Empty;
+
+        [Required(ErrorMessage = "Enter a street address.")]
+        [StringLength(200)]
+        public string AddressLine1 { get; set; } = string.Empty;
+
+        [StringLength(200)]
+        public string? AddressLine2 { get; set; }
+
+        [Required(ErrorMessage = "Enter a city.")]
+        [StringLength(100)]
+        public string City { get; set; } = string.Empty;
+
+        [StringLength(100)]
+        public string? Region { get; set; } = "Alberta";
+
+        [StringLength(20)]
+        public string? PostalCode { get; set; }
+
+        [Required]
+        [StringLength(2, MinimumLength = 2)]
+        public string CountryCode { get; set; } = "CA";
+    }
+}

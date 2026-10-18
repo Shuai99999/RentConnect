@@ -1,0 +1,447 @@
+@page "/properties/{PropertyId:guid}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Properties
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject IPropertyService PropertyService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>@(_property?.Name ?? "Property")</PageTitle>
+
+<main class="details-page">
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading property...</section>
+    }
+    else if (_property is null)
+    {
+        <section class="state-card error-card" role="alert">
+            <h1>Property not found</h1>
+            <p>The property does not exist or you no longer have access.</p>
+            <a class="secondary-button" href="/properties">Return to properties</a>
+        </section>
+    }
+    else
+    {
+        <BackNavigation Href="/properties" Label="Properties" />
+
+        <header class="property-header">
+            <div>
+                <div class="heading-meta">
+                    <span class="access-badge @(_property.CanManage ? "owner" : "resident")">
+                        @(_property.CanManage ? "Owner view" : "Resident view")
+                    </span>
+                    <span>@_property.Units.Count rental @(_property.Units.Count == 1 ? "space" : "spaces")</span>
+                </div>
+                <h1>@_property.Name</h1>
+                <p>@FormatAddress(_property)</p>
+            </div>
+            @if (_property.CanManage)
+            {
+                <button type="button" class="secondary-button" @onclick="TogglePropertyEditor">
+                    @(_showPropertyEditor ? "Close editor" : "Edit property")
+                </button>
+            }
+        </header>
+
+        @if (_actionMessage is not null)
+        {
+            <div class="action-message success-message" role="status">@_actionMessage</div>
+        }
+        @if (_actionError is not null)
+        {
+            <div class="action-message error-message" role="alert">@_actionError</div>
+        }
+
+        @if (_property.CanManage && _showPropertyEditor)
+        {
+            <section class="panel editor-panel">
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Property details</p>
+                        <h2>Edit name and address</h2>
+                    </div>
+                </div>
+                <EditForm Model="PropertyInput" OnValidSubmit="SavePropertyAsync" FormName="edit-property">
+                    <DataAnnotationsValidator />
+                    <div class="field">
+                        <label for="edit-property-name">Property name</label>
+                        <InputText id="edit-property-name" class="form-control" @bind-Value="PropertyInput.Name" />
+                        <ValidationMessage For="() => PropertyInput.Name" />
+                    </div>
+                    <div class="field">
+                        <label for="edit-address-1">Street address</label>
+                        <InputText id="edit-address-1" class="form-control" @bind-Value="PropertyInput.AddressLine1" />
+                        <ValidationMessage For="() => PropertyInput.AddressLine1" />
+                    </div>
+                    <div class="field">
+                        <label for="edit-address-2">Suite or building <span>Optional</span></label>
+                        <InputText id="edit-address-2" class="form-control" @bind-Value="PropertyInput.AddressLine2" />
+                    </div>
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="edit-city">City</label>
+                            <InputText id="edit-city" class="form-control" @bind-Value="PropertyInput.City" />
+                            <ValidationMessage For="() => PropertyInput.City" />
+                        </div>
+                        <div class="field">
+                            <label for="edit-region">Province or state</label>
+                            <InputText id="edit-region" class="form-control" @bind-Value="PropertyInput.Region" />
+                        </div>
+                        <div class="field">
+                            <label for="edit-postal">Postal code</label>
+                            <InputText id="edit-postal" class="form-control" @bind-Value="PropertyInput.PostalCode" />
+                        </div>
+                        <div class="field">
+                            <label for="edit-country">Country code</label>
+                            <InputText id="edit-country" class="form-control" maxlength="2" @bind-Value="PropertyInput.CountryCode" />
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="button" class="text-button" @onclick="TogglePropertyEditor">Cancel</button>
+                        <button type="submit" class="primary-button" disabled="@_isSaving">@(_isSaving ? "Saving..." : "Save changes")</button>
+                    </div>
+                </EditForm>
+            </section>
+        }
+
+        <section class="overview-grid" aria-label="Property overview">
+            <article class="overview-card address-card">
+                <span>Address</span>
+                <strong>@_property.AddressLine1</strong>
+                @if (!string.IsNullOrWhiteSpace(_property.AddressLine2))
+                {
+                    <small>@_property.AddressLine2</small>
+                }
+                <small>@_property.City@FormatRegion(_property.Region) @_property.PostalCode</small>
+                <small>@FormatCountry(_property.CountryCode)</small>
+            </article>
+            <article class="overview-card">
+                <span>Property owners</span>
+                @foreach (var owner in _property.OwnerNames)
+                {
+                    <strong>@owner</strong>
+                }
+            </article>
+            <article class="overview-card">
+                <span>Occupied spaces</span>
+                <strong class="large-value">@_property.Units.Count(unit => unit.HasActiveTenancy)</strong>
+                <small>of @_property.Units.Count visible spaces</small>
+            </article>
+        </section>
+
+        <section class="panel units-panel">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">Rental setup</p>
+                    <h2>Rental spaces</h2>
+                    <p>A space can be an entire home, apartment, or individual room.</p>
+                </div>
+                @if (_property.CanManage)
+                {
+                    <button type="button" class="primary-button" @onclick="ToggleUnitCreator">
+                        @(_showUnitCreator ? "Close form" : "Add rental space")
+                    </button>
+                }
+            </div>
+
+            @if (_property.CanManage && _showUnitCreator)
+            {
+                <EditForm Model="NewUnitInput" OnValidSubmit="AddUnitAsync" FormName="add-rental-unit" class="unit-form">
+                    <DataAnnotationsValidator />
+                    <div class="form-grid unit-form-grid">
+                        <div class="field">
+                            <label for="new-unit-name">Space name</label>
+                            <InputText id="new-unit-name" class="form-control" @bind-Value="NewUnitInput.Name" placeholder="For example: Main Floor" />
+                            <ValidationMessage For="() => NewUnitInput.Name" />
+                        </div>
+                        <div class="field">
+                            <label for="new-unit-type">Type</label>
+                            <InputSelect id="new-unit-type" class="form-control" @bind-Value="NewUnitInput.Type">
+                                @foreach (var type in Enum.GetValues<RentalUnitType>())
+                                {
+                                    <option value="@type">@FormatUnitType(type)</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="primary-button" disabled="@_isSaving">@(_isSaving ? "Adding..." : "Add space")</button>
+                    </div>
+                </EditForm>
+            }
+
+            @if (_property.Units.Count == 0)
+            {
+                <div class="empty-units">
+                    <strong>No rental spaces yet</strong>
+                    <p>Add the first space before creating a tenancy.</p>
+                </div>
+            }
+            else
+            {
+                <div class="unit-list">
+                    @foreach (var unit in _property.Units)
+                    {
+                        <article class="unit-card @(!unit.IsActive ? "inactive" : string.Empty)">
+                            <div class="unit-icon" aria-hidden="true">
+                                <svg viewBox="0 0 24 24" focusable="false">
+                                    <path d="m3 11 9-7 9 7M5 10v10h14V10" />
+                                </svg>
+                            </div>
+                            <div class="unit-main">
+                                <div class="unit-heading">
+                                    <h3>@unit.Name</h3>
+                                    <span class="unit-state @(unit.HasActiveTenancy ? "occupied" : "vacant")">
+                                        @(unit.HasActiveTenancy ? "Occupied" : unit.IsActive ? "Vacant" : "Inactive")
+                                    </span>
+                                </div>
+                                <p>@FormatUnitType(unit.Type)</p>
+                                @if (unit.HasActiveTenancy)
+                                {
+                                    <small>@unit.CurrentTenantCount current @(unit.CurrentTenantCount == 1 ? "tenant" : "tenants") · Since @unit.CurrentTenancyStartDate?.ToString("MMM d, yyyy")</small>
+                                }
+                                else
+                                {
+                                    <small>No active tenancy</small>
+                                }
+                            </div>
+                            @if (_property.CanManage)
+                            {
+                                <div class="unit-actions">
+                                    <button type="button" class="text-button" @onclick="() => BeginUnitEdit(unit)">Edit</button>
+                                    <button type="button" class="text-button @(unit.IsActive ? "danger-text" : string.Empty)" disabled="@(unit.HasActiveTenancy || _isSaving)" @onclick="() => ToggleUnitActiveAsync(unit)">
+                                        @(unit.IsActive ? "Deactivate" : "Activate")
+                                    </button>
+                                </div>
+                            }
+                        </article>
+
+                        @if (_property.CanManage && _editingUnitId == unit.Id)
+                        {
+                            <EditForm Model="EditUnitInput" OnValidSubmit="SaveUnitAsync" FormName="edit-rental-unit" class="unit-form edit-unit-form">
+                                <DataAnnotationsValidator />
+                                <div class="form-grid unit-form-grid">
+                                    <div class="field">
+                                        <label for="edit-unit-name">Space name</label>
+                                        <InputText id="edit-unit-name" class="form-control" @bind-Value="EditUnitInput.Name" />
+                                        <ValidationMessage For="() => EditUnitInput.Name" />
+                                    </div>
+                                    <div class="field">
+                                        <label for="edit-unit-type">Type</label>
+                                        <InputSelect id="edit-unit-type" class="form-control" @bind-Value="EditUnitInput.Type">
+                                            @foreach (var type in Enum.GetValues<RentalUnitType>())
+                                            {
+                                                <option value="@type">@FormatUnitType(type)</option>
+                                            }
+                                        </InputSelect>
+                                    </div>
+                                </div>
+                                <div class="form-actions">
+                                    <button type="button" class="text-button" @onclick="CancelUnitEdit">Cancel</button>
+                                    <button type="submit" class="primary-button" disabled="@_isSaving">Save space</button>
+                                </div>
+                            </EditForm>
+                        }
+                    }
+                </div>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    [Parameter] public Guid PropertyId { get; set; }
+
+    private RentConnect.Application.Properties.PropertyDetails? _property;
+    private Guid _currentUserProfileId;
+    private Guid? _editingUnitId;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _showPropertyEditor;
+    private bool _showUnitCreator;
+    private string? _actionMessage;
+    private string? _actionError;
+    private PropertyEditInput PropertyInput { get; } = new();
+    private UnitInput NewUnitInput { get; } = new();
+    private UnitInput EditUnitInput { get; } = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _currentUserProfileId = await CurrentUserProfileService
+            .GetRequiredUserProfileIdAsync();
+        await ReloadAsync();
+        _isLoading = false;
+    }
+
+    private async Task ReloadAsync()
+    {
+        _property = await PropertyService.GetDetailsAsync(
+            PropertyId,
+            _currentUserProfileId);
+    }
+
+    private void TogglePropertyEditor()
+    {
+        if (_property is null) return;
+        _showPropertyEditor = !_showPropertyEditor;
+        _actionError = null;
+        if (_showPropertyEditor)
+        {
+            PropertyInput.CopyFrom(_property);
+        }
+    }
+
+    private void ToggleUnitCreator()
+    {
+        _showUnitCreator = !_showUnitCreator;
+        _actionError = null;
+        if (_showUnitCreator) NewUnitInput.Reset();
+    }
+
+    private async Task SavePropertyAsync()
+    {
+        await RunActionAsync(async () =>
+        {
+            await PropertyService.UpdateAsync(
+                new UpdatePropertyCommand(
+                    PropertyId,
+                    PropertyInput.Name,
+                    PropertyInput.AddressLine1,
+                    PropertyInput.AddressLine2,
+                    PropertyInput.City,
+                    PropertyInput.Region,
+                    PropertyInput.PostalCode,
+                    PropertyInput.CountryCode),
+                _currentUserProfileId);
+            _showPropertyEditor = false;
+        }, "Property details updated.");
+    }
+
+    private async Task AddUnitAsync()
+    {
+        await RunActionAsync(async () =>
+        {
+            await PropertyService.AddRentalUnitAsync(
+                new AddRentalUnitCommand(
+                    PropertyId,
+                    NewUnitInput.Name,
+                    NewUnitInput.Type),
+                _currentUserProfileId);
+            _showUnitCreator = false;
+            NewUnitInput.Reset();
+        }, "Rental space added.");
+    }
+
+    private void BeginUnitEdit(RentalUnitItem unit)
+    {
+        _editingUnitId = unit.Id;
+        EditUnitInput.Name = unit.Name;
+        EditUnitInput.Type = unit.Type;
+        _actionError = null;
+    }
+
+    private void CancelUnitEdit() => _editingUnitId = null;
+
+    private async Task SaveUnitAsync()
+    {
+        if (_editingUnitId is not Guid unitId) return;
+        await RunActionAsync(async () =>
+        {
+            await PropertyService.UpdateRentalUnitAsync(
+                new UpdateRentalUnitCommand(
+                    unitId,
+                    EditUnitInput.Name,
+                    EditUnitInput.Type),
+                _currentUserProfileId);
+            _editingUnitId = null;
+        }, "Rental space updated.");
+    }
+
+    private Task ToggleUnitActiveAsync(RentalUnitItem unit) =>
+        RunActionAsync(
+            () => PropertyService.SetRentalUnitActiveAsync(
+                new SetRentalUnitActiveCommand(unit.Id, !unit.IsActive),
+                _currentUserProfileId),
+            unit.IsActive ? "Rental space deactivated." : "Rental space activated.");
+
+    private async Task RunActionAsync(Func<Task> action, string successMessage)
+    {
+        if (_isSaving) return;
+        _isSaving = true;
+        _actionError = null;
+        _actionMessage = null;
+
+        try
+        {
+            await action();
+            await ReloadAsync();
+            _actionMessage = successMessage;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _actionError = exception is InvalidOperationException
+                ? exception.Message
+                : "The change could not be saved. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string FormatAddress(
+        RentConnect.Application.Properties.PropertyDetails property)
+    {
+        var secondLine = string.IsNullOrWhiteSpace(property.AddressLine2)
+            ? string.Empty
+            : $", {property.AddressLine2}";
+        return $"{property.AddressLine1}{secondLine}, {property.City}{FormatRegion(property.Region)}";
+    }
+
+    private static string FormatRegion(string? region) =>
+        string.IsNullOrWhiteSpace(region) ? string.Empty : $", {region}";
+
+    private static string FormatCountry(string countryCode) =>
+        countryCode switch { "CA" => "Canada", "US" => "United States", "GB" => "United Kingdom", "AU" => "Australia", "NZ" => "New Zealand", _ => countryCode };
+
+    private static string FormatUnitType(RentalUnitType type) =>
+        type switch { RentalUnitType.EntireProperty => "Entire property", _ => type.ToString() };
+
+    private sealed class PropertyEditInput
+    {
+        [Required, StringLength(150)] public string Name { get; set; } = string.Empty;
+        [Required, StringLength(200)] public string AddressLine1 { get; set; } = string.Empty;
+        [StringLength(200)] public string? AddressLine2 { get; set; }
+        [Required, StringLength(100)] public string City { get; set; } = string.Empty;
+        [StringLength(100)] public string? Region { get; set; }
+        [StringLength(20)] public string? PostalCode { get; set; }
+        [Required, StringLength(2, MinimumLength = 2)] public string CountryCode { get; set; } = "CA";
+
+        public void CopyFrom(
+            RentConnect.Application.Properties.PropertyDetails property)
+        {
+            Name = property.Name;
+            AddressLine1 = property.AddressLine1;
+            AddressLine2 = property.AddressLine2;
+            City = property.City;
+            Region = property.Region;
+            PostalCode = property.PostalCode;
+            CountryCode = property.CountryCode;
+        }
+    }
+
+    private sealed class UnitInput
+    {
+        [Required, StringLength(100)] public string Name { get; set; } = string.Empty;
+        public RentalUnitType Type { get; set; } = RentalUnitType.Apartment;
+        public void Reset() { Name = string.Empty; Type = RentalUnitType.Apartment; }
+    }
+}
