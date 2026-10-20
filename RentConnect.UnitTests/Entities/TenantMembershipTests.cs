@@ -2,7 +2,7 @@
 
 namespace RentConnect.UnitTests.Entities;
 
-public class TenancyMembershipTests
+public class TenantMembershipTests
 {
     [Fact]
     public void AddMember_WithValidDate_AddsMember()
