@@ -218,10 +218,6 @@
                                     {
                                         <a class="text-button" href="@($"/tenancies/{tenancyId}")">View tenancy</a>
                                     }
-                                    else if (unit.IsActive)
-                                    {
-                                        <a class="text-button" href="@($"/tenancies/new?unitId={unit.Id}")">Create tenancy</a>
-                                    }
                                     @if (unit.IsActive && !unit.HasActiveTenancy)
                                     {
                                         <a class="text-button" href="/listings/manage">List for rent</a>
