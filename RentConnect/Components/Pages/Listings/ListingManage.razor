@@ -1,0 +1,71 @@
+@page "/listings/manage"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Listings
+@using RentConnect.Services
+
+@inject IRentalListingService ListingService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>Manage listings</PageTitle>
+
+<main class="manage-page">
+    <header class="page-header"><div><p class="eyebrow">Landlord tools</p><h1>Manage listings</h1><p>Publish a vacant rental space so other users can apply.</p></div><a class="secondary-button" href="/rental-applications">View applications</a></header>
+    @if (_message is not null) { <div class="action-message success-message">@_message</div> }
+    @if (_error is not null) { <div class="action-message error-message">@_error</div> }
+    @if (_isLoading) { <section class="state-card">Loading rental spaces...</section> }
+    else if (_units.Count == 0) { <section class="state-card empty-card"><h2>No rental spaces yet</h2><p>Create a property and rental space first.</p><a class="primary-button" href="/properties/new">Add property</a></section> }
+    else
+    {
+        <section class="manage-list">
+            @foreach (var unit in _units)
+            {
+                <article class="manage-card">
+                    <div class="unit-summary"><div><span class="status-badge @(unit.IsPublished ? "published" : "draft")">@(unit.IsPublished ? "Published" : unit.ListingId.HasValue ? "Unpublished" : "Not listed")</span><h2>@unit.PropertyName</h2><p>@unit.RentalUnitName · @FormatType(unit.UnitType)</p></div>@if (unit.MonthlyRent.HasValue) { <strong>$@unit.MonthlyRent.Value.ToString("N0")/month</strong> }</div>
+                    @if (unit.HasBlockingTenancy) { <p class="notice">This space has a current or upcoming tenancy and cannot be published.</p> }
+                    <div class="card-actions">
+                        <button type="button" class="primary-button" disabled="@(!unit.IsActive || unit.HasBlockingTenancy || _isSaving)" @onclick="() => Edit(unit)">@(unit.ListingId.HasValue ? "Edit listing" : "Create listing")</button>
+                        @if (unit.ListingId is Guid listingId)
+                        {
+                            <button type="button" class="secondary-button" disabled="@_isSaving" @onclick="() => TogglePublishedAsync(unit)">@(unit.IsPublished ? "Unpublish" : "Publish")</button>
+                            <a class="text-button" href="@($"/listings/{listingId}")">Preview</a>
+                        }
+                    </div>
+                </article>
+                @if (_editingUnitId == unit.RentalUnitId)
+                {
+                    <EditForm Model="Input" OnValidSubmit="SaveAsync" FormName="edit-listing" class="listing-form">
+                        <DataAnnotationsValidator />
+                        <h3>@(unit.ListingId.HasValue ? "Edit listing" : "Create listing")</h3>
+                        <div class="field"><label for="title">Title</label><InputText id="title" class="form-control" @bind-Value="Input.Title" placeholder="Bright room near campus" /><ValidationMessage For="() => Input.Title" /></div>
+                        <div class="field"><label for="description">Description</label><InputTextArea id="description" class="form-control" @bind-Value="Input.Description" /><ValidationMessage For="() => Input.Description" /></div>
+                        <div class="form-grid"><div class="field"><label for="rent">Monthly rent</label><InputNumber id="rent" class="form-control" @bind-Value="Input.MonthlyRent" /><ValidationMessage For="() => Input.MonthlyRent" /></div><div class="field"><label for="available">Available from</label><InputDate id="available" class="form-control" @bind-Value="Input.AvailableFrom" /></div></div>
+                        <div class="form-actions"><button type="button" class="text-button" @onclick="CancelEdit">Cancel</button><button type="submit" class="primary-button" disabled="@_isSaving">@(_isSaving ? "Publishing..." : "Save and publish")</button></div>
+                    </EditForm>
+                }
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<OwnedListingUnit> _units = [];
+    private Guid _userProfileId;
+    private Guid? _editingUnitId;
+    private bool _isLoading = true, _isSaving;
+    private string? _message, _error;
+    private ListingInput Input { get; } = new();
+
+    protected override async Task OnInitializedAsync() { _userProfileId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync(); await ReloadAsync(); _isLoading = false; }
+    private async Task ReloadAsync() => _units = await ListingService.GetOwnedUnitsAsync(_userProfileId);
+    private void Edit(OwnedListingUnit unit) { _editingUnitId = unit.RentalUnitId; Input.Title = unit.ListingTitle ?? $"{unit.PropertyName} — {unit.RentalUnitName}"; Input.Description = unit.Description ?? "A comfortable rental space ready for its next resident."; Input.MonthlyRent = unit.MonthlyRent ?? 1000m; Input.AvailableFrom = unit.AvailableFrom ?? DateOnly.FromDateTime(DateTime.Today); _error = null; }
+    private void CancelEdit() => _editingUnitId = null;
+    private async Task SaveAsync() { if (_editingUnitId is not Guid unitId) return; await RunAsync(() => ListingService.PublishAsync(new PublishListingCommand(unitId, Input.Title, Input.Description, Input.MonthlyRent, Input.AvailableFrom), _userProfileId), "Listing published."); _editingUnitId = null; }
+    private Task TogglePublishedAsync(OwnedListingUnit unit) => RunAsync(() => ListingService.SetPublishedAsync(unit.ListingId!.Value, !unit.IsPublished, _userProfileId), unit.IsPublished ? "Listing unpublished." : "Listing published.");
+    private async Task RunAsync(Func<Task> action, string success) { if (_isSaving) return; _isSaving = true; _error = null; _message = null; try { await action(); await ReloadAsync(); _message = success; } catch (Exception exception) { Console.Error.WriteLine(exception); _error = exception is InvalidOperationException or ArgumentException ? exception.Message : "The change could not be saved."; } finally { _isSaving = false; } }
+    private static string FormatType(RentConnect.Core.Enums.RentalUnitType type) => type == RentConnect.Core.Enums.RentalUnitType.EntireProperty ? "Entire property" : type.ToString();
+    private sealed class ListingInput { [Required, StringLength(150)] public string Title { get; set; } = string.Empty; [Required, StringLength(2000)] public string Description { get; set; } = string.Empty; [Range(typeof(decimal), "0.01", "99999999")] public decimal MonthlyRent { get; set; } [Required] public DateOnly AvailableFrom { get; set; } }
+}

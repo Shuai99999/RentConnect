@@ -222,6 +222,10 @@
                                     {
                                         <a class="text-button" href="@($"/tenancies/new?unitId={unit.Id}")">Create tenancy</a>
                                     }
+                                    @if (unit.IsActive && !unit.HasActiveTenancy)
+                                    {
+                                        <a class="text-button" href="/listings/manage">List for rent</a>
+                                    }
                                     <button type="button" class="text-button" @onclick="() => BeginUnitEdit(unit)">Edit</button>
                                     <button type="button" class="text-button @(unit.IsActive ? "danger-text" : string.Empty)" disabled="@(unit.HasActiveTenancy || _isSaving)" @onclick="() => ToggleUnitActiveAsync(unit)">
                                         @(unit.IsActive ? "Deactivate" : "Activate")

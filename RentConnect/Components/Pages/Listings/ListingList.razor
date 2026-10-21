@@ -1,0 +1,78 @@
+@page "/listings"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Listings
+@using RentConnect.Core.Enums
+
+@inject IRentalListingService ListingService
+
+<PageTitle>Find a home</PageTitle>
+
+<main class="listing-page">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">Available rentals</p>
+            <h1>Find your next home</h1>
+            <p>Browse available spaces and apply directly through RentConnect.</p>
+        </div>
+        <a class="secondary-button" href="/listings/manage">Manage my listings</a>
+    </header>
+
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading available rentals...</section>
+    }
+    else if (_error is not null)
+    {
+        <section class="state-card error-card" role="alert"><h2>Unable to load listings</h2><p>@_error</p></section>
+    }
+    else if (_listings.Count == 0)
+    {
+        <section class="state-card empty-card">
+            <h2>No homes are listed right now</h2>
+            <p>Check back soon, or publish a rental space you own.</p>
+            <a class="secondary-button" href="/listings/manage">Publish a rental</a>
+        </section>
+    }
+    else
+    {
+        <section class="listing-grid" aria-label="Available rentals">
+            @foreach (var listing in _listings)
+            {
+                <a class="listing-card" href="@($"/listings/{listing.Id}")">
+                    <div class="listing-image" aria-hidden="true">
+                        <svg viewBox="0 0 64 64"><path d="M8 30 32 11l24 19M14 27v27h36V27M25 54V38h14v16" /></svg>
+                    </div>
+                    <div class="listing-body">
+                        <span class="type-badge">@FormatType(listing.UnitType)</span>
+                        <h2>@listing.Title</h2>
+                        <p>@listing.PropertyName · @listing.RentalUnitName</p>
+                        <p>@listing.City@FormatRegion(listing.Region)</p>
+                        <div class="listing-footer">
+                            <strong>$@listing.MonthlyRent.ToString("N0")<small>/month</small></strong>
+                            <span>Available @listing.AvailableFrom.ToString("MMM d")</span>
+                        </div>
+                    </div>
+                </a>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<PublicListingSummary> _listings = [];
+    private bool _isLoading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _listings = await ListingService.GetPublishedAsync(); }
+        catch (Exception exception) { Console.Error.WriteLine(exception); _error = "Please try again."; }
+        finally { _isLoading = false; }
+    }
+
+    private static string FormatRegion(string? region) => string.IsNullOrWhiteSpace(region) ? string.Empty : $", {region}";
+    private static string FormatType(RentalUnitType type) => type == RentalUnitType.EntireProperty ? "Entire property" : type.ToString();
+}
