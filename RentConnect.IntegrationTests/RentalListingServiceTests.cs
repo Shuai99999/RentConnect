@@ -41,6 +41,9 @@ public sealed class RentalListingServiceTests
                 new Address("10 College Road", null, "Calgary", "Alberta", "T2A 1A1", "CA"),
                 ownerId));
             context.RentalUnits.Add(new RentalUnit(unitId, propertyId, "Garden Suite", RentalUnitType.Apartment));
+            var emptyTenancy = new Tenancy(
+                Guid.NewGuid(), unitId, new DateOnly(2026, 10, 21), null);
+            context.Tenancies.Add(emptyTenancy);
             await context.SaveChangesAsync();
 
             var service = new RentalListingService(factory, new TestTimeProvider(now));
@@ -73,10 +76,12 @@ public sealed class RentalListingServiceTests
             var tenancyId = await service.ApproveAsync(selectedApplication.Id, ownerId);
 
             context.ChangeTracker.Clear();
+            Assert.Equal(emptyTenancy.Id, tenancyId);
             var tenancy = await context.Tenancies.Include(item => item.Members)
                 .SingleAsync(item => item.Id == tenancyId);
-            Assert.Equal(availableFrom, tenancy.StartDate);
+            Assert.Equal(new DateOnly(2026, 10, 21), tenancy.StartDate);
             Assert.Equal(applicantId, Assert.Single(tenancy.Members).UserProfileId);
+            Assert.Equal(availableFrom, Assert.Single(tenancy.Members).JoinedOn);
             Assert.False((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
             Assert.Empty(await service.GetPublishedAsync());
 

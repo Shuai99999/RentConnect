@@ -84,7 +84,8 @@ public sealed class RentalListingService(
                 select new OwnedListingUnit(
                     unit.Id, property.Name, unit.Name, unit.Type, unit.IsActive,
                     context.Tenancies.Any(tenancy => tenancy.RentalUnitId == unit.Id &&
-                        !tenancy.IsCancelled && (!tenancy.EndDate.HasValue || tenancy.EndDate.Value >= today)),
+                        !tenancy.IsCancelled && (!tenancy.EndDate.HasValue || tenancy.EndDate.Value >= today) &&
+                        context.TenancyMembers.Any(member => member.TenancyId == tenancy.Id)),
                     listing == null ? null : listing.Id,
                     listing == null ? null : listing.Title,
                     listing == null ? null : listing.Description,
@@ -103,7 +104,7 @@ public sealed class RentalListingService(
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         var unit = await GetManagedUnitAsync(context, command.RentalUnitId, userProfileId, cancellationToken);
         if (!unit.IsActive) throw new InvalidOperationException("Activate the rental space before publishing it.");
-        await EnsureUnitAvailableAsync(context, unit.Id, command.AvailableFrom, cancellationToken);
+        await EnsureNoOccupiedTenancyAsync(context, unit.Id, command.AvailableFrom, cancellationToken);
 
         var listing = await context.RentalListings.SingleOrDefaultAsync(
             item => item.RentalUnitId == unit.Id, cancellationToken);
@@ -133,7 +134,7 @@ public sealed class RentalListingService(
         {
             var unit = await context.RentalUnits.SingleAsync(item => item.Id == listing.Listing.RentalUnitId, cancellationToken);
             if (!unit.IsActive) throw new InvalidOperationException("Activate the rental space before publishing it.");
-            await EnsureUnitAvailableAsync(context, unit.Id, listing.Listing.AvailableFrom, cancellationToken);
+            await EnsureNoOccupiedTenancyAsync(context, unit.Id, listing.Listing.AvailableFrom, cancellationToken);
             listing.Listing.Publish();
         }
         else
@@ -230,12 +231,26 @@ public sealed class RentalListingService(
         if (data.Application.Status != RentalApplicationStatus.Pending) throw new InvalidOperationException("The application has already been resolved.");
 
         var startDate = data.Listing.AvailableFrom > Today ? data.Listing.AvailableFrom : Today;
-        await EnsureUnitAvailableAsync(context, data.Listing.RentalUnitId, startDate, cancellationToken);
+        await EnsureNoOccupiedTenancyAsync(context, data.Listing.RentalUnitId, startDate, cancellationToken);
 
         var now = timeProvider.GetUtcNow();
-        var tenancy = new Tenancy(Guid.NewGuid(), data.Listing.RentalUnitId, startDate, null);
-        tenancy.AddMember(Guid.NewGuid(), data.Application.ApplicantUserProfileId, startDate);
-        context.Tenancies.Add(tenancy);
+        var tenancy = await context.Tenancies
+            .Include(item => item.Members)
+            .Where(item => item.RentalUnitId == data.Listing.RentalUnitId &&
+                           !item.IsCancelled &&
+                           (!item.EndDate.HasValue || item.EndDate.Value >= startDate) &&
+                           !item.Members.Any())
+            .OrderBy(item => item.StartDate)
+            .FirstOrDefaultAsync(cancellationToken);
+        var isNewTenancy = tenancy is null;
+        tenancy ??= new Tenancy(Guid.NewGuid(), data.Listing.RentalUnitId, startDate, null);
+        var joinedOn = tenancy.StartDate > startDate ? tenancy.StartDate : startDate;
+        var membership = tenancy.AddMember(
+            Guid.NewGuid(), data.Application.ApplicantUserProfileId, joinedOn);
+        if (isNewTenancy)
+            context.Tenancies.Add(tenancy);
+        else
+            context.TenancyMembers.Add(membership);
         data.Application.Approve(now);
         data.Listing.Unpublish();
 
@@ -317,13 +332,14 @@ public sealed class RentalListingService(
             ?? throw new KeyNotFoundException("The rental space was not found.");
     }
 
-    private static async Task EnsureUnitAvailableAsync(
+    private static async Task EnsureNoOccupiedTenancyAsync(
         ApplicationDbContext context, Guid rentalUnitId, DateOnly startDate, CancellationToken cancellationToken)
     {
         var overlaps = await context.Tenancies.AnyAsync(tenancy =>
             tenancy.RentalUnitId == rentalUnitId && !tenancy.IsCancelled &&
-            (!tenancy.EndDate.HasValue || tenancy.EndDate.Value >= startDate), cancellationToken);
-        if (overlaps) throw new InvalidOperationException("This rental space has a tenancy that overlaps the availability date.");
+            (!tenancy.EndDate.HasValue || tenancy.EndDate.Value >= startDate) &&
+            context.TenancyMembers.Any(member => member.TenancyId == tenancy.Id), cancellationToken);
+        if (overlaps) throw new InvalidOperationException("This rental space already has a tenancy with members.");
     }
 
     private static void AddDecisionNotification(
