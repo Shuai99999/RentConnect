@@ -9,7 +9,7 @@
 
 .header-content {
     display: flex;
-    width: min(1180px, calc(100% - 2rem));
+    width: min(1360px, calc(100% - 2rem));
     min-height: 72px;
     margin: 0 auto;
     align-items: center;
@@ -210,9 +210,9 @@
         color: white;
     }
 
-@media (max-width: 1100px) {
+@media (max-width: 1350px) {
     .header-content {
-        width: min(100% - 1rem, 1180px);
+        width: min(100% - 1rem, 1360px);
         gap: 0.65rem;
     }
 
