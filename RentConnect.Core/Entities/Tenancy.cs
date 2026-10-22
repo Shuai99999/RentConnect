@@ -13,6 +13,21 @@ public sealed class Tenancy
         Guid rentalUnitId,
         DateOnly startDate,
         DateOnly? endDate)
+        : this(
+            id,
+            rentalUnitId,
+            startDate,
+            endDate,
+            DateTimeOffset.UtcNow)
+    {
+    }
+
+    public Tenancy(
+        Guid id,
+        Guid rentalUnitId,
+        DateOnly startDate,
+        DateOnly? endDate,
+        DateTimeOffset createdAtUtc)
     {
         if (id == Guid.Empty)
         {
@@ -34,6 +49,7 @@ public sealed class Tenancy
         RentalUnitId = rentalUnitId;
         StartDate = startDate;
         EndDate = endDate;
+        CreatedAtUtc = RequireUtc(createdAtUtc);
     }
 
     public Guid Id { get; private set; }
@@ -45,6 +61,8 @@ public sealed class Tenancy
     public DateOnly? EndDate { get; private set; }
 
     public bool IsCancelled { get; private set; }
+
+    public DateTimeOffset CreatedAtUtc { get; private set; }
 
     public IReadOnlyCollection<TenancyMember> Members => _members;
 
@@ -179,5 +197,17 @@ public sealed class Tenancy
                 "Tenancy end date cannot be before its start date.",
                 nameof(endDate));
         }
+    }
+
+    private static DateTimeOffset RequireUtc(DateTimeOffset value)
+    {
+        if (value.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException(
+                "Creation time must use the UTC offset.",
+                nameof(value));
+        }
+
+        return value;
     }
 }

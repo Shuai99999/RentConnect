@@ -28,6 +28,10 @@ public sealed class TenancyConfiguration
         builder.Property(tenancy => tenancy.IsCancelled)
             .IsRequired();
 
+        builder.Property(tenancy => tenancy.CreatedAtUtc)
+            .HasColumnType("datetimeoffset")
+            .IsRequired();
+
         builder.HasOne<RentalUnit>()
             .WithMany()
             .HasForeignKey(tenancy => tenancy.RentalUnitId)
@@ -38,6 +42,8 @@ public sealed class TenancyConfiguration
             tenancy.RentalUnitId,
             tenancy.StartDate
         });
+
+        builder.HasIndex(tenancy => tenancy.CreatedAtUtc);
 
         builder.Navigation(tenancy => tenancy.Members)
             .HasField("_members")

@@ -141,7 +141,7 @@
                                 <span class="item-marker @GetPriorityCssClass(request.Priority)"></span>
                                 <span class="item-main">
                                     <strong>@request.Title</strong>
-                                    <small>@FormatMaintenanceCategory(request.Category) · @FormatRelativeDate(request.UpdatedAtUtc)</small>
+                                    <small>@FormatMaintenanceCategory(request.Category) · <LocalDateTime Value="request.UpdatedAtUtc" Display="LocalDateTimeDisplay.Relative" /></small>
                                 </span>
                                 <span class="status-pill @GetMaintenanceStatusCssClass(request.Status)">
                                     @FormatMaintenanceStatus(request.Status)
@@ -224,9 +224,7 @@
                                 <strong>@notification.Title</strong>
                                 <small>@notification.Message</small>
                             </span>
-                            <time datetime="@notification.CreatedAtUtc.ToString("O")">
-                                @FormatRelativeDate(notification.CreatedAtUtc)
-                            </time>
+                            <LocalDateTime Value="notification.CreatedAtUtc" Display="LocalDateTimeDisplay.Relative" />
                         </a>
                     }
                 </div>
@@ -348,17 +346,6 @@
         var parts = displayName
             .Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length == 0 ? "there" : parts[0];
-    }
-
-    private static string FormatRelativeDate(DateTimeOffset value)
-    {
-        var elapsed = DateTimeOffset.UtcNow - value.ToUniversalTime();
-
-        if (elapsed < TimeSpan.FromMinutes(1)) return "Just now";
-        if (elapsed < TimeSpan.FromHours(1)) return $"{Math.Max(1, (int)elapsed.TotalMinutes)}m ago";
-        if (elapsed < TimeSpan.FromDays(1)) return $"{Math.Max(1, (int)elapsed.TotalHours)}h ago";
-        if (elapsed < TimeSpan.FromDays(7)) return $"{Math.Max(1, (int)elapsed.TotalDays)}d ago";
-        return value.ToString("MMM d, yyyy");
     }
 
     private static string FormatDueDate(DateOnly dueDate)

@@ -27,7 +27,7 @@
                 <article class="application-card">
                     <div class="applicant-avatar">@GetInitial(application.ApplicantName)</div>
                     <div class="application-main">
-                        <div class="application-heading"><div><span class="status @application.Status.ToString().ToLowerInvariant()">@application.Status</span><h2>@application.ApplicantName</h2><p>@application.ApplicantEmail</p></div><small>@application.CreatedAtUtc.ToLocalTime().ToString("MMM d, yyyy h:mm tt")</small></div>
+                        <div class="application-heading"><div><span class="status @application.Status.ToString().ToLowerInvariant()">@application.Status</span><h2>@application.ApplicantName</h2><p>@application.ApplicantEmail</p></div><small><LocalDateTime Value="application.CreatedAtUtc" /></small></div>
                         <p class="listing-name">Applied for <a href="@($"/listings/{application.ListingId}")">@application.ListingTitle</a> · @application.PropertyName, @application.RentalUnitName</p>
                         @if (!string.IsNullOrWhiteSpace(application.Message)) { <blockquote>@application.Message</blockquote> }
                         @if (application.Status == RentalApplicationStatus.Pending)

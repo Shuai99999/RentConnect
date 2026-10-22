@@ -31,7 +31,7 @@ public sealed class TenancyService(
                 where ownedPropertyIds.Contains(property.Id) ||
                       context.TenancyMembers.Any(member =>
                           member.TenancyId == tenancy.Id && member.UserProfileId == userProfileId)
-                orderby tenancy.IsCancelled, tenancy.StartDate descending
+                orderby tenancy.CreatedAtUtc descending, property.Name, unit.Name
                 select new TenancySummary(
                     tenancy.Id,
                     property.Name,
@@ -167,7 +167,12 @@ public sealed class TenancyService(
             throw new InvalidOperationException("The tenancy dates overlap an existing tenancy for this unit.");
         }
 
-        var tenancy = new Tenancy(Guid.NewGuid(), unit.Id, command.StartDate, command.EndDate);
+        var tenancy = new Tenancy(
+            Guid.NewGuid(),
+            unit.Id,
+            command.StartDate,
+            command.EndDate,
+            timeProvider.GetUtcNow());
         context.Tenancies.Add(tenancy);
         await context.SaveChangesAsync(cancellationToken);
         return tenancy.Id;

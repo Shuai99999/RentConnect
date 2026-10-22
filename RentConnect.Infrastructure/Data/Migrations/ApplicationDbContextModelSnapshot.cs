@@ -498,6 +498,9 @@ namespace RentConnect.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -548,6 +551,8 @@ namespace RentConnect.Migrations
                         });
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
 
                     b.ToTable("Properties", (string)null);
                 });
@@ -752,6 +757,9 @@ namespace RentConnect.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<DateOnly?>("EndDate")
                         .HasColumnType("date");
 
@@ -765,6 +773,8 @@ namespace RentConnect.Migrations
                         .HasColumnType("date");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
 
                     b.HasIndex("RentalUnitId", "StartDate");
 

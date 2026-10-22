@@ -276,7 +276,12 @@ public sealed class RentalListingService(
             .OrderBy(item => item.StartDate)
             .FirstOrDefaultAsync(cancellationToken);
         var isNewTenancy = tenancy is null;
-        tenancy ??= new Tenancy(Guid.NewGuid(), data.Listing.RentalUnitId, startDate, null);
+        tenancy ??= new Tenancy(
+            Guid.NewGuid(),
+            data.Listing.RentalUnitId,
+            startDate,
+            null,
+            now);
         var joinedOn = tenancy.StartDate > startDate ? tenancy.StartDate : startDate;
         var membership = tenancy.AddMember(
             Guid.NewGuid(), data.Application.ApplicantUserProfileId, joinedOn);

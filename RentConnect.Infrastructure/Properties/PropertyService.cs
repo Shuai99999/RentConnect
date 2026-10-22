@@ -42,7 +42,8 @@ public sealed class PropertyService(
         return await context.Properties
             .AsNoTracking()
             .Where(property => visiblePropertyIds.Contains(property.Id))
-            .OrderBy(property => property.Name)
+            .OrderByDescending(property => property.CreatedAtUtc)
+            .ThenBy(property => property.Name)
             .Select(property => new PropertySummary(
                 property.Id,
                 property.Name,
@@ -221,7 +222,8 @@ public sealed class PropertyService(
             propertyId,
             command.Name,
             CreateAddress(command),
-            userProfileId);
+            userProfileId,
+            timeProvider.GetUtcNow());
 
         await using var context =
             await contextFactory.CreateDbContextAsync(cancellationToken);

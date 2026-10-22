@@ -87,9 +87,7 @@
                             @notification.Message
                         </span>
 
-                        <time datetime="@notification.CreatedAtUtc.ToString("O")">
-                            @FormatDateTime(notification.CreatedAtUtc)
-                        </time>
+                        <LocalDateTime Value="notification.CreatedAtUtc" />
                     </span>
 
                     <span class="open-indicator" aria-hidden="true">→</span>
@@ -223,8 +221,4 @@
         };
     }
 
-    private static string FormatDateTime(DateTimeOffset timestamp)
-    {
-        return $"{timestamp:MMM d, yyyy 'at' HH:mm} UTC";
-    }
 }

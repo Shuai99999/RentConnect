@@ -15,6 +15,21 @@ public sealed class Property
         string name,
         Address address,
         Guid initialOwnerProfileId)
+        : this(
+            id,
+            name,
+            address,
+            initialOwnerProfileId,
+            DateTimeOffset.UtcNow)
+    {
+    }
+
+    public Property(
+        Guid id,
+        string name,
+        Address address,
+        Guid initialOwnerProfileId,
+        DateTimeOffset createdAtUtc)
     {
         if (id == Guid.Empty)
         {
@@ -28,6 +43,7 @@ public sealed class Property
         Id = id;
         SetName(name);
         Address = address;
+        CreatedAtUtc = RequireUtc(createdAtUtc);
 
         _owners.Add(
             new PropertyOwner(id, initialOwnerProfileId));
@@ -40,6 +56,8 @@ public sealed class Property
     public Address Address { get; private set; } = null!;
 
     public GeoCoordinate? Location { get; private set; }
+
+    public DateTimeOffset CreatedAtUtc { get; private set; }
 
     public IReadOnlyCollection<PropertyOwner> Owners => _owners;
 
@@ -94,5 +112,17 @@ public sealed class Property
         }
 
         Name = name.Trim();
+    }
+
+    private static DateTimeOffset RequireUtc(DateTimeOffset value)
+    {
+        if (value.Offset != TimeSpan.Zero)
+        {
+            throw new ArgumentException(
+                "Creation time must use the UTC offset.",
+                nameof(value));
+        }
+
+        return value;
     }
 }

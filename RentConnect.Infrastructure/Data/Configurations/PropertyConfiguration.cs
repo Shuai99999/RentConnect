@@ -16,6 +16,12 @@ public sealed class PropertyConfiguration
         builder.Property(property => property.Name)
             .IsRequired();
 
+        builder.Property(property => property.CreatedAtUtc)
+            .HasColumnType("datetimeoffset")
+            .IsRequired();
+
+        builder.HasIndex(property => property.CreatedAtUtc);
+
         var address = builder.ComplexProperty(
             property => property.Address);
 

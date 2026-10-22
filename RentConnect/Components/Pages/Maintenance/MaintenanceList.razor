@@ -169,8 +169,7 @@
                         <div>
                             <dt>Last updated</dt>
                             <dd>
-                                @request.UpdatedAtUtc.ToString("MMM d, yyyy HH:mm")
-                                UTC
+                                <LocalDateTime Value="request.UpdatedAtUtc" />
                             </dd>
                         </div>
                     </dl>

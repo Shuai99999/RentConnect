@@ -11,17 +11,21 @@ public class TenancyTests
         var rentalUnitId = Guid.NewGuid();
         var startDate = new DateOnly(2026, 1, 1);
         var endDate = new DateOnly(2026, 12, 31);
+        var createdAtUtc = new DateTimeOffset(
+            2026, 10, 22, 18, 30, 0, TimeSpan.Zero);
 
         var tenancy = new Tenancy(
             id,
             rentalUnitId,
             startDate,
-            endDate);
+            endDate,
+            createdAtUtc);
 
         Assert.Equal(id, tenancy.Id);
         Assert.Equal(rentalUnitId, tenancy.RentalUnitId);
         Assert.Equal(startDate, tenancy.StartDate);
         Assert.Equal(endDate, tenancy.EndDate);
+        Assert.Equal(createdAtUtc, tenancy.CreatedAtUtc);
         Assert.False(tenancy.IsCancelled);
     }
 

@@ -12,6 +12,7 @@
 
 @inject IMaintenanceService MaintenanceService
 @inject CurrentUserProfileService CurrentUserProfileService
+@inject IJSRuntime JS
 
 <PageTitle>@(_request?.Title ?? "Maintenance Request")</PageTitle>
 
@@ -104,14 +105,14 @@
             <article class="detail-card">
                 <span>Created</span>
                 <strong>
-                    @FormatDateTime(_request.CreatedAtUtc)
+                    <LocalDateTime Value="_request.CreatedAtUtc" />
                 </strong>
             </article>
 
             <article class="detail-card">
                 <span>Last updated</span>
                 <strong>
-                    @FormatDateTime(_request.UpdatedAtUtc)
+                    <LocalDateTime Value="_request.UpdatedAtUtc" />
                 </strong>
             </article>
 
@@ -135,8 +136,7 @@
                 </div>
 
                 <p>
-                    @_request.ScheduledForUtc.Value
-                        .ToString("MMM d, yyyy 'at' HH:mm 'UTC'")
+                    <LocalDateTime Value="_request.ScheduledForUtc.Value" />
                 </p>
             </section>
         }
@@ -169,9 +169,7 @@
 
                     <div>
                         <strong>Submitted</strong>
-                        <time>
-                            @FormatDateTime(_request.CreatedAtUtc)
-                        </time>
+                        <LocalDateTime Value="_request.CreatedAtUtc" />
                     </div>
                 </li>
 
@@ -185,9 +183,7 @@
                                 @GetStatusText(change.ToStatus)
                             </strong>
 
-                            <time>
-                                @FormatDateTime(change.ChangedAtUtc)
-                            </time>
+                            <LocalDateTime Value="change.ChangedAtUtc" />
 
                             @if (!string.IsNullOrWhiteSpace(
                                      change.Note))
@@ -289,13 +285,13 @@
                             @if (action == MaintenanceAction.Schedule)
                             {
                                 <label for="scheduled-for">
-                                    Scheduled time (UTC)
+                                    Scheduled time (your local time)
                                 </label>
 
                                 <InputDate id="scheduled-for"
                                            class="action-input"
                                            Type="InputDateType.DateTimeLocal"
-                                           @bind-Value="StatusActionInput.ScheduledForUtc" />
+                                           @bind-Value="StatusActionInput.ScheduledForLocal" />
                             }
 
                             <label for="status-note">
@@ -377,7 +373,7 @@
 
                                 <span>
                                     @FormatFileSize(attachment.FileSizeBytes)
-                                    · @FormatDateTime(attachment.UploadedAtUtc)
+                                    · <LocalDateTime Value="attachment.UploadedAtUtc" />
                                 </span>
 
                                 @if (attachment.CanDelete)
@@ -502,9 +498,7 @@
                                         : "Participant")
                                 </strong>
 
-                                <time>
-                                    @FormatDateTime(message.CreatedAtUtc)
-                                </time>
+                                <LocalDateTime Value="message.CreatedAtUtc" />
                             </header>
 
                             @if (message.IsDeleted)
@@ -1075,10 +1069,10 @@
         _statusActionError = null;
 
         if (action == MaintenanceAction.Schedule &&
-            StatusActionInput.ScheduledForUtc is null)
+            StatusActionInput.ScheduledForLocal is null)
         {
             _statusActionError =
-                "Enter the scheduled time in UTC.";
+                "Enter the scheduled time.";
             return;
         }
 
@@ -1094,12 +1088,19 @@
 
         DateTimeOffset? scheduledForUtc = null;
 
-        if (StatusActionInput.ScheduledForUtc is DateTime scheduledTime)
+        if (StatusActionInput.ScheduledForLocal is DateTime scheduledTime)
         {
-            scheduledForUtc = new DateTimeOffset(
-                DateTime.SpecifyKind(
-                    scheduledTime,
-                    DateTimeKind.Utc));
+            await using var module =
+                await JS.InvokeAsync<IJSObjectReference>(
+                    "import",
+                    "./Components/Shared/LocalDateTime.razor.js");
+            var utcValue = await module.InvokeAsync<string>(
+                "localDateTimeToUtc",
+                scheduledTime.ToString("s"));
+            scheduledForUtc = DateTimeOffset.Parse(
+                utcValue,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind);
         }
 
         try
@@ -1193,13 +1194,6 @@
         };
     }
 
-    private static string FormatDateTime(
-        DateTimeOffset value)
-    {
-        return value.ToString(
-            "MMM d, yyyy 'at' HH:mm 'UTC'");
-    }
-
     private static string GetStatusText(
         MaintenanceStatus status)
     {
@@ -1289,7 +1283,7 @@
 
     private sealed class StatusActionInputModel
     {
-        public DateTime? ScheduledForUtc { get; set; }
+        public DateTime? ScheduledForLocal { get; set; }
 
         [StringLength(
             MaintenanceStatusChange.MaxNoteLength,
