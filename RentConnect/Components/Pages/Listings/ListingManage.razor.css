@@ -4,16 +4,13 @@
 .page-header p { margin: 0; color: #667085; }
 .eyebrow { color: #376e5b !important; font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
 .manage-list { display: grid; gap: 1rem; }
-.manage-card, .listing-form { padding: 1.35rem; background: #fff; border: 1px solid #e4e7ec; border-radius: 16px; }
-.listing-form { margin: -.5rem 1rem .75rem; border-top-left-radius: 0; border-top-right-radius: 0; background: #fafcfb; }
+.manage-card { padding: 1.35rem; background: #fff; border: 1px solid #e4e7ec; border-radius: 16px; }
 .unit-summary { display: flex; justify-content: space-between; gap: 1rem; }
 .unit-summary h2 { margin: .5rem 0 .2rem; }
 .unit-summary p { margin: 0; color: #667085; }
 .unit-summary > strong { color: #214e3f; font-size: 1.2rem; }
 .status-badge { padding: .25rem .55rem; border-radius: 99px; background: #f2f4f7; color: #475467; font-size: .75rem; font-weight: 700; }
 .status-badge.published { color: #17603b; background: #e9f8ef; }
-.card-actions, .form-actions { display: flex; align-items: center; gap: .65rem; margin-top: 1rem; }
+.card-actions { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; margin-top: 1rem; }
 .notice { padding: .65rem; color: #8b4b16; background: #fff6e8; border-radius: 8px; }
-.field { margin-top: 1rem; }.field label { display: block; margin-bottom: .4rem; font-weight: 700; }.field textarea { min-height: 110px; }
-.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-@media (max-width: 640px) { .page-header, .unit-summary { align-items: start; flex-direction: column; } .form-grid { grid-template-columns: 1fr; } }
+@media (max-width: 640px) { .page-header, .unit-summary { align-items: start; flex-direction: column; } }

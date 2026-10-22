@@ -95,16 +95,32 @@ public sealed class RentalListingService(
             .ToArrayAsync(cancellationToken);
     }
 
-    public async Task<Guid> PublishAsync(
+    public async Task<OwnedListingUnit?> GetOwnedUnitAsync(
+        Guid rentalUnitId, Guid userProfileId, CancellationToken cancellationToken = default)
+    {
+        EnsureId(rentalUnitId, nameof(rentalUnitId));
+        var units = await GetOwnedUnitsAsync(userProfileId, cancellationToken);
+        return units.SingleOrDefault(unit => unit.RentalUnitId == rentalUnitId);
+    }
+
+    public Task<Guid> PublishAsync(
         PublishListingCommand command, Guid userProfileId, CancellationToken cancellationToken = default)
+        => SaveAsync(command, true, userProfileId, cancellationToken);
+
+    public async Task<Guid> SaveAsync(
+        PublishListingCommand command, bool publish, Guid userProfileId,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(command);
         EnsureId(command.RentalUnitId, nameof(command.RentalUnitId));
         EnsureId(userProfileId, nameof(userProfileId));
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         var unit = await GetManagedUnitAsync(context, command.RentalUnitId, userProfileId, cancellationToken);
-        if (!unit.IsActive) throw new InvalidOperationException("Activate the rental space before publishing it.");
-        await EnsureNoOccupiedTenancyAsync(context, unit.Id, command.AvailableFrom, cancellationToken);
+        if (publish)
+        {
+            if (!unit.IsActive) throw new InvalidOperationException("Activate the rental space before publishing it.");
+            await EnsureNoOccupiedTenancyAsync(context, unit.Id, command.AvailableFrom, cancellationToken);
+        }
 
         var listing = await context.RentalListings.SingleOrDefaultAsync(
             item => item.RentalUnitId == unit.Id, cancellationToken);
@@ -113,12 +129,14 @@ public sealed class RentalListingService(
             listing = new RentalListing(
                 Guid.NewGuid(), unit.Id, command.Title, command.Description,
                 command.MonthlyRent, command.AvailableFrom, timeProvider.GetUtcNow());
+            if (!publish) listing.Unpublish();
             context.RentalListings.Add(listing);
         }
         else
         {
             listing.Update(command.Title, command.Description, command.MonthlyRent, command.AvailableFrom);
-            listing.Publish();
+            if (publish) listing.Publish();
+            else listing.Unpublish();
         }
 
         await context.SaveChangesAsync(cancellationToken);

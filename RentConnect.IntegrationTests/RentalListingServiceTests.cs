@@ -55,6 +55,9 @@ public sealed class RentalListingServiceTests
             Assert.Equal(listingId, publicListing.Id);
             Assert.Equal(1250m, publicListing.MonthlyRent);
             Assert.True((await service.GetDetailsAsync(listingId, ownerId))!.CanManage);
+            var ownedUnit = await service.GetOwnedUnitAsync(unitId, ownerId);
+            Assert.NotNull(ownedUnit);
+            Assert.Equal(listingId, ownedUnit.ListingId);
 
             await Assert.ThrowsAsync<InvalidOperationException>(() => service.ApplyAsync(
                 new ApplyForListingCommand(listingId, "Owner application"), ownerId));
@@ -96,6 +99,15 @@ public sealed class RentalListingServiceTests
             Assert.Equal(1, await context.UserNotifications.CountAsync(notification =>
                 notification.RecipientUserProfileId == secondApplicantId &&
                 notification.Type == NotificationType.RentalApplicationRejected));
+
+            await service.SaveAsync(
+                new PublishListingCommand(unitId, "Updated garden suite", "Updated details.", 1300m, availableFrom),
+                publish: false,
+                userProfileId: ownerId);
+            var savedDraft = await service.GetOwnedUnitAsync(unitId, ownerId);
+            Assert.NotNull(savedDraft);
+            Assert.Equal("Updated garden suite", savedDraft.ListingTitle);
+            Assert.False(savedDraft.IsPublished);
         }
         finally
         {

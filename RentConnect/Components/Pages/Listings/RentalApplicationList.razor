@@ -14,7 +14,7 @@
 <PageTitle>Rental applications</PageTitle>
 
 <main class="applications-page">
-    <header class="page-header"><div><p class="eyebrow">Landlord inbox</p><h1>Rental applications</h1><p>Review people who applied to your published rental spaces.</p></div><a class="secondary-button" href="/listings/manage">Manage listings</a></header>
+    <header class="page-header"><div><p class="eyebrow">Landlord inbox</p><h1>Rental applications</h1><p>Review people who applied to your published rental spaces.</p></div></header>
     @if (_message is not null) { <div class="action-message success-message">@_message</div> }
     @if (_error is not null) { <div class="action-message error-message">@_error</div> }
     @if (_isLoading) { <section class="state-card">Loading applications...</section> }

@@ -220,7 +220,7 @@
                                     }
                                     @if (unit.IsActive && unit.CurrentTenantCount == 0)
                                     {
-                                        <a class="text-button" href="/listings/manage">List for rent</a>
+                                        <a class="text-button" href="@($"/listings/manage/{unit.Id}")">List for rent</a>
                                     }
                                     <button type="button" class="text-button" @onclick="() => BeginUnitEdit(unit)">Edit</button>
                                     <button type="button" class="text-button @(unit.IsActive ? "danger-text" : string.Empty)" disabled="@(unit.HasActiveTenancy || _isSaving)" @onclick="() => ToggleUnitActiveAsync(unit)">
