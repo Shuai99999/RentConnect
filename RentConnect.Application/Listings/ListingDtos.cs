@@ -12,7 +12,7 @@ public sealed record PublicListingSummary(
     string? Region,
     decimal MonthlyRent,
     DateOnly AvailableFrom,
-    bool IsSharedSpace);
+    int TenantCount);
 
 public sealed record PublicListingDetails(
     Guid Id,
@@ -27,7 +27,7 @@ public sealed record PublicListingDetails(
     string CountryCode,
     decimal MonthlyRent,
     DateOnly AvailableFrom,
-    bool IsSharedSpace,
+    int TenantCount,
     bool CanManage,
     RentalApplicationStatus? CurrentUserApplicationStatus);
 

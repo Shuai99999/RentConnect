@@ -54,6 +54,7 @@ public sealed class RentalListingServiceTests
             var publicListing = Assert.Single(await service.GetPublishedAsync());
             Assert.Equal(listingId, publicListing.Id);
             Assert.Equal(1250m, publicListing.MonthlyRent);
+            Assert.Equal(0, publicListing.TenantCount);
             Assert.True((await service.GetDetailsAsync(listingId, ownerId))!.CanManage);
             var ownedUnit = await service.GetOwnedUnitAsync(unitId, ownerId);
             Assert.NotNull(ownedUnit);
@@ -85,8 +86,8 @@ public sealed class RentalListingServiceTests
             Assert.Equal(new DateOnly(2026, 10, 21), tenancy.StartDate);
             Assert.Equal(applicantId, Assert.Single(tenancy.Members).UserProfileId);
             Assert.Equal(availableFrom, Assert.Single(tenancy.Members).JoinedOn);
-            Assert.True((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
-            Assert.True(Assert.Single(await service.GetPublishedAsync()).IsSharedSpace);
+            Assert.False((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
+            Assert.Empty(await service.GetPublishedAsync());
 
             var resolved = await service.GetManagedApplicationsAsync(ownerId);
             Assert.Equal(RentalApplicationStatus.Approved,
@@ -100,6 +101,10 @@ public sealed class RentalListingServiceTests
                 notification.RecipientUserProfileId == secondApplicantId &&
                 notification.Type == NotificationType.RentalApplicationRejected));
 
+            Assert.Equal(1, (await service.GetDetailsAsync(listingId, ownerId))!.TenantCount);
+            await service.SetPublishedAsync(listingId, true, ownerId);
+            Assert.Equal(1, Assert.Single(await service.GetPublishedAsync()).TenantCount);
+
             var secondApplication = resolved.Single(
                 application => application.ApplicantUserProfileId == secondApplicantId);
             Assert.Equal(tenancyId, await service.ApproveAsync(secondApplication.Id, ownerId));
@@ -109,9 +114,10 @@ public sealed class RentalListingServiceTests
             Assert.Equal(2, tenancy.Members.Count);
 
             Assert.True((await service.GetOwnedUnitAsync(unitId, ownerId))!.HasTenants);
-            Assert.True((await service.GetDetailsAsync(listingId, ownerId))!.IsSharedSpace);
-            await service.SetPublishedAsync(listingId, false, ownerId);
+            Assert.Equal(2, (await service.GetDetailsAsync(listingId, ownerId))!.TenantCount);
+            Assert.False((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
             await service.SetPublishedAsync(listingId, true, ownerId);
+            context.ChangeTracker.Clear();
             Assert.True((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
 
             await service.SaveAsync(

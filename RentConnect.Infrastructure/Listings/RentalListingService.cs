@@ -13,6 +13,7 @@ public sealed class RentalListingService(
     public async Task<IReadOnlyList<PublicListingSummary>> GetPublishedAsync(
         CancellationToken cancellationToken = default)
     {
+        var today = Today;
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
         return await (
                 from listing in context.RentalListings.AsNoTracking()
@@ -24,14 +25,13 @@ public sealed class RentalListingService(
                     listing.Id, listing.Title, property.Name, unit.Name, unit.Type,
                     property.Address.City, property.Address.Region, listing.MonthlyRent,
                     listing.AvailableFrom,
-                    context.Tenancies.Any(tenancy =>
-                        tenancy.RentalUnitId == unit.Id && !tenancy.IsCancelled &&
-                        tenancy.StartDate <= listing.AvailableFrom &&
-                        (!tenancy.EndDate.HasValue || tenancy.EndDate.Value >= listing.AvailableFrom) &&
-                        context.TenancyMembers.Any(member =>
-                            member.TenancyId == tenancy.Id &&
-                            member.JoinedOn <= listing.AvailableFrom &&
-                            (!member.LeftOn.HasValue || member.LeftOn.Value >= listing.AvailableFrom)))))
+                    context.TenancyMembers.Count(member =>
+                        (!member.LeftOn.HasValue || member.LeftOn.Value >= today) &&
+                        context.Tenancies.Any(tenancy =>
+                            tenancy.Id == member.TenancyId &&
+                            tenancy.RentalUnitId == unit.Id &&
+                            !tenancy.IsCancelled &&
+                            (!tenancy.EndDate.HasValue || tenancy.EndDate.Value >= today)))))
             .ToArrayAsync(cancellationToken);
     }
 
@@ -40,6 +40,7 @@ public sealed class RentalListingService(
     {
         EnsureId(listingId, nameof(listingId));
         EnsureId(userProfileId, nameof(userProfileId));
+        var today = Today;
         await using var context = await contextFactory.CreateDbContextAsync(cancellationToken);
 
         var details = await (
@@ -73,14 +74,13 @@ public sealed class RentalListingService(
             details.Property.Address.City, details.Property.Address.Region,
             details.Property.Address.CountryCode, details.Listing.MonthlyRent,
             details.Listing.AvailableFrom,
-            await context.Tenancies.AsNoTracking().AnyAsync(tenancy =>
-                tenancy.RentalUnitId == details.Unit.Id && !tenancy.IsCancelled &&
-                tenancy.StartDate <= details.Listing.AvailableFrom &&
-                (!tenancy.EndDate.HasValue || tenancy.EndDate.Value >= details.Listing.AvailableFrom) &&
-                context.TenancyMembers.Any(member =>
-                    member.TenancyId == tenancy.Id &&
-                    member.JoinedOn <= details.Listing.AvailableFrom &&
-                    (!member.LeftOn.HasValue || member.LeftOn.Value >= details.Listing.AvailableFrom)),
+            await context.TenancyMembers.AsNoTracking().CountAsync(member =>
+                (!member.LeftOn.HasValue || member.LeftOn.Value >= today) &&
+                context.Tenancies.Any(tenancy =>
+                    tenancy.Id == member.TenancyId &&
+                    tenancy.RentalUnitId == details.Unit.Id &&
+                    !tenancy.IsCancelled &&
+                    (!tenancy.EndDate.HasValue || tenancy.EndDate.Value >= today)),
                 cancellationToken),
             details.CanManage, applicationStatus);
     }
@@ -285,6 +285,7 @@ public sealed class RentalListingService(
         else
             context.TenancyMembers.Add(membership);
         data.Application.Approve(now);
+        data.Listing.Unpublish();
         AddDecisionNotification(context, data.Application.ApplicantUserProfileId, userProfileId,
             data.Listing, true, now, tenancy.Id);
 
