@@ -218,11 +218,19 @@
                                     {
                                         <a class="text-button" href="@($"/tenancies/{tenancyId}")">View tenancy</a>
                                     }
-                                    @if (unit.IsActive && unit.CurrentTenantCount == 0)
+                                    @if (unit.IsActive && unit.ListingId is null)
                                     {
                                         <a class="text-button" href="@($"/listings/manage/{unit.Id}")">List for rent</a>
                                     }
-                                    <button type="button" class="text-button" @onclick="() => BeginUnitEdit(unit)">Edit</button>
+                                    else if (unit.ListingId is Guid listingId)
+                                    {
+                                        @if (unit.IsListingPublished)
+                                        {
+                                            <a class="text-button" href="@($"/listings/{listingId}")">View listing</a>
+                                        }
+                                        <a class="text-button" href="@($"/listings/manage/{unit.Id}")">Edit listing</a>
+                                    }
+                                    <button type="button" class="text-button" @onclick="() => BeginUnitEdit(unit)">Edit space</button>
                                     <button type="button" class="text-button @(unit.IsActive ? "danger-text" : string.Empty)" disabled="@(unit.HasActiveTenancy || _isSaving)" @onclick="() => ToggleUnitActiveAsync(unit)">
                                         @(unit.IsActive ? "Deactivate" : "Activate")
                                     </button>

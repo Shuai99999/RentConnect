@@ -134,7 +134,15 @@ public sealed class PropertyService(
                         tenancy.StartDate,
                         tenancy.EndDate
                     })
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                Listing = context.RentalListings
+                    .Where(listing => listing.RentalUnitId == unit.Id)
+                    .Select(listing => new
+                    {
+                        listing.Id,
+                        listing.IsPublished
+                    })
+                    .SingleOrDefault()
             })
             .ToArrayAsync(cancellationToken);
 
@@ -181,7 +189,9 @@ public sealed class PropertyService(
                 tenancy?.Id,
                 tenantCount,
                 tenancy?.StartDate,
-                tenancy?.EndDate);
+                tenancy?.EndDate,
+                item.Listing == null ? null : item.Listing.Id,
+                item.Listing != null && item.Listing.IsPublished);
         }).ToArray();
 
         return new PropertyDetails(

@@ -22,7 +22,9 @@ public sealed record RentalUnitItem(
     Guid? CurrentTenancyId,
     int CurrentTenantCount,
     DateOnly? CurrentTenancyStartDate,
-    DateOnly? CurrentTenancyEndDate);
+    DateOnly? CurrentTenancyEndDate,
+    Guid? ListingId,
+    bool IsListingPublished);
 
 public sealed record PropertyDetails(
     Guid Id,
