@@ -59,9 +59,6 @@ public sealed class MaintenanceRequestConfiguration
             .HasMaxLength(
                 MaintenanceRequest.MaxResolutionNotesLength);
 
-        builder.Property(request => request.AssignedAtUtc)
-            .HasColumnType("datetimeoffset");
-
         builder.HasOne<Tenancy>()
             .WithMany()
             .HasForeignKey(request => request.TenancyId)
@@ -72,11 +69,6 @@ public sealed class MaintenanceRequestConfiguration
             .HasForeignKey(
                 request =>
                     request.CreatedByUserProfileId)
-            .OnDelete(DeleteBehavior.Restrict);
-
-        builder.HasOne<UserProfile>()
-            .WithMany()
-            .HasForeignKey(request => request.AssignedToUserProfileId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasIndex(request => new
@@ -94,8 +86,6 @@ public sealed class MaintenanceRequestConfiguration
         builder.HasIndex(
             request =>
                 request.CreatedByUserProfileId);
-
-        builder.HasIndex(request => request.AssignedToUserProfileId);
 
         builder.Navigation(
         request => request.StatusHistory)

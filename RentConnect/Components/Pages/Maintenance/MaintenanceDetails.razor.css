@@ -135,11 +135,6 @@
     padding: 1.5rem;
 }
 
-.assignment-card { display: grid; gap: 1rem; }
-.assignment-card .section-heading { margin-bottom: 0; }
-.assignment-controls { display: flex; align-items: center; gap: 0.75rem; }
-.assignment-controls select { min-height: 44px; min-width: min(320px, 100%); padding: 0.65rem 0.75rem; border: 1px solid var(--color-border-strong); border-radius: 0.7rem; background: white; color: var(--color-text); font: inherit; }
-.assignment-controls select:focus { border-color: var(--color-primary); outline: 3px solid rgb(var(--color-primary-rgb) / 12%); }
 
 .section-heading {
     margin-bottom: 1.2rem;

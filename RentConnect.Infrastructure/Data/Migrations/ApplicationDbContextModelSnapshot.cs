@@ -400,12 +400,6 @@ namespace RentConnect.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTimeOffset?>("AssignedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("AssignedToUserProfileId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Category")
                         .HasColumnType("int");
 
@@ -448,8 +442,6 @@ namespace RentConnect.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AssignedToUserProfileId");
 
                     b.HasIndex("CreatedByUserProfileId");
 
@@ -1225,11 +1217,6 @@ namespace RentConnect.Migrations
 
             modelBuilder.Entity("RentConnect.Core.Entities.MaintenanceRequest", b =>
                 {
-                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
-                        .WithMany()
-                        .HasForeignKey("AssignedToUserProfileId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("RentConnect.Core.Entities.UserProfile", null)
                         .WithMany()
                         .HasForeignKey("CreatedByUserProfileId")

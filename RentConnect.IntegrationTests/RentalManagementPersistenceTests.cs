@@ -737,36 +737,6 @@ public sealed class RentalManagementPersistenceTests
                     MaintenancePriority.High,
                     serviceCreatedDetails.Priority);
 
-                var assigneeOptions = await maintenanceService.GetAssigneeOptionsAsync(
-                    serviceCreatedRequestId,
-                    ownerProfileId);
-                Assert.Equal(
-                    ownerProfileId,
-                    Assert.Single(assigneeOptions).UserProfileId);
-
-                await Assert.ThrowsAsync<KeyNotFoundException>(() =>
-                    maintenanceService.AssignAsync(
-                        new AssignMaintenanceRequestCommand(
-                            serviceCreatedRequestId,
-                            ownerProfileId),
-                        tenantProfileId));
-
-                testClock.Advance(TimeSpan.FromMinutes(1));
-                await maintenanceService.AssignAsync(
-                    new AssignMaintenanceRequestCommand(
-                        serviceCreatedRequestId,
-                        ownerProfileId),
-                    ownerProfileId);
-
-                serviceCreatedDetails = await maintenanceService.GetDetailsAsync(
-                    serviceCreatedRequestId,
-                    tenantProfileId);
-                Assert.NotNull(serviceCreatedDetails);
-                Assert.Equal(ownerProfileId, serviceCreatedDetails.AssignedToUserProfileId);
-                Assert.Equal(
-                    "Integration Test Owner",
-                    serviceCreatedDetails.AssignedToDisplayName);
-
                 await using (var invalidImage =
                              new MemoryStream([1, 2, 3, 4]))
                 {

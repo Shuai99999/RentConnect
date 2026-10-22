@@ -17,11 +17,6 @@ public interface IMaintenanceService
         Guid userProfileId,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<MaintenanceAssigneeOption>> GetAssigneeOptionsAsync(
-        Guid maintenanceRequestId,
-        Guid userProfileId,
-        CancellationToken cancellationToken = default);
-
     Task<Guid> CreateAsync(
         CreateMaintenanceRequestCommand command,
         Guid userProfileId,
@@ -67,8 +62,4 @@ public interface IMaintenanceService
         Guid userProfileId,
         CancellationToken cancellationToken = default);
 
-    Task AssignAsync(
-        AssignMaintenanceRequestCommand command,
-        Guid userProfileId,
-        CancellationToken cancellationToken = default);
 }

@@ -106,37 +106,8 @@ public sealed class MaintenanceRequest
 
     public string? ResolutionNotes { get; private set; }
 
-    public Guid? AssignedToUserProfileId { get; private set; }
-
-    public DateTimeOffset? AssignedAtUtc { get; private set; }
-
     public IReadOnlyCollection<MaintenanceStatusChange>
     StatusHistory => _statusHistory;
-
-    public void AssignTo(
-        Guid? assignedToUserProfileId,
-        DateTimeOffset changedAtUtc)
-    {
-        if (Status is MaintenanceStatus.Closed or MaintenanceStatus.Cancelled)
-        {
-            throw new InvalidOperationException(
-                "Closed or cancelled requests cannot be assigned.");
-        }
-
-        if (assignedToUserProfileId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Assignee user profile ID cannot be empty.",
-                nameof(assignedToUserProfileId));
-        }
-
-        var normalizedChangedTime = RequireValidChangeTime(changedAtUtc);
-        AssignedToUserProfileId = assignedToUserProfileId;
-        AssignedAtUtc = assignedToUserProfileId.HasValue
-            ? normalizedChangedTime
-            : null;
-        UpdatedAtUtc = normalizedChangedTime;
-    }
 
     public void UpdateDetails(
         string title,

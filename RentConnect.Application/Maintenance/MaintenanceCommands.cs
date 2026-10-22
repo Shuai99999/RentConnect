@@ -43,7 +43,3 @@ public sealed record AddMaintenanceAttachmentCommand(
 
 public sealed record DeleteMaintenanceAttachmentCommand(
     Guid AttachmentId);
-
-public sealed record AssignMaintenanceRequestCommand(
-    Guid MaintenanceRequestId,
-    Guid? AssignedToUserProfileId);
