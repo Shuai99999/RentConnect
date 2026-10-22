@@ -56,9 +56,9 @@
                         }
                     </div>
 
-                    @if (unit.HasBlockingTenancy)
+                    @if (unit.HasTenants)
                     {
-                        <p class="notice">This space has a current or upcoming tenancy. You can edit its listing, but it cannot be published.</p>
+                        <p class="notice">This space has current or upcoming tenants. Publishing it advertises a shared space.</p>
                     }
 
                     <div class="card-actions">
@@ -68,7 +68,7 @@
                         @if (unit.ListingId is Guid listingId)
                         {
                             <button type="button" class="secondary-button"
-                                    disabled="@(_isSaving || !unit.IsPublished && unit.HasBlockingTenancy)"
+                                    disabled="@_isSaving"
                                     @onclick="() => TogglePublishedAsync(unit)">
                                 @(unit.IsPublished ? "Unpublish" : "Publish")
                             </button>

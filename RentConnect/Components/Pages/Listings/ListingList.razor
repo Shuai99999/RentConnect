@@ -46,12 +46,12 @@
                         <svg viewBox="0 0 64 64"><path d="M8 30 32 11l24 19M14 27v27h36V27M25 54V38h14v16" /></svg>
                     </div>
                     <div class="listing-body">
-                        <span class="type-badge">@FormatType(listing.UnitType)</span>
+                        <span class="type-badge">@(listing.IsSharedSpace ? "Shared space" : FormatType(listing.UnitType))</span>
                         <h2>@listing.Title</h2>
                         <p>@listing.PropertyName · @listing.RentalUnitName</p>
                         <p>@listing.City@FormatRegion(listing.Region)</p>
                         <div class="listing-footer">
-                            <strong>$@listing.MonthlyRent.ToString("N0")<small>/month</small></strong>
+                            <strong>$@listing.MonthlyRent.ToString("N0")<small> total/month</small></strong>
                             <span>Available @listing.AvailableFrom.ToString("MMM d")</span>
                         </div>
                     </div>

@@ -85,20 +85,34 @@ public sealed class RentalListingServiceTests
             Assert.Equal(new DateOnly(2026, 10, 21), tenancy.StartDate);
             Assert.Equal(applicantId, Assert.Single(tenancy.Members).UserProfileId);
             Assert.Equal(availableFrom, Assert.Single(tenancy.Members).JoinedOn);
-            Assert.False((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
-            Assert.Empty(await service.GetPublishedAsync());
+            Assert.True((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
+            Assert.True(Assert.Single(await service.GetPublishedAsync()).IsSharedSpace);
 
             var resolved = await service.GetManagedApplicationsAsync(ownerId);
             Assert.Equal(RentalApplicationStatus.Approved,
                 resolved.Single(application => application.ApplicantUserProfileId == applicantId).Status);
-            Assert.Equal(RentalApplicationStatus.Rejected,
+            Assert.Equal(RentalApplicationStatus.Pending,
                 resolved.Single(application => application.ApplicantUserProfileId == secondApplicantId).Status);
             Assert.Equal(1, await context.UserNotifications.CountAsync(notification =>
                 notification.RecipientUserProfileId == applicantId &&
                 notification.Type == NotificationType.RentalApplicationApproved));
-            Assert.Equal(1, await context.UserNotifications.CountAsync(notification =>
+            Assert.Equal(0, await context.UserNotifications.CountAsync(notification =>
                 notification.RecipientUserProfileId == secondApplicantId &&
                 notification.Type == NotificationType.RentalApplicationRejected));
+
+            var secondApplication = resolved.Single(
+                application => application.ApplicantUserProfileId == secondApplicantId);
+            Assert.Equal(tenancyId, await service.ApproveAsync(secondApplication.Id, ownerId));
+            context.ChangeTracker.Clear();
+            tenancy = await context.Tenancies.Include(item => item.Members)
+                .SingleAsync(item => item.Id == tenancyId);
+            Assert.Equal(2, tenancy.Members.Count);
+
+            Assert.True((await service.GetOwnedUnitAsync(unitId, ownerId))!.HasTenants);
+            Assert.True((await service.GetDetailsAsync(listingId, ownerId))!.IsSharedSpace);
+            await service.SetPublishedAsync(listingId, false, ownerId);
+            await service.SetPublishedAsync(listingId, true, ownerId);
+            Assert.True((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
 
             await service.SaveAsync(
                 new PublishListingCommand(unitId, "Updated garden suite", "Updated details.", 1300m, availableFrom),

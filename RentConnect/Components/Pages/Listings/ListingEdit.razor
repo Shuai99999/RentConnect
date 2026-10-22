@@ -43,11 +43,11 @@
 
         @if (_message is not null) { <div class="action-message success-message">@_message</div> }
         @if (_error is not null) { <div class="action-message error-message">@_error</div> }
-        @if (_unit.HasBlockingTenancy)
+        @if (_unit.HasTenants)
         {
             <div class="occupancy-notice">
-                <strong>This space has a current or upcoming tenant.</strong>
-                <p>You can update and save the listing, but it cannot be published until the space is available.</p>
+                <strong>This space has current or upcoming tenants.</strong>
+                <p>Publishing it will advertise a shared space. The monthly rent is the total rent for the space.</p>
             </div>
         }
 
@@ -70,7 +70,7 @@
 
                     <div class="form-grid">
                         <div class="field">
-                            <label for="listing-rent">Monthly rent</label>
+                            <label for="listing-rent">Total monthly rent</label>
                             <div class="money-input"><span>$</span><InputNumber id="listing-rent" class="form-control" @bind-Value="Input.MonthlyRent" /></div>
                             <ValidationMessage For="() => Input.MonthlyRent" />
                         </div>
@@ -104,7 +104,7 @@
                 <div><h2>Publishing</h2><p>@(_unit.IsPublished ? "This listing is visible in Find a home." : "This listing is saved but not visible to renters.")</p></div>
                 <div class="publishing-actions">
                     <a class="text-button" href="@($"/listings/{listingId}")">Preview listing</a>
-                    <button type="button" class="secondary-button" disabled="@(_isSaving || !_unit.IsPublished && (_unit.HasBlockingTenancy || !_unit.IsActive))" @onclick="TogglePublishedAsync">
+                    <button type="button" class="secondary-button" disabled="@(_isSaving || !_unit.IsPublished && !_unit.IsActive)" @onclick="TogglePublishedAsync">
                         @(_unit.IsPublished ? "Unpublish" : "Publish listing")
                     </button>
                 </div>
@@ -148,7 +148,7 @@
     {
         if (_unit is null || _isSaving) return;
         var isNew = !_unit.ListingId.HasValue;
-        var publish = isNew ? !_unit.HasBlockingTenancy && _unit.IsActive : _unit.IsPublished;
+        var publish = isNew ? _unit.IsActive : _unit.IsPublished;
         _isSaving = true;
         _message = null;
         _error = null;
@@ -202,7 +202,7 @@
     }
 
     private string GetSaveLabel() => _unit is null ? "Save" : !_unit.ListingId.HasValue
-        ? _unit.HasBlockingTenancy || !_unit.IsActive ? "Save draft" : "Create and publish"
+        ? !_unit.IsActive ? "Save draft" : "Create and publish"
         : "Save changes";
 
     private static string FormatType(RentConnect.Core.Enums.RentalUnitType type) =>
