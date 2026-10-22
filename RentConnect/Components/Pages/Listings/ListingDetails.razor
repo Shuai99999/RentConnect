@@ -43,7 +43,7 @@
                 {
                     <div class="owner-note"><strong>This is your listing</strong><p>Review applicants or update its details.</p></div>
                     <a class="primary-button full-button" href="/rental-applications">View applications</a>
-                    <a class="secondary-button full-button" href="/listings/manage">Manage listing</a>
+                    <a class="secondary-button full-button" href="@($"/listings/manage/{_listing.RentalUnitId}")">Edit this listing</a>
                 }
                 else if (_listing.CurrentUserApplicationStatus is { } status)
                 {

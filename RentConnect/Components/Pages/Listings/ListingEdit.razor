@@ -9,6 +9,7 @@
 
 @inject IRentalListingService ListingService
 @inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
 
 <PageTitle>@(_unit?.ListingId is null ? "Create listing" : "Edit listing")</PageTitle>
 
@@ -148,11 +149,25 @@
         if (_unit is null || _isSaving) return;
         var isNew = !_unit.ListingId.HasValue;
         var publish = isNew ? !_unit.HasBlockingTenancy && _unit.IsActive : _unit.IsPublished;
-        await RunAsync(
-            () => ListingService.SaveAsync(
+        _isSaving = true;
+        _message = null;
+        _error = null;
+        try
+        {
+            var listingId = await ListingService.SaveAsync(
                 new PublishListingCommand(RentalUnitId, Input.Title, Input.Description, Input.MonthlyRent, Input.AvailableFrom),
-                publish, _userProfileId),
-            isNew && publish ? "Listing created and published." : "Listing details saved.");
+                publish,
+                _userProfileId);
+            NavigationManager.NavigateTo($"/listings/{listingId}");
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _error = exception is InvalidOperationException or ArgumentException
+                ? exception.Message
+                : "The listing could not be saved. Please try again.";
+            _isSaving = false;
+        }
     }
 
     private Task TogglePublishedAsync()

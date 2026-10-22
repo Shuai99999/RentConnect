@@ -60,7 +60,7 @@ public sealed class RentalListingService(
             .SingleOrDefaultAsync(cancellationToken);
 
         return new PublicListingDetails(
-            details.Listing.Id, details.Listing.Title, details.Listing.Description,
+            details.Listing.Id, details.Unit.Id, details.Listing.Title, details.Listing.Description,
             details.Property.Name, details.Unit.Name, details.Unit.Type,
             details.Property.Address.City, details.Property.Address.Region,
             details.Property.Address.CountryCode, details.Listing.MonthlyRent,

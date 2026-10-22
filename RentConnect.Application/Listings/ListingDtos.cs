@@ -15,6 +15,7 @@ public sealed record PublicListingSummary(
 
 public sealed record PublicListingDetails(
     Guid Id,
+    Guid RentalUnitId,
     string Title,
     string Description,
     string PropertyName,
