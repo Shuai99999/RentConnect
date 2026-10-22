@@ -12,8 +12,8 @@
 .field textarea { min-height: 170px; resize: vertical; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 .money-input { position: relative; }
-.money-input > span { position: absolute; top: 50%; left: .8rem; z-index: 1; color: var(--color-text-muted); transform: translateY(-50%); }
-.money-input .form-control { padding-left: 1.8rem; }
+.money-input > span { position: absolute; top: 50%; left: .85rem; z-index: 1; color: var(--color-text-muted); pointer-events: none; transform: translateY(-50%); }
+.money-input ::deep .form-control { padding-left: 2.15rem; }
 .form-actions, .publishing-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: .7rem; margin-top: 1.4rem; }
 .image-placeholder { aspect-ratio: 4 / 3; display: grid; place-items: center; border: 1px dashed var(--color-primary-border); border-radius: .8rem; background: var(--color-primary-soft); }
 .image-placeholder svg { width: 64px; fill: none; stroke: var(--color-primary); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: .72; }
