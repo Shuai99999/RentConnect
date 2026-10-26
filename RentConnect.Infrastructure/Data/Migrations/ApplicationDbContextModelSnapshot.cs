@@ -400,12 +400,6 @@ namespace RentConnect.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<DateTimeOffset?>("AssignedAtUtc")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid?>("AssignedToUserProfileId")
-                        .HasColumnType("uniqueidentifier");
-
                     b.Property<int>("Category")
                         .HasColumnType("int");
 
@@ -448,8 +442,6 @@ namespace RentConnect.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("AssignedToUserProfileId");
 
                     b.HasIndex("CreatedByUserProfileId");
 
@@ -506,6 +498,9 @@ namespace RentConnect.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -557,6 +552,8 @@ namespace RentConnect.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAtUtc");
+
                     b.ToTable("Properties", (string)null);
                 });
 
@@ -573,6 +570,92 @@ namespace RentConnect.Migrations
                     b.HasIndex("UserProfileId");
 
                     b.ToTable("PropertyOwners", (string)null);
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.RentalApplication", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ApplicantUserProfileId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<Guid>("RentalListingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset?>("ResolvedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicantUserProfileId", "CreatedAtUtc");
+
+                    b.HasIndex("RentalListingId", "ApplicantUserProfileId")
+                        .IsUnique();
+
+                    b.ToTable("RentalApplications", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RentalApplications_Resolution", "([Status] = 1 AND [ResolvedAtUtc] IS NULL) OR ([Status] IN (2, 3) AND [ResolvedAtUtc] IS NOT NULL)");
+
+                            t.HasCheckConstraint("CK_RentalApplications_Status", "[Status] IN (1, 2, 3)");
+                        });
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.RentalListing", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateOnly>("AvailableFrom")
+                        .HasColumnType("date");
+
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("IsPublished")
+                        .HasColumnType("bit");
+
+                    b.Property<decimal>("MonthlyRent")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("RentalUnitId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RentalUnitId")
+                        .IsUnique();
+
+                    b.HasIndex("IsPublished", "CreatedAtUtc");
+
+                    b.ToTable("RentalListings", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_RentalListings_MonthlyRent", "[MonthlyRent] > 0");
+                        });
                 });
 
             modelBuilder.Entity("RentConnect.Core.Entities.RentalUnit", b =>
@@ -674,6 +757,9 @@ namespace RentConnect.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTimeOffset>("CreatedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<DateOnly?>("EndDate")
                         .HasColumnType("date");
 
@@ -687,6 +773,8 @@ namespace RentConnect.Migrations
                         .HasColumnType("date");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAtUtc");
 
                     b.HasIndex("RentalUnitId", "StartDate");
 
@@ -829,7 +917,7 @@ namespace RentConnect.Migrations
 
                             t.HasCheckConstraint("CK_UserNotifications_ReadAfterCreation", "[ReadAtUtc] IS NULL\r\nOR\r\n[ReadAtUtc] >= [CreatedAtUtc]");
 
-                            t.HasCheckConstraint("CK_UserNotifications_Type", "[Type] IN (1, 2, 3, 4)");
+                            t.HasCheckConstraint("CK_UserNotifications_Type", "[Type] IN (1, 2, 3, 4, 5, 6, 7)");
                         });
                 });
 
@@ -1141,11 +1229,6 @@ namespace RentConnect.Migrations
                 {
                     b.HasOne("RentConnect.Core.Entities.UserProfile", null)
                         .WithMany()
-                        .HasForeignKey("AssignedToUserProfileId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
-                        .WithMany()
                         .HasForeignKey("CreatedByUserProfileId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -1183,6 +1266,30 @@ namespace RentConnect.Migrations
                     b.HasOne("RentConnect.Core.Entities.UserProfile", null)
                         .WithMany()
                         .HasForeignKey("UserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.RentalApplication", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.UserProfile", null)
+                        .WithMany()
+                        .HasForeignKey("ApplicantUserProfileId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("RentConnect.Core.Entities.RentalListing", null)
+                        .WithMany()
+                        .HasForeignKey("RentalListingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.RentalListing", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.RentalUnit", null)
+                        .WithMany()
+                        .HasForeignKey("RentalUnitId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

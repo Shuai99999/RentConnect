@@ -75,6 +75,15 @@ public sealed class PropertyServiceTests
                 today.AddMonths(10));
             tenancy.AddMember(Guid.NewGuid(), tenantId, today.AddMonths(-2));
             context.Tenancies.Add(tenancy);
+            var listing = new RentalListing(
+                Guid.NewGuid(),
+                vacantUnitId,
+                "Garden suite",
+                "Private lower-level suite.",
+                1200m,
+                today,
+                new DateTimeOffset(2026, 10, 18, 12, 0, 0, TimeSpan.Zero));
+            context.RentalListings.Add(listing);
             await context.SaveChangesAsync();
 
             var ownerSummary = Assert.Single(
@@ -107,6 +116,10 @@ public sealed class PropertyServiceTests
             Assert.True(ownerDetails.CanManage);
             Assert.Equal(2, ownerDetails.Units.Count);
             Assert.Equal("Property Owner", Assert.Single(ownerDetails.OwnerNames));
+            var listedUnit = ownerDetails.Units.Single(unit =>
+                unit.Id == vacantUnitId);
+            Assert.Equal(listing.Id, listedUnit.ListingId);
+            Assert.True(listedUnit.IsListingPublished);
 
             await service.UpdateAsync(
                 new UpdatePropertyCommand(

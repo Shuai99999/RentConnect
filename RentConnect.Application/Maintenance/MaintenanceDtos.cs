@@ -15,12 +15,7 @@ public sealed record MaintenanceRequestSummary(
     MaintenancePriority Priority,
     MaintenanceVisibility Visibility,
     MaintenanceStatus Status,
-    string? AssignedToDisplayName,
     DateTimeOffset UpdatedAtUtc);
-
-public sealed record MaintenanceAssigneeOption(
-    Guid UserProfileId,
-    string DisplayName);
 
 public sealed record MaintenanceStatusChangeItem(
     Guid Id,
@@ -57,7 +52,6 @@ public sealed record MaintenanceAttachmentDownload(
     Stream Content);
 
 public sealed record MaintenancePermissions(
-    bool CanAssign,
     bool CanPostMessage,
     bool CanAddAttachment,
     bool CanUpdateDetails,
@@ -83,9 +77,6 @@ public sealed record MaintenanceRequestDetails(
     DateTimeOffset UpdatedAtUtc,
     DateTimeOffset? ScheduledForUtc,
     string? ResolutionNotes,
-    Guid? AssignedToUserProfileId,
-    string? AssignedToDisplayName,
-    DateTimeOffset? AssignedAtUtc,
     IReadOnlyList<MaintenanceStatusChangeItem> StatusHistory,
     IReadOnlyList<MaintenanceMessageItem> Messages,
     IReadOnlyList<MaintenanceAttachmentItem> Attachments,

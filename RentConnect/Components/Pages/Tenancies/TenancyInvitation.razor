@@ -34,7 +34,7 @@
             <p class="eyebrow">You are invited</p>
             <h1>Join @_invitation.PropertyName</h1>
             <p class="unit-name">@_invitation.RentalUnitName</p>
-            <dl><div><dt>Invited email</dt><dd>@_invitation.Email</dd></div><div><dt>Link expires</dt><dd>@_invitation.ExpiresAtUtc.ToLocalTime().ToString("MMMM d, yyyy")</dd></div></dl>
+            <dl><div><dt>Invited email</dt><dd>@_invitation.Email</dd></div><div><dt>Link expires</dt><dd><LocalDateTime Value="_invitation.ExpiresAtUtc" Display="LocalDateTimeDisplay.Date" /></dd></div></dl>
 
             @if (_emailMismatch)
             {

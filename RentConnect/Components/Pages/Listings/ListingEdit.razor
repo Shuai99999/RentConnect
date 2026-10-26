@@ -1,0 +1,218 @@
+@page "/listings/manage/{RentalUnitId:guid}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Listings
+@using RentConnect.Services
+
+@inject IRentalListingService ListingService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+
+<PageTitle>@(_unit?.ListingId is null ? "Create listing" : "Edit listing")</PageTitle>
+
+<main class="listing-editor-page">
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading rental space...</section>
+    }
+    else if (_unit is null)
+    {
+        <section class="state-card error-card">
+            <h1>Rental space not found</h1>
+            <p>It does not exist or you do not have permission to manage it.</p>
+            <a class="secondary-button" href="/listings/manage">Back to listings</a>
+        </section>
+    }
+    else
+    {
+        <BackNavigation Href="/listings/manage" Label="Manage listings" />
+
+        <header class="editor-header">
+            <div>
+                <p class="eyebrow">@(_unit.ListingId.HasValue ? "Listing details" : "New listing")</p>
+                <h1>@(_unit.ListingId.HasValue ? "Edit listing" : "Create listing")</h1>
+                <p>@_unit.PropertyName · @_unit.RentalUnitName · @FormatType(_unit.UnitType)</p>
+            </div>
+            <span class="status-badge @(_unit.IsPublished ? "published" : "draft")">
+                @(_unit.IsPublished ? "Published" : _unit.ListingId.HasValue ? "Unpublished" : "Not listed")
+            </span>
+        </header>
+
+        @if (_message is not null) { <div class="action-message success-message">@_message</div> }
+        @if (_error is not null) { <div class="action-message error-message">@_error</div> }
+        @if (_unit.HasTenants)
+        {
+            <div class="occupancy-notice">
+                <strong>This space has current or upcoming tenants.</strong>
+                <p>Publishing it will advertise a shared space. The monthly rent is the total rent for the space.</p>
+            </div>
+        }
+
+        <div class="editor-layout">
+            <section class="editor-panel">
+                <EditForm Model="Input" OnValidSubmit="SaveAsync" FormName="listing-details">
+                    <DataAnnotationsValidator />
+
+                    <div class="field">
+                        <label for="listing-title">Title</label>
+                        <InputText id="listing-title" class="form-control" @bind-Value="Input.Title" placeholder="Bright room near campus" />
+                        <ValidationMessage For="() => Input.Title" />
+                    </div>
+
+                    <div class="field">
+                        <label for="listing-description">Description</label>
+                        <InputTextArea id="listing-description" class="form-control" @bind-Value="Input.Description" placeholder="Describe the space, location, and what makes it a good home." />
+                        <ValidationMessage For="() => Input.Description" />
+                    </div>
+
+                    <div class="form-grid">
+                        <div class="field">
+                            <label for="listing-rent">Total monthly rent</label>
+                            <div class="money-input"><span>$</span><InputNumber id="listing-rent" class="form-control" @bind-Value="Input.MonthlyRent" /></div>
+                            <ValidationMessage For="() => Input.MonthlyRent" />
+                        </div>
+                        <div class="field">
+                            <label for="listing-available">Available from</label>
+                            <InputDate id="listing-available" class="form-control" @bind-Value="Input.AvailableFrom" />
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <a class="secondary-button" href="/listings/manage">Cancel</a>
+                        <button type="submit" class="primary-button" disabled="@_isSaving">
+                            @(_isSaving ? "Saving..." : GetSaveLabel())
+                        </button>
+                    </div>
+                </EditForm>
+            </section>
+
+            <aside class="media-panel">
+                <div class="image-placeholder" aria-hidden="true">
+                    <svg viewBox="0 0 48 48"><path d="M7 38 18 27l7 7 5-5 11 9M10 10h28v28H10z" /><circle cx="31" cy="18" r="4" /></svg>
+                </div>
+                <h2>Property photos</h2>
+                <p>Photo uploads are not part of the demo version yet. They can be added here later without changing the listing workflow.</p>
+            </aside>
+        </div>
+
+        @if (_unit.ListingId is Guid listingId)
+        {
+            <section class="publishing-panel">
+                <div><h2>Publishing</h2><p>@(_unit.IsPublished ? "This listing is visible in Find a home." : "This listing is saved but not visible to renters.")</p></div>
+                <div class="publishing-actions">
+                    <a class="text-button" href="@($"/listings/{listingId}")">Preview listing</a>
+                    <button type="button" class="secondary-button" disabled="@(_isSaving || !_unit.IsPublished && !_unit.IsActive)" @onclick="TogglePublishedAsync">
+                        @(_unit.IsPublished ? "Unpublish" : "Publish listing")
+                    </button>
+                </div>
+            </section>
+        }
+    }
+</main>
+
+@code {
+    [Parameter] public Guid RentalUnitId { get; set; }
+
+    private OwnedListingUnit? _unit;
+    private Guid _userProfileId;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _message;
+    private string? _error;
+    private ListingInput Input { get; } = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _userProfileId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
+        await ReloadAsync(copyToForm: true);
+        _isLoading = false;
+    }
+
+    private async Task ReloadAsync(bool copyToForm = false)
+    {
+        _unit = await ListingService.GetOwnedUnitAsync(RentalUnitId, _userProfileId);
+        if (copyToForm && _unit is not null)
+        {
+            Input.Title = _unit.ListingTitle ?? $"{_unit.PropertyName} — {_unit.RentalUnitName}";
+            Input.Description = _unit.Description ?? "A comfortable rental space ready for its next resident.";
+            Input.MonthlyRent = _unit.MonthlyRent ?? 1000m;
+            Input.AvailableFrom = _unit.AvailableFrom ?? DateOnly.FromDateTime(DateTime.Today);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (_unit is null || _isSaving) return;
+        var isNew = !_unit.ListingId.HasValue;
+        var publish = isNew ? _unit.IsActive : _unit.IsPublished;
+        _isSaving = true;
+        _message = null;
+        _error = null;
+        try
+        {
+            var listingId = await ListingService.SaveAsync(
+                new PublishListingCommand(RentalUnitId, Input.Title, Input.Description, Input.MonthlyRent, Input.AvailableFrom),
+                publish,
+                _userProfileId);
+            NavigationManager.NavigateTo($"/listings/{listingId}");
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _error = exception is InvalidOperationException or ArgumentException
+                ? exception.Message
+                : "The listing could not be saved. Please try again.";
+            _isSaving = false;
+        }
+    }
+
+    private Task TogglePublishedAsync()
+    {
+        if (_unit?.ListingId is not Guid listingId) return Task.CompletedTask;
+        var publish = !_unit.IsPublished;
+        return RunAsync(
+            () => ListingService.SetPublishedAsync(listingId, publish, _userProfileId),
+            publish ? "Listing published." : "Listing unpublished.");
+    }
+
+    private async Task RunAsync(Func<Task> action, string successMessage)
+    {
+        if (_isSaving) return;
+        _isSaving = true;
+        _message = null;
+        _error = null;
+        try
+        {
+            await action();
+            await ReloadAsync();
+            _message = successMessage;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _error = exception is InvalidOperationException or ArgumentException
+                ? exception.Message
+                : "The listing could not be saved. Please try again.";
+        }
+        finally { _isSaving = false; }
+    }
+
+    private string GetSaveLabel() => _unit is null ? "Save" : !_unit.ListingId.HasValue
+        ? !_unit.IsActive ? "Save draft" : "Create and publish"
+        : "Save changes";
+
+    private static string FormatType(RentConnect.Core.Enums.RentalUnitType type) =>
+        type == RentConnect.Core.Enums.RentalUnitType.EntireProperty ? "Entire property" : type.ToString();
+
+    private sealed class ListingInput
+    {
+        [Required, StringLength(150)] public string Title { get; set; } = string.Empty;
+        [Required, StringLength(2000)] public string Description { get; set; } = string.Empty;
+        [Range(typeof(decimal), "0.01", "99999999")] public decimal MonthlyRent { get; set; }
+        [Required] public DateOnly AvailableFrom { get; set; }
+    }
+}

@@ -15,6 +15,8 @@ using RentConnect.Application.Properties;
 using RentConnect.Infrastructure.Properties;
 using RentConnect.Application.Tenancies;
 using RentConnect.Infrastructure.Tenancies;
+using RentConnect.Application.Listings;
+using RentConnect.Infrastructure.Listings;
 using Azure.Communication.Email;
 using Azure.Identity;
 using Microsoft.AspNetCore.DataProtection;
@@ -33,6 +35,7 @@ builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISharedBillService, SharedBillService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
 builder.Services.AddScoped<ITenancyService, TenancyService>();
+builder.Services.AddScoped<IRentalListingService, RentalListingService>();
 
 var isAzureAppService = !string.IsNullOrWhiteSpace(
     Environment.GetEnvironmentVariable("WEBSITE_INSTANCE_ID"));

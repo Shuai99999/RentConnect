@@ -12,7 +12,7 @@ using RentConnect.Infrastructure.Tenancies;
 namespace RentConnect.IntegrationTests;
 
 [Collection(SqlServerIntegrationCollection.Name)]
-public sealed class TenancyServiceTests
+public sealed class TenantServiceTests
 {
     [Fact]
     public async Task Service_ManagesTenancyAndSecureInvitationLifecycle()

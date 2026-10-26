@@ -12,6 +12,7 @@
 
 @inject IMaintenanceService MaintenanceService
 @inject CurrentUserProfileService CurrentUserProfileService
+@inject IJSRuntime JS
 
 <PageTitle>@(_request?.Title ?? "Maintenance Request")</PageTitle>
 
@@ -104,51 +105,18 @@
             <article class="detail-card">
                 <span>Created</span>
                 <strong>
-                    @FormatDateTime(_request.CreatedAtUtc)
+                    <LocalDateTime Value="_request.CreatedAtUtc" />
                 </strong>
             </article>
 
             <article class="detail-card">
                 <span>Last updated</span>
                 <strong>
-                    @FormatDateTime(_request.UpdatedAtUtc)
+                    <LocalDateTime Value="_request.UpdatedAtUtc" />
                 </strong>
             </article>
 
-            <article class="detail-card">
-                <span>Assigned to</span>
-                <strong>@(_request.AssignedToDisplayName ?? "Unassigned")</strong>
-            </article>
         </section>
-
-        @if (_request.Permissions.CanAssign)
-        {
-            <section class="content-card assignment-card">
-                <div class="section-heading">
-                    <h2>Request owner</h2>
-                    <p>Assign a property manager to coordinate the next steps.</p>
-                </div>
-                <div class="assignment-controls">
-                    <select @bind="_selectedAssigneeId" aria-label="Assigned manager">
-                        <option value="">Unassigned</option>
-                        @foreach (var assignee in _assigneeOptions)
-                        {
-                            <option value="@assignee.UserProfileId">@assignee.DisplayName</option>
-                        }
-                    </select>
-                    <button type="button"
-                            class="secondary-button"
-                            disabled="@_isAssigning"
-                            @onclick="AssignAsync">
-                        @(_isAssigning ? "Saving…" : "Save assignment")
-                    </button>
-                </div>
-                @if (_assignmentError is not null)
-                {
-                    <div class="form-alert" role="alert">@_assignmentError</div>
-                }
-            </section>
-        }
 
         <section class="content-card">
             <div class="section-heading">
@@ -168,8 +136,7 @@
                 </div>
 
                 <p>
-                    @_request.ScheduledForUtc.Value
-                        .ToString("MMM d, yyyy 'at' HH:mm 'UTC'")
+                    <LocalDateTime Value="_request.ScheduledForUtc.Value" />
                 </p>
             </section>
         }
@@ -202,9 +169,7 @@
 
                     <div>
                         <strong>Submitted</strong>
-                        <time>
-                            @FormatDateTime(_request.CreatedAtUtc)
-                        </time>
+                        <LocalDateTime Value="_request.CreatedAtUtc" />
                     </div>
                 </li>
 
@@ -218,9 +183,7 @@
                                 @GetStatusText(change.ToStatus)
                             </strong>
 
-                            <time>
-                                @FormatDateTime(change.ChangedAtUtc)
-                            </time>
+                            <LocalDateTime Value="change.ChangedAtUtc" />
 
                             @if (!string.IsNullOrWhiteSpace(
                                      change.Note))
@@ -322,13 +285,13 @@
                             @if (action == MaintenanceAction.Schedule)
                             {
                                 <label for="scheduled-for">
-                                    Scheduled time (UTC)
+                                    Scheduled time (your local time)
                                 </label>
 
                                 <InputDate id="scheduled-for"
                                            class="action-input"
                                            Type="InputDateType.DateTimeLocal"
-                                           @bind-Value="StatusActionInput.ScheduledForUtc" />
+                                           @bind-Value="StatusActionInput.ScheduledForLocal" />
                             }
 
                             <label for="status-note">
@@ -410,7 +373,7 @@
 
                                 <span>
                                     @FormatFileSize(attachment.FileSizeBytes)
-                                    · @FormatDateTime(attachment.UploadedAtUtc)
+                                    · <LocalDateTime Value="attachment.UploadedAtUtc" />
                                 </span>
 
                                 @if (attachment.CanDelete)
@@ -535,9 +498,7 @@
                                         : "Participant")
                                 </strong>
 
-                                <time>
-                                    @FormatDateTime(message.CreatedAtUtc)
-                                </time>
+                                <LocalDateTime Value="message.CreatedAtUtc" />
                             </header>
 
                             @if (message.IsDeleted)
@@ -708,11 +669,6 @@
     private IBrowserFile? _selectedAttachment;
     private bool _isUploadingAttachment;
     private int _attachmentInputVersion;
-    private IReadOnlyList<MaintenanceAssigneeOption> _assigneeOptions = [];
-    private Guid? _selectedAssigneeId;
-    private bool _isAssigning;
-    private string? _assignmentError;
-
     private MessageInputModel MessageInput { get; set; } =
         new();
 
@@ -739,13 +695,6 @@
                     RequestId,
                     _currentUserProfileId);
 
-            if (_request?.Permissions.CanAssign == true)
-            {
-                _assigneeOptions = await MaintenanceService.GetAssigneeOptionsAsync(
-                    RequestId,
-                    _currentUserProfileId);
-                _selectedAssigneeId = _request.AssignedToUserProfileId;
-            }
         }
         catch (Exception exception)
         {
@@ -757,42 +706,6 @@
         finally
         {
             _isLoading = false;
-        }
-    }
-
-    private async Task AssignAsync()
-    {
-        if (_isAssigning)
-        {
-            return;
-        }
-
-        _isAssigning = true;
-        _assignmentError = null;
-
-        try
-        {
-            await MaintenanceService.AssignAsync(
-                new AssignMaintenanceRequestCommand(RequestId, _selectedAssigneeId),
-                _currentUserProfileId);
-            await ReloadRequestAsync();
-        }
-        catch (KeyNotFoundException)
-        {
-            _assignmentError = "This request is unavailable, or you cannot assign it.";
-        }
-        catch (ArgumentException exception)
-        {
-            _assignmentError = exception.Message;
-        }
-        catch (Exception exception)
-        {
-            _assignmentError = "The assignment could not be saved. Please try again.";
-            Console.Error.WriteLine(exception);
-        }
-        finally
-        {
-            _isAssigning = false;
         }
     }
 
@@ -1156,10 +1069,10 @@
         _statusActionError = null;
 
         if (action == MaintenanceAction.Schedule &&
-            StatusActionInput.ScheduledForUtc is null)
+            StatusActionInput.ScheduledForLocal is null)
         {
             _statusActionError =
-                "Enter the scheduled time in UTC.";
+                "Enter the scheduled time.";
             return;
         }
 
@@ -1175,12 +1088,19 @@
 
         DateTimeOffset? scheduledForUtc = null;
 
-        if (StatusActionInput.ScheduledForUtc is DateTime scheduledTime)
+        if (StatusActionInput.ScheduledForLocal is DateTime scheduledTime)
         {
-            scheduledForUtc = new DateTimeOffset(
-                DateTime.SpecifyKind(
-                    scheduledTime,
-                    DateTimeKind.Utc));
+            await using var module =
+                await JS.InvokeAsync<IJSObjectReference>(
+                    "import",
+                    "./Components/Shared/LocalDateTime.razor.js");
+            var utcValue = await module.InvokeAsync<string>(
+                "localDateTimeToUtc",
+                scheduledTime.ToString("s"));
+            scheduledForUtc = DateTimeOffset.Parse(
+                utcValue,
+                System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind);
         }
 
         try
@@ -1274,13 +1194,6 @@
         };
     }
 
-    private static string FormatDateTime(
-        DateTimeOffset value)
-    {
-        return value.ToString(
-            "MMM d, yyyy 'at' HH:mm 'UTC'");
-    }
-
     private static string GetStatusText(
         MaintenanceStatus status)
     {
@@ -1370,7 +1283,7 @@
 
     private sealed class StatusActionInputModel
     {
-        public DateTime? ScheduledForUtc { get; set; }
+        public DateTime? ScheduledForLocal { get; set; }
 
         [StringLength(
             MaintenanceStatusChange.MaxNoteLength,

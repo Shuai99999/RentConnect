@@ -1,0 +1,112 @@
+@page "/listings/{ListingId:guid}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using System.ComponentModel.DataAnnotations
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Listings
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject IRentalListingService ListingService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>@(_listing?.Title ?? "Rental listing")</PageTitle>
+
+<main class="listing-details-page">
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading listing...</section>
+    }
+    else if (_listing is null)
+    {
+        <section class="state-card error-card"><h1>Listing not found</h1><p>It may have been rented or removed.</p><a class="secondary-button" href="/listings">Browse listings</a></section>
+    }
+    else
+    {
+        <BackNavigation Href="/listings" Label="Available rentals" />
+        <div class="details-layout">
+            <section>
+                <div class="hero-visual" aria-hidden="true"><svg viewBox="0 0 80 80"><path d="M9 37 40 12l31 25M17 33v35h46V33M31 68V47h18v21" /></svg></div>
+                <div class="listing-copy">
+                    <p class="eyebrow">@(_listing.TenantCount > 0 ? "Shared space" : FormatType(_listing.UnitType))</p>
+                    <h1>@_listing.Title</h1>
+                    <p class="location">@_listing.PropertyName · @_listing.RentalUnitName · @_listing.City@FormatRegion(_listing.Region)</p>
+                    <h2>About this rental</h2>
+                    <p class="description">@_listing.Description</p>
+                </div>
+            </section>
+            <aside class="application-card">
+                <strong class="price">$@_listing.MonthlyRent.ToString("N0")<small> total/month</small></strong>
+                @if (_listing.TenantCount > 0)
+                {
+                    <p>This space already has tenants. An approved applicant will join the existing tenancy.</p>
+                }
+                <p>Available from @_listing.AvailableFrom.ToString("MMMM d, yyyy")</p>
+                @if (_listing.CanManage)
+                {
+                    <div class="owner-note"><strong>This is your listing</strong><p>Review applicants or update its details.</p></div>
+                    <a class="primary-button full-button" href="/rental-applications">View applications</a>
+                    <a class="secondary-button full-button" href="@($"/listings/manage/{_listing.RentalUnitId}")">Edit this listing</a>
+                }
+                else if (_listing.CurrentUserApplicationStatus is { } status)
+                {
+                    <div class="application-status @status.ToString().ToLowerInvariant()">
+                        <strong>Application @status.ToString().ToLowerInvariant()</strong>
+                        <p>@StatusMessage(status)</p>
+                    </div>
+                }
+                else
+                {
+                    @if (_success is not null) { <div class="action-message success-message">@_success</div> }
+                    @if (_error is not null) { <div class="action-message error-message">@_error</div> }
+                    <EditForm Model="Input" OnValidSubmit="ApplyAsync" FormName="rental-application">
+                        <DataAnnotationsValidator />
+                        <div class="field"><label for="message">Message to the landlord <span>Optional</span></label><InputTextArea id="message" class="form-control" @bind-Value="Input.Message" placeholder="Introduce yourself and say when you would like to move in." /><ValidationMessage For="() => Input.Message" /></div>
+                        <button type="submit" class="primary-button full-button" disabled="@_isSaving">@(_isSaving ? "Sending..." : "Apply for this home")</button>
+                    </EditForm>
+                }
+            </aside>
+        </div>
+    }
+</main>
+
+@code {
+    [Parameter] public Guid ListingId { get; set; }
+    private PublicListingDetails? _listing;
+    private Guid _userProfileId;
+    private bool _isLoading = true, _isSaving;
+    private string? _error, _success;
+    private ApplicationInput Input { get; } = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _userProfileId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
+        _listing = await ListingService.GetDetailsAsync(ListingId, _userProfileId);
+        _isLoading = false;
+    }
+
+    private async Task ApplyAsync()
+    {
+        if (_isSaving) return;
+        _isSaving = true; _error = null;
+        try
+        {
+            await ListingService.ApplyAsync(new ApplyForListingCommand(ListingId, Input.Message), _userProfileId);
+            _listing = await ListingService.GetDetailsAsync(ListingId, _userProfileId);
+            _success = "Application sent. The landlord has been notified.";
+        }
+        catch (Exception exception) { Console.Error.WriteLine(exception); _error = exception is InvalidOperationException ? exception.Message : "The application could not be sent."; }
+        finally { _isSaving = false; }
+    }
+
+    private static string FormatRegion(string? region) => string.IsNullOrWhiteSpace(region) ? string.Empty : $", {region}";
+    private static string FormatType(RentalUnitType type) => type == RentalUnitType.EntireProperty ? "Entire property" : type.ToString();
+    private static string StatusMessage(RentalApplicationStatus status) => status switch
+    {
+        RentalApplicationStatus.Pending => "The landlord has received your application.",
+        RentalApplicationStatus.Approved => "You are now connected to this tenancy.",
+        _ => "The landlord selected another applicant this time."
+    };
+    private sealed class ApplicationInput { [StringLength(500)] public string Message { get; set; } = string.Empty; }
+}

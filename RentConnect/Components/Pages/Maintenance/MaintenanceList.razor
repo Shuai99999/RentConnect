@@ -167,15 +167,9 @@
                         </div>
 
                         <div>
-                            <dt>Assigned to</dt>
-                            <dd>@(request.AssignedToDisplayName ?? "Unassigned")</dd>
-                        </div>
-
-                        <div>
                             <dt>Last updated</dt>
                             <dd>
-                                @request.UpdatedAtUtc.ToString("MMM d, yyyy HH:mm")
-                                UTC
+                                <LocalDateTime Value="request.UpdatedAtUtc" />
                             </dd>
                         </div>
                     </dl>

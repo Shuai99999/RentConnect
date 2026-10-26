@@ -16,7 +16,7 @@ public sealed class UserNotificationConfiguration
             {
                 table.HasCheckConstraint(
                     "CK_UserNotifications_Type",
-                    "[Type] IN (1, 2, 3, 4)");
+                    "[Type] IN (1, 2, 3, 4, 5, 6, 7)");
 
                 table.HasCheckConstraint(
                     "CK_UserNotifications_ReadAfterCreation",

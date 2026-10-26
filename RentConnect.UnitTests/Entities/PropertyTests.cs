@@ -11,17 +11,21 @@ public class PropertyTests
         var propertyId = Guid.NewGuid();
         var ownerId = Guid.NewGuid();
         var address = CreateAddress("100 Main Street");
+        var createdAtUtc = new DateTimeOffset(
+            2026, 10, 22, 18, 30, 0, TimeSpan.Zero);
 
         var property = new Property(
             propertyId,
             "  Downtown Apartment  ",
             address,
-            ownerId);
+            ownerId,
+            createdAtUtc);
 
         Assert.Equal(propertyId, property.Id);
         Assert.Equal("Downtown Apartment", property.Name);
         Assert.Equal(address, property.Address);
         Assert.Null(property.Location);
+        Assert.Equal(createdAtUtc, property.CreatedAtUtc);
 
         var owner = Assert.Single(property.Owners);
         Assert.Equal(propertyId, owner.PropertyId);

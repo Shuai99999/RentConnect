@@ -1,0 +1,55 @@
+@page "/rental-applications"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Listings
+@using RentConnect.Core.Enums
+@using RentConnect.Services
+
+@inject IRentalListingService ListingService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Rental applications</PageTitle>
+
+<main class="applications-page">
+    <header class="page-header"><div><p class="eyebrow">Landlord inbox</p><h1>Rental applications</h1><p>Review people who applied to your published rental spaces.</p></div></header>
+    @if (_message is not null) { <div class="action-message success-message">@_message</div> }
+    @if (_error is not null) { <div class="action-message error-message">@_error</div> }
+    @if (_isLoading) { <section class="state-card">Loading applications...</section> }
+    else if (_applications.Count == 0) { <section class="state-card empty-card"><h2>No applications yet</h2><p>Applications will appear here after another user applies to one of your listings.</p><a class="primary-button" href="/listings/manage">Publish a rental</a></section> }
+    else
+    {
+        <section class="application-list">
+            @foreach (var application in _applications)
+            {
+                <article class="application-card">
+                    <div class="applicant-avatar">@GetInitial(application.ApplicantName)</div>
+                    <div class="application-main">
+                        <div class="application-heading"><div><span class="status @application.Status.ToString().ToLowerInvariant()">@application.Status</span><h2>@application.ApplicantName</h2><p>@application.ApplicantEmail</p></div><small><LocalDateTime Value="application.CreatedAtUtc" /></small></div>
+                        <p class="listing-name">Applied for <a href="@($"/listings/{application.ListingId}")">@application.ListingTitle</a> · @application.PropertyName, @application.RentalUnitName</p>
+                        @if (!string.IsNullOrWhiteSpace(application.Message)) { <blockquote>@application.Message</blockquote> }
+                        @if (application.Status == RentalApplicationStatus.Pending)
+                        {
+                            <div class="card-actions"><button type="button" class="primary-button" disabled="@_isSaving" @onclick="() => ApproveAsync(application)">Approve and add tenant</button><button type="button" class="secondary-button" disabled="@_isSaving" @onclick="() => RejectAsync(application)">Decline</button></div>
+                        }
+                    </div>
+                </article>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<ManagedRentalApplication> _applications = [];
+    private Guid _userProfileId;
+    private bool _isLoading = true, _isSaving;
+    private string? _message, _error;
+    protected override async Task OnInitializedAsync() { _userProfileId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync(); await ReloadAsync(); _isLoading = false; }
+    private async Task ReloadAsync() => _applications = await ListingService.GetManagedApplicationsAsync(_userProfileId);
+    private async Task ApproveAsync(ManagedRentalApplication application) { if (_isSaving) return; _isSaving = true; _error = null; try { var tenancyId = await ListingService.ApproveAsync(application.Id, _userProfileId); NavigationManager.NavigateTo($"/tenancies/{tenancyId}"); } catch (Exception exception) { Console.Error.WriteLine(exception); _error = exception is InvalidOperationException ? exception.Message : "The application could not be approved."; _isSaving = false; } }
+    private Task RejectAsync(ManagedRentalApplication application) => RunAsync(() => ListingService.RejectAsync(application.Id, _userProfileId), "Application declined.");
+    private async Task RunAsync(Func<Task> action, string success) { if (_isSaving) return; _isSaving = true; _error = null; try { await action(); await ReloadAsync(); _message = success; } catch (Exception exception) { Console.Error.WriteLine(exception); _error = exception is InvalidOperationException ? exception.Message : "The application could not be updated."; } finally { _isSaving = false; } }
+    private static string GetInitial(string name) => string.IsNullOrWhiteSpace(name) ? "?" : name.Trim()[..1].ToUpperInvariant();
+}

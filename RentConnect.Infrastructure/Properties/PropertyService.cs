@@ -42,7 +42,8 @@ public sealed class PropertyService(
         return await context.Properties
             .AsNoTracking()
             .Where(property => visiblePropertyIds.Contains(property.Id))
-            .OrderBy(property => property.Name)
+            .OrderByDescending(property => property.CreatedAtUtc)
+            .ThenBy(property => property.Name)
             .Select(property => new PropertySummary(
                 property.Id,
                 property.Name,
@@ -134,7 +135,15 @@ public sealed class PropertyService(
                         tenancy.StartDate,
                         tenancy.EndDate
                     })
-                    .FirstOrDefault()
+                    .FirstOrDefault(),
+                Listing = context.RentalListings
+                    .Where(listing => listing.RentalUnitId == unit.Id)
+                    .Select(listing => new
+                    {
+                        listing.Id,
+                        listing.IsPublished
+                    })
+                    .SingleOrDefault()
             })
             .ToArrayAsync(cancellationToken);
 
@@ -181,7 +190,9 @@ public sealed class PropertyService(
                 tenancy?.Id,
                 tenantCount,
                 tenancy?.StartDate,
-                tenancy?.EndDate);
+                tenancy?.EndDate,
+                item.Listing == null ? null : item.Listing.Id,
+                item.Listing != null && item.Listing.IsPublished);
         }).ToArray();
 
         return new PropertyDetails(
@@ -211,7 +222,8 @@ public sealed class PropertyService(
             propertyId,
             command.Name,
             CreateAddress(command),
-            userProfileId);
+            userProfileId,
+            timeProvider.GetUtcNow());
 
         await using var context =
             await contextFactory.CreateDbContextAsync(cancellationToken);

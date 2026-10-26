@@ -29,6 +29,12 @@ public class ApplicationDbContext(
     public DbSet<TenancyInvitation> TenancyInvitations =>
         Set<TenancyInvitation>();
 
+    public DbSet<RentalListing> RentalListings =>
+        Set<RentalListing>();
+
+    public DbSet<RentalApplication> RentalApplications =>
+        Set<RentalApplication>();
+
     public DbSet<MaintenanceRequest> MaintenanceRequests =>
         Set<MaintenanceRequest>();
 

@@ -1,0 +1,126 @@
+@page "/listings/manage"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Listings
+@using RentConnect.Services
+
+@inject IRentalListingService ListingService
+@inject CurrentUserProfileService CurrentUserProfileService
+
+<PageTitle>Manage listings</PageTitle>
+
+<main class="manage-page">
+    <header class="page-header">
+        <div>
+            <p class="eyebrow">Landlord tools</p>
+            <h1>Manage listings</h1>
+            <p>Choose a rental space to create or update its public listing.</p>
+        </div>
+        <a class="secondary-button" href="/rental-applications">View applications</a>
+    </header>
+
+    @if (_message is not null) { <div class="action-message success-message">@_message</div> }
+    @if (_error is not null) { <div class="action-message error-message">@_error</div> }
+
+    @if (_isLoading)
+    {
+        <section class="state-card">Loading rental spaces...</section>
+    }
+    else if (_units.Count == 0)
+    {
+        <section class="state-card empty-card">
+            <h2>No rental spaces yet</h2>
+            <p>Create a property and rental space first.</p>
+            <a class="primary-button" href="/properties/new">Add property</a>
+        </section>
+    }
+    else
+    {
+        <section class="manage-list">
+            @foreach (var unit in _units)
+            {
+                <article class="manage-card">
+                    <div class="unit-summary">
+                        <div>
+                            <span class="status-badge @(unit.IsPublished ? "published" : "draft")">
+                                @(unit.IsPublished ? "Published" : unit.ListingId.HasValue ? "Unpublished" : "Not listed")
+                            </span>
+                            <h2>@unit.PropertyName</h2>
+                            <p>@unit.RentalUnitName · @FormatType(unit.UnitType)</p>
+                        </div>
+                        @if (unit.MonthlyRent.HasValue)
+                        {
+                            <strong>$@unit.MonthlyRent.Value.ToString("N0")/month</strong>
+                        }
+                    </div>
+
+                    @if (unit.HasTenants)
+                    {
+                        <p class="notice">This space has current or upcoming tenants. Publishing it advertises a shared space.</p>
+                    }
+
+                    <div class="card-actions">
+                        <a class="primary-button" href="@($"/listings/manage/{unit.RentalUnitId}")">
+                            @(unit.ListingId.HasValue ? "Edit listing" : "Create listing")
+                        </a>
+                        @if (unit.ListingId is Guid listingId)
+                        {
+                            <button type="button" class="secondary-button"
+                                    disabled="@_isSaving"
+                                    @onclick="() => TogglePublishedAsync(unit)">
+                                @(unit.IsPublished ? "Unpublish" : "Publish")
+                            </button>
+                            <a class="text-button" href="@($"/listings/{listingId}")">Preview</a>
+                        }
+                    </div>
+                </article>
+            }
+        </section>
+    }
+</main>
+
+@code {
+    private IReadOnlyList<OwnedListingUnit> _units = [];
+    private Guid _userProfileId;
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private string? _message;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _userProfileId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
+        await ReloadAsync();
+        _isLoading = false;
+    }
+
+    private async Task ReloadAsync() =>
+        _units = await ListingService.GetOwnedUnitsAsync(_userProfileId);
+
+    private async Task TogglePublishedAsync(OwnedListingUnit unit)
+    {
+        if (_isSaving || unit.ListingId is not Guid listingId) return;
+        _isSaving = true;
+        _message = null;
+        _error = null;
+        try
+        {
+            await ListingService.SetPublishedAsync(listingId, !unit.IsPublished, _userProfileId);
+            await ReloadAsync();
+            _message = unit.IsPublished ? "Listing unpublished." : "Listing published.";
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _error = exception is InvalidOperationException or ArgumentException
+                ? exception.Message
+                : "The listing could not be updated.";
+        }
+        finally { _isSaving = false; }
+    }
+
+    private static string FormatType(RentConnect.Core.Enums.RentalUnitType type) =>
+        type == RentConnect.Core.Enums.RentalUnitType.EntireProperty ? "Entire property" : type.ToString();
+}

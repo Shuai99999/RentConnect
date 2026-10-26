@@ -140,7 +140,7 @@
                                 <small>
                                     @FormatFileSize(attachment.FileSizeBytes) ·
                                     uploaded by @attachment.UploadedByDisplayName ·
-                                    @FormatTimestamp(attachment.UploadedAtUtc)
+                                    <LocalDateTime Value="attachment.UploadedAtUtc" />
                                 </small>
                             </div>
                             @if (attachment.CanDelete)
@@ -275,13 +275,13 @@
                                 <span>@(dispute.ResolvedAtUtc.HasValue ? "Resolved" : "Open")</span>
                             </div>
                             <p>@dispute.Reason</p>
-                            <time>@FormatTimestamp(dispute.RaisedAtUtc)</time>
+                            <LocalDateTime Value="dispute.RaisedAtUtc" />
                             @if (dispute.ResolvedAtUtc.HasValue)
                             {
                                 <div class="resolution">
                                     <strong>Resolution</strong>
                                     <p>@dispute.Resolution</p>
-                                    <small>Resolved by @dispute.ResolvedByDisplayName · @FormatTimestamp(dispute.ResolvedAtUtc.Value)</small>
+                                    <small>Resolved by @dispute.ResolvedByDisplayName · <LocalDateTime Value="dispute.ResolvedAtUtc.Value" /></small>
                                 </div>
                             }
                         </article>
@@ -616,9 +616,6 @@
         string.IsNullOrWhiteSpace(displayName)
             ? '?'
             : char.ToUpperInvariant(displayName.Trim()[0]);
-
-    private static string FormatTimestamp(DateTimeOffset timestamp) =>
-        $"{timestamp:MMM d, yyyy 'at' HH:mm} UTC";
 
     private static string GetAttachmentContentUrl(Guid attachmentId) =>
         $"/bills/attachments/{attachmentId}/content";
