@@ -2,7 +2,7 @@
 
 namespace RentConnect.UnitTests.Entities;
 
-public class TenancyTests
+public class TenantTests
 {
     [Fact]
     public void Constructor_WithValidDates_CreatesTenancy()
