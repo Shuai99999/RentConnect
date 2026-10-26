@@ -2,7 +2,7 @@ using RentConnect.Core.Entities;
 
 namespace RentConnect.UnitTests.Entities;
 
-public sealed class TenancyInvitationTests
+public sealed class TenantInvitationTests
 {
     [Fact]
     public void Invitation_CanBeAcceptedOnceBeforeExpiry()
