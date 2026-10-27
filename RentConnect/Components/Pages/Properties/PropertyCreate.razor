@@ -5,9 +5,11 @@
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authorization
 @using RentConnect.Application.Properties
+@using RentConnect.Core.Entities
 @using RentConnect.Services
 
 @inject IPropertyService PropertyService
+@inject IPropertyImageService PropertyImages
 @inject CurrentUserProfileService CurrentUserProfileService
 @inject NavigationManager NavigationManager
 
@@ -23,6 +25,16 @@
         <BackNavigation Href="/properties" Label="Properties" />
     </header>
 
+    @if (_createdPropertyId is Guid savedPropertyId)
+    {
+        <section class="form-card">
+            <h2>Your property has been saved</h2>
+            <p class="photo-error" role="alert">@_submitError</p>
+            <a class="primary-button" href="@($"/properties/{savedPropertyId}")">Open property and add photographs</a>
+        </section>
+    }
+    else
+    {
     <EditForm Model="Input" OnValidSubmit="CreatePropertyAsync" FormName="create-property">
         <DataAnnotationsValidator />
 
@@ -85,13 +97,30 @@
             </div>
         </section>
 
+        <section class="form-card">
+            <div class="section-heading"><h2>Property photograph</h2><p>Choose an optional photograph. You can add more after saving the property.</p></div>
+            <div class="property-photo-picker">
+                <label for="new-property-photo">Choose a photograph</label>
+                <InputFile id="new-property-photo" OnChange="SelectPhotoAsync" accept="image/jpeg,image/png" disabled="@(_isSubmitting || _isSelectingPhoto)" />
+                <small>JPEG or PNG, up to 5 MB.</small>
+            </div>
+            @if (_isSelectingPhoto) { <p role="status">Preparing preview...</p> }
+            @if (_photoPreview is not null)
+            {
+                <figure class="property-photo-preview"><img src="@_photoPreview" alt="Selected property photograph preview" /><figcaption>@_selectedPhoto?.Name</figcaption></figure>
+                <button type="button" class="text-button" disabled="@_isSubmitting" @onclick="ClearPhoto">Remove selected photograph</button>
+            }
+            @if (_photoError is not null) { <p class="photo-error" role="alert">@_photoError</p> }
+        </section>
+
         <div class="form-actions">
             <a href="/properties">Cancel</a>
-            <button type="submit" class="primary-button" disabled="@_isSubmitting">
+            <button type="submit" class="primary-button" disabled="@(_isSubmitting || _isSelectingPhoto)">
                 @(_isSubmitting ? "Adding property..." : "Add property")
             </button>
         </div>
     </EditForm>
+    }
 </main>
 
 @code {
@@ -99,32 +128,59 @@
     private bool _isSubmitting;
     private string? _submitError;
 
-    private async Task CreatePropertyAsync()
-    {
-        if (_isSubmitting) return;
-        _isSubmitting = true;
-        _submitError = null;
+    private IBrowserFile? _selectedPhoto;
+    private string? _photoPreview, _photoError;
+    private bool _isSelectingPhoto;
+    private Guid? _createdPropertyId;
 
+    private async Task SelectPhotoAsync(InputFileChangeEventArgs args)
+    {
+        _isSelectingPhoto = true; _photoError = null; _selectedPhoto = null; _photoPreview = null;
         try
         {
-            var profileId = await CurrentUserProfileService
-                .GetRequiredUserProfileIdAsync();
+            var file = args.File;
+            if (file.Size > PropertyImage.MaxBytes) throw new ArgumentException("Choose a photograph smaller than 5 MB.");
+            if (file.ContentType is not ("image/jpeg" or "image/png")) throw new ArgumentException("Choose a JPEG or PNG photograph.");
+            var preview = await file.RequestImageFileAsync("image/png",480,320);
+            await using var stream = preview.OpenReadStream(PropertyImage.MaxBytes);
+            using var buffer = new MemoryStream();
+            await stream.CopyToAsync(buffer);
+            _photoPreview = $"data:image/png;base64,{Convert.ToBase64String(buffer.ToArray())}";
+            _selectedPhoto = file;
+        }
+        catch (Exception exception) { Console.Error.WriteLine(exception); _photoError = "That photograph could not be previewed. Choose a JPEG or PNG file up to 5 MB."; }
+        finally { _isSelectingPhoto = false; }
+    }
+
+    private void ClearPhoto() { _selectedPhoto = null; _photoPreview = null; _photoError = null; }
+
+    private async Task CreatePropertyAsync()
+    {
+        if (_isSubmitting || _isSelectingPhoto || _createdPropertyId.HasValue) return;
+        _isSubmitting = true; _submitError = null;
+        Guid? savedPropertyId = null;
+        try
+        {
+            var profileId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
             var propertyId = await PropertyService.CreateAsync(
-                new CreatePropertyCommand(
-                    Input.Name,
-                    Input.AddressLine1,
-                    Input.AddressLine2,
-                    Input.City,
-                    Input.Region,
-                    Input.PostalCode,
-                    Input.CountryCode),
-                profileId);
+                new CreatePropertyCommand(Input.Name,Input.AddressLine1,Input.AddressLine2,Input.City,Input.Region,Input.PostalCode,Input.CountryCode),profileId);
+            savedPropertyId = propertyId;
+            if (_selectedPhoto is not null)
+            {
+                await using var content = _selectedPhoto.OpenReadStream(PropertyImage.MaxBytes);
+                await PropertyImages.AddAsync(propertyId,profileId,content);
+            }
             NavigationManager.NavigateTo($"/properties/{propertyId}");
         }
         catch (Exception exception)
         {
             Console.Error.WriteLine(exception);
-            _submitError = "The property could not be added. Check the address and try again.";
+            if (savedPropertyId.HasValue)
+            {
+                _createdPropertyId = savedPropertyId;
+                _submitError = "The property was saved, but its photograph could not be uploaded. Open the property to add it again.";
+            }
+            else _submitError = "The property could not be added. Check the address and try again.";
             _isSubmitting = false;
         }
     }
