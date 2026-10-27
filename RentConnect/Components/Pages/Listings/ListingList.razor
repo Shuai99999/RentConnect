@@ -15,7 +15,7 @@
         <div>
             <p class="eyebrow">Available rentals</p>
             <h1>Find your next home</h1>
-            <p>Browse available spaces and apply directly through RentConnect..</p>
+            <p>Browse available spaces and apply directly through RentConnect.</p>
         </div>
         <AuthorizeView Roles="Landlord">
             <a class="primary-button" href="/listings/manage">
@@ -51,7 +51,14 @@
             {
                 <a class="listing-card" href="@($"/listings/{listing.Id}")">
                     <div class="listing-image" aria-hidden="true">
-                        <svg viewBox="0 0 64 64"><path d="M8 30 32 11l24 19M14 27v27h36V27M25 54V38h14v16" /></svg>
+                        @if (listing.CoverImageId is Guid imageId)
+                        {
+                            <img src="@($"/properties/images/{imageId}")" alt="" loading="lazy" />
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 64 64"><path d="M8 30 32 11l24 19M14 27v27h36V27M25 54V38h14v16" /></svg>
+                        }
                     </div>
                     <div class="listing-body">
                         <span class="type-badge">@(listing.TenantCount > 0 ? "Shared space" : FormatType(listing.UnitType))</span>
