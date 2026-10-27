@@ -1,26 +1,617 @@
-.tenancy-details-page { max-width: 1080px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
-.tenancy-header { display: flex; justify-content: space-between; gap: 1.5rem; align-items: flex-start; margin: 1.2rem 0 1.5rem; }
-.tenancy-header h1 { margin: .5rem 0 .2rem; }
-.tenancy-header > div > p { margin: 0; color: var(--color-text-muted); }
-.heading-meta { display: flex; gap: .7rem; align-items: center; color: var(--color-text-muted); font-size: .84rem; }
-.overview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem; }
-.overview-card { display: flex; flex-direction: column; gap: .3rem; padding: 1.2rem; border: 1px solid var(--color-border); border-radius: 16px; background: var(--color-surface); }
-.overview-card span, .overview-card small { color: var(--color-text-muted); }
-.large-value { font-size: 1.65rem; }
-.panel { padding: 1.4rem; margin-top: 1rem; border: 1px solid var(--color-border); border-radius: 18px; background: var(--color-surface); box-shadow: var(--shadow-sm); }
-.section-heading { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; }
-.section-heading h2 { margin: .15rem 0; }
-.section-heading p:last-child { color: var(--color-text-muted); margin: .3rem 0 0; }
-.invite-form { margin: 1.2rem 0; padding: 1rem; border-radius: 14px; background: var(--color-surface-muted); }
-.invitation-link { display: grid; gap: .8rem; margin: 1rem 0; padding: 1rem; border: 1px solid var(--color-primary); border-radius: 14px; background: var(--color-primary-soft); }
-.invitation-link p { margin: .2rem 0 0; color: var(--color-text-muted); }
-.copy-row { display: flex; gap: .6rem; }
-.copy-row input { min-width: 0; flex: 1; padding: .7rem; border: 1px solid var(--color-border); border-radius: 9px; background: var(--color-surface); }
-.member-list, .invitation-list { display: grid; margin-top: 1rem; }
-.member-row, .invitation-list article { display: flex; align-items: center; gap: .9rem; padding: 1rem 0; border-top: 1px solid var(--color-border); }
-.member-avatar { display: grid; place-items: center; width: 42px; height: 42px; border-radius: 50%; background: var(--color-primary-soft); color: var(--color-primary-strong); font-weight: 800; }
-.member-row div, .invitation-list article div { flex: 1; }
-.member-row p, .member-row small, .invitation-list p { margin: .15rem 0 0; color: var(--color-text-muted); }
-.invitation-status { padding: .25rem .55rem; border-radius: 999px; background: var(--color-neutral-soft); color: var(--color-text-muted); font-size: .75rem; font-weight: 700; }
-.empty-row { padding: 1.5rem 0 .5rem; text-align: center; color: var(--color-text-muted); }
-@media (max-width: 700px) { .tenancy-details-page { padding: 1.5rem 1rem 3rem; } .tenancy-header, .section-heading { flex-direction: column; } .overview-grid { grid-template-columns: 1fr; } .copy-row, .member-row { align-items: stretch; flex-direction: column; } }
+/* =========================================
+   RENTCONNECT - TENANCY DETAILS
+   Modern Rental Management Dashboard
+========================================= */
+
+.tenancy-details-page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+    color: #17352f;
+}
+
+/* =========================================
+   TENANCY HEADER
+========================================= */
+
+.tenancy-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+    margin: 25px 0 30px;
+    padding: 32px;
+    background: linear-gradient(135deg, #123f37, #247767);
+    border-radius: 20px;
+    color: white;
+    box-shadow: 0 12px 30px rgba(18, 63, 55, 0.15);
+}
+
+    .tenancy-header h1 {
+        font-size: 32px;
+        font-weight: 750;
+        margin: 12px 0 8px;
+        color: white;
+    }
+
+    .tenancy-header > div > p {
+        color: #d5e9e3;
+        margin: 0;
+        font-size: 15px;
+    }
+
+.heading-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+}
+
+.access-badge,
+.tenancy-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 13px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.17);
+    color: white;
+}
+
+.tenancy-header .secondary-button {
+    background: white;
+    color: #145448;
+    border: 1px solid white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+    .tenancy-header .secondary-button:hover {
+        background: #e4f4ed;
+        transform: translateY(-2px);
+    }
+
+/* =========================================
+   TENANCY OVERVIEW CARDS
+========================================= */
+
+.overview-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.overview-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
+    min-height: 140px;
+    padding: 26px;
+    background: white;
+    border: 1px solid #dce9e3;
+    border-radius: 18px;
+    box-shadow: 0 5px 18px rgba(0, 0, 0, 0.035);
+    transition: 0.2s ease;
+}
+
+    .overview-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 28px rgba(17, 67, 54, 0.09);
+    }
+
+    .overview-card span {
+        color: #688078;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .overview-card strong {
+        font-size: 22px;
+        font-weight: 750;
+        color: #174c40;
+        overflow-wrap: anywhere;
+    }
+
+    .overview-card small {
+        color: #688078;
+    }
+
+.large-value {
+    font-size: 30px !important;
+}
+
+/* =========================================
+   MAIN PANELS
+========================================= */
+
+.panel {
+    background: white;
+    padding: 30px;
+    margin-top: 25px;
+    border: 1px solid #dce9e3;
+    border-radius: 20px;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.035);
+}
+
+.section-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+    .section-heading h2 {
+        font-size: 24px;
+        font-weight: 750;
+        color: #163e35;
+        margin: 5px 0 10px;
+    }
+
+    .section-heading p:last-child {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #71847c;
+        margin: 0;
+    }
+
+.eyebrow {
+    font-size: 11px !important;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 800;
+    color: #21806b !important;
+}
+
+/* =========================================
+   HOUSEHOLD SUMMARY
+========================================= */
+
+.household-summary {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 18px;
+    margin: 25px 0 30px;
+}
+
+.summary-card {
+    padding: 25px;
+    text-align: center;
+    background: linear-gradient(145deg, #f0f8f4, #e4f1eb);
+    border: 1px solid #d4e8dd;
+    border-radius: 16px;
+    transition: 0.2s ease;
+}
+
+    .summary-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 10px 24px rgba(18, 77, 60, 0.08);
+    }
+
+    .summary-card h3 {
+        font-size: 14px;
+        font-weight: 650;
+        color: #54776a;
+        margin: 0 0 12px;
+    }
+
+    .summary-card strong {
+        display: block;
+        font-size: 36px;
+        font-weight: 800;
+        color: #146a53;
+    }
+
+/* =========================================
+   HOUSEHOLD MEMBERS
+========================================= */
+
+.member-list,
+.invitation-list {
+    display: grid;
+    margin-top: 15px;
+}
+
+    .member-row,
+    .invitation-list article {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        padding: 22px 12px;
+        border-top: 1px solid #e7eeea;
+        transition: background 0.2s ease;
+    }
+
+        .member-row:hover {
+            background: #f7fbf8;
+            border-radius: 12px;
+        }
+
+.member-avatar {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    border-radius: 15px;
+    background: #d9eee5;
+    color: #146a53;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.member-info {
+    flex: 1;
+    min-width: 0;
+}
+
+    .member-info strong {
+        display: block;
+        font-size: 16px;
+        color: #183d33;
+        font-weight: 700;
+    }
+
+    .member-info p {
+        margin: 5px 0;
+        font-size: 14px;
+        color: #71847c;
+        overflow-wrap: anywhere;
+    }
+
+    .member-info small {
+        color: #83948c;
+        font-size: 12px;
+    }
+
+.member-status {
+    margin-top: 12px;
+}
+
+.status-active,
+.status-inactive {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 12px;
+    border-radius: 30px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-active {
+    background: #ddf6e8;
+    color: #13754a;
+}
+
+.status-inactive {
+    background: #fce7e7;
+    color: #a13232;
+}
+
+/* =========================================
+   BUTTONS
+========================================= */
+
+.tenancy-details-page .primary-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    background: #176b58;
+    color: white;
+    border: 1px solid #176b58;
+    border-radius: 11px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+    .tenancy-details-page .primary-button:hover {
+        background: #10513f;
+        border-color: #10513f;
+        color: white;
+        transform: translateY(-2px);
+    }
+
+.tenancy-details-page .secondary-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    padding: 11px 18px;
+    border-radius: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    text-decoration: none;
+    transition: 0.2s ease;
+}
+
+.tenancy-details-page .text-button {
+    border: none;
+    background: transparent;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.tenancy-details-page .danger-text {
+    color: #b43c3c;
+}
+
+    .tenancy-details-page .danger-text:hover {
+        color: #852424;
+        text-decoration: underline;
+    }
+
+.tenancy-details-page button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* =========================================
+   EDIT TENANCY FORM
+========================================= */
+
+.editor-panel .field {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 20px 0;
+}
+
+.editor-panel label {
+    font-size: 14px;
+    font-weight: 700;
+    color: #29483e;
+}
+
+.editor-panel .form-control {
+    width: 100%;
+    max-width: 380px;
+    padding: 12px 14px;
+    border: 1px solid #ccded4;
+    border-radius: 10px;
+    background: white;
+    color: #183d33;
+}
+
+    .editor-panel .form-control:focus {
+        outline: 2px solid #90cdb8;
+        outline-offset: 2px;
+    }
+
+.form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 15px;
+    margin-top: 25px;
+}
+
+/* =========================================
+   EXISTING INVITATION STYLES
+========================================= */
+
+.invite-form {
+    margin: 20px 0;
+    padding: 20px;
+    border-radius: 14px;
+    background: #f1f7f3;
+}
+
+.invitation-link {
+    display: grid;
+    gap: 12px;
+    margin: 20px 0;
+    padding: 20px;
+    border: 1px solid #91c6b2;
+    border-radius: 14px;
+    background: #eaf6ef;
+}
+
+    .invitation-link p,
+    .invitation-list p {
+        color: #71847c;
+    }
+
+.copy-row {
+    display: flex;
+    gap: 10px;
+}
+
+    .copy-row input {
+        flex: 1;
+        min-width: 0;
+        padding: 12px;
+        border: 1px solid #ccded4;
+        border-radius: 10px;
+        background: white;
+    }
+
+.invitation-status {
+    padding: 6px 12px;
+    border-radius: 30px;
+    background: #edf1ee;
+    color: #53675e;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+/* =========================================
+   EMPTY STATES AND MESSAGES
+========================================= */
+
+.empty-row {
+    padding: 40px 20px;
+    text-align: center;
+    background: #f8fbf9;
+    border: 1px dashed #cbded3;
+    border-radius: 14px;
+    color: #71847c;
+}
+
+    .empty-row strong {
+        display: block;
+        margin-bottom: 10px;
+        color: #29483e;
+    }
+
+.state-card {
+    padding: 35px;
+    background: white;
+    border: 1px solid #dce9e3;
+    border-radius: 18px;
+}
+
+.action-message {
+    padding: 14px 18px;
+    margin: 15px 0;
+    border-radius: 10px;
+    font-weight: 600;
+}
+
+.success-message {
+    background: #e0f5e9;
+    color: #146b43;
+    border: 1px solid #b7e6ca;
+}
+
+.error-message,
+.error-card {
+    background: #fff0f0;
+    color: #9c3030;
+    border: 1px solid #f0c6c6;
+}
+
+/* =========================================
+   CONFIRMATION MODAL
+========================================= */
+
+.confirmation-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    background: rgba(12, 32, 27, 0.65);
+    backdrop-filter: blur(4px);
+}
+
+.confirmation-dialog {
+    width: 100%;
+    max-width: 460px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 32px;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+}
+
+    .confirmation-dialog h2 {
+        margin: 0 0 15px;
+        font-size: 24px;
+        color: #173d32;
+    }
+
+    .confirmation-dialog p {
+        color: #63786e;
+        line-height: 1.7;
+    }
+
+.confirmation-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+/* =========================================
+   RESPONSIVE DESIGN
+========================================= */
+
+@media (max-width: 768px) {
+
+    .tenancy-details-page {
+        padding: 24px 16px 50px;
+    }
+
+    .tenancy-header {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 25px;
+    }
+
+        .tenancy-header h1 {
+            font-size: 26px;
+        }
+
+    .overview-grid,
+    .household-summary {
+        grid-template-columns: 1fr;
+    }
+
+    .section-heading {
+        flex-direction: column;
+    }
+
+    .panel {
+        padding: 20px;
+    }
+
+    .member-row {
+        flex-wrap: wrap;
+    }
+
+        .member-row .text-button {
+            margin-left: 70px;
+        }
+
+    .copy-row {
+        flex-direction: column;
+    }
+
+    .confirmation-actions {
+        flex-direction: column;
+    }
+
+        .confirmation-actions button {
+            width: 100%;
+        }
+}
+
+@media (max-width: 480px) {
+
+    .tenancy-header h1 {
+        font-size: 23px;
+    }
+
+    .overview-card strong {
+        font-size: 19px;
+    }
+
+    .member-row {
+        align-items: flex-start;
+    }
+
+        .member-row .text-button {
+            margin-left: 0;
+        }
+
+    .summary-card strong {
+        font-size: 30px;
+    }
+}
