@@ -46,7 +46,9 @@ public sealed class Property
         CreatedAtUtc = RequireUtc(createdAtUtc);
 
         _owners.Add(
-            new PropertyOwner(id, initialOwnerProfileId));
+            new PropertyOwner(
+                id,
+                initialOwnerProfileId));
     }
 
     public Guid Id { get; private set; }
@@ -70,10 +72,12 @@ public sealed class Property
     {
         ArgumentNullException.ThrowIfNull(address);
 
-        Address = address;
+        if (Address != address)
+        {
+            Location = null;
+        }
 
-        // 原来的坐标可能不再对应新地址。
-        Location = null;
+        Address = address;
     }
 
     public void SetLocation(GeoCoordinate location)
@@ -93,13 +97,17 @@ public sealed class Property
         }
 
         if (_owners.Any(
-            owner => owner.UserProfileId == userProfileId))
+                owner =>
+                    owner.UserProfileId == userProfileId))
         {
             throw new InvalidOperationException(
                 "This user is already an owner of the property.");
         }
 
-        _owners.Add(new PropertyOwner(Id, userProfileId));
+        _owners.Add(
+            new PropertyOwner(
+                Id,
+                userProfileId));
     }
 
     private void SetName(string name)
@@ -114,7 +122,8 @@ public sealed class Property
         Name = name.Trim();
     }
 
-    private static DateTimeOffset RequireUtc(DateTimeOffset value)
+    private static DateTimeOffset RequireUtc(
+        DateTimeOffset value)
     {
         if (value.Offset != TimeSpan.Zero)
         {

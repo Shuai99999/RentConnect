@@ -3,17 +3,29 @@
 .page-header h1 { margin: .2rem 0 .4rem; font-size: clamp(2rem, 4vw, 3.2rem); }
 .page-header p { margin: 0; color: #667085; }
 .eyebrow { color: #376e5b !important; font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.listing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(275px, 1fr)); gap: 1.25rem; }
-.listing-card { overflow: hidden; color: inherit; text-decoration: none; background: #fff; border: 1px solid #e4e7ec; border-radius: 18px; box-shadow: 0 8px 24px rgb(16 24 40 / 6%); transition: transform .18s, box-shadow .18s; }
-.listing-card:hover { transform: translateY(-3px); box-shadow: 0 14px 32px rgb(16 24 40 / 12%); }
-.listing-image { height: 150px; display: grid; place-items: center; background: linear-gradient(135deg, #dceee7, #f2e6cf); }
+.listing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 1.5rem; align-items: stretch; }
+.listing-card { display: flex; flex-direction: column; min-width: 0; overflow: hidden; color: #203638; text-decoration: none; background: #fff; border: 1px solid #dce5e3; border-radius: 18px; box-shadow: 0 8px 24px rgb(16 24 40 / 6%); transition: transform .18s, box-shadow .18s; }
+.listing-card:hover { color: #203638; transform: translateY(-3px); box-shadow: 0 14px 32px rgb(16 24 40 / 12%); }
+.listing-card:focus-visible { outline: 3px solid #28786e; outline-offset: 4px; }
+.listing-image { position: relative; display: grid; place-items: center; flex: 0 0 220px; height: 220px; min-height: 0; overflow: hidden; background: linear-gradient(135deg, #dceee7, #f2e6cf); }
+.listing-image img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; object-position: center; }
 .listing-image svg { width: 72px; fill: none; stroke: #376e5b; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
-.listing-body { padding: 1.2rem; }
-.listing-body h2 { margin: .6rem 0 .35rem; font-size: 1.25rem; }
-.listing-body p { margin: .2rem 0; color: #667085; }
-.type-badge { display: inline-block; padding: .25rem .55rem; border-radius: 99px; color: #28604e; background: #e9f5f0; font-size: .75rem; font-weight: 700; }
-.listing-footer { display: flex; justify-content: space-between; align-items: end; gap: .75rem; padding-top: 1rem; margin-top: 1rem; border-top: 1px solid #eaecf0; }
-.listing-footer strong { color: #214e3f; font-size: 1.25rem; }
-.listing-footer small { margin-left: .15rem; font-size: .75rem; font-weight: 500; }
-.listing-footer span { color: #667085; font-size: .8rem; }
-@media (max-width: 640px) { .page-header { align-items: start; flex-direction: column; } }
+.listing-body { position: relative; display: flex; flex: 1; flex-direction: column; align-items: flex-start; min-width: 0; padding: 1.3rem; background: #fff; }
+.listing-body h2 { margin: .75rem 0 .4rem; color: #203638; font-size: 1.2rem; line-height: 1.4; overflow-wrap: anywhere; }
+.listing-body p { margin: .2rem 0; color: #667085; font-size: .9rem; line-height: 1.5; overflow-wrap: anywhere; }
+.type-badge { display: inline-block; padding: .3rem .65rem; border-radius: 99px; color: #28604e; background: #e9f5f0; font-size: .75rem; font-weight: 700; }
+.listing-footer { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .65rem 1rem; width: 100%; box-sizing: border-box; padding-top: 1rem; margin-top: auto; border-top: 1px solid #eaecf0; }
+.listing-body > p:last-of-type { margin-bottom: 1.2rem; }
+.listing-footer strong { color: #214e3f; font-size: 1.35rem; line-height: 1.5; }
+.listing-footer small { margin-left: .15rem; color: #667085; font-size: .75rem; font-weight: 500; }
+.listing-footer span { color: #667085; font-size: .8rem; line-height: 1.5; }
+@media (max-width: 640px) {
+    .listing-page { padding: 1.5rem 1rem 3rem; }
+    .page-header { align-items: start; flex-direction: column; gap: 1rem; }
+    .listing-grid { grid-template-columns: 1fr; }
+    .listing-image { flex-basis: 200px; height: 200px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .listing-card { transition: none; }
+    .listing-card:hover { transform: none; }
+}
