@@ -2,7 +2,6 @@
 @attribute [Authorize]
 @rendermode InteractiveServer
 
-@using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authorization
 @using RentConnect.Application.Tenancies
 @using RentConnect.Services
@@ -10,113 +9,551 @@
 @inject ITenancyService TenancyService
 @inject CurrentUserProfileService CurrentUserProfileService
 
-<PageTitle>@(_tenancy is null ? "Tenancy" : $"{_tenancy.PropertyName} tenancy")</PageTitle>
+<PageTitle>
+    @(_tenancy is null ? "Tenancy" : $"{_tenancy.PropertyName} tenancy")
+</PageTitle>
 
 <main class="tenancy-details-page">
+
     @if (_isLoading)
     {
-        <section class="state-card">Loading tenancy...</section>
+        <section class="state-card">
+            Loading tenancy information...
+        </section>
     }
     else if (_tenancy is null)
     {
-        <section class="state-card error-card"><h1>Tenancy not found</h1><p>It does not exist or you no longer have access.</p><a class="secondary-button" href="/tenancies">Return to tenancies</a></section>
+        <section class="state-card error-card">
+            <h1>Tenancy not found</h1>
+            <p>This tenancy does not exist or you do not have access.</p>
+            <a class="secondary-button" href="/tenancies">
+                Return to tenancies
+            </a>
+        </section>
     }
     else
     {
         <BackNavigation Href="/tenancies" Label="Tenancies" />
+
+        <!-- TENANCY HEADER -->
         <header class="tenancy-header">
             <div>
-                <div class="heading-meta"><span class="access-badge @(_tenancy.CanManage ? "owner" : "resident")">@(_tenancy.CanManage ? "Manager view" : "Resident view")</span><span>@GetState()</span></div>
+                <div class="heading-meta">
+                    <span class="access-badge @(_tenancy.CanManage ? "owner" : "resident")">
+                        @(_tenancy.CanManage ? "Manager view" : "Resident view")
+                    </span>
+
+                    <span class="tenancy-status">@GetState()</span>
+                </div>
+
                 <h1>@_tenancy.PropertyName</h1>
                 <p>@_tenancy.RentalUnitName</p>
             </div>
+
             @if (_tenancy.CanManage && !_tenancy.IsCancelled)
             {
-                <button type="button" class="secondary-button" @onclick="ToggleEditor">@(_showEditor ? "Close editor" : "Edit tenancy")</button>
+                <button type="button"
+                        class="secondary-button"
+                        @onclick="ToggleEditor">
+                    @(_showEditor ? "Close editor" : "Edit tenancy")
+                </button>
             }
         </header>
 
-        @if (_message is not null) { <div class="action-message success-message" role="status">@_message</div> }
-        @if (_error is not null) { <div class="action-message error-message" role="alert">@_error</div> }
+        @if (_message is not null)
+        {
+            <div class="action-message success-message" role="status">
+                @_message
+            </div>
+        }
 
+        @if (_error is not null)
+        {
+            <div class="action-message error-message" role="alert">
+                @_error
+            </div>
+        }
+
+        <!-- TENANCY OVERVIEW -->
         <section class="overview-grid">
-            <article class="overview-card"><span>Start date</span><strong>@_tenancy.StartDate.ToString("MMMM d, yyyy")</strong></article>
-            <article class="overview-card"><span>End date</span><strong>@(_tenancy.EndDate?.ToString("MMMM d, yyyy") ?? "Ongoing")</strong></article>
-            <article class="overview-card"><span>Household</span><strong class="large-value">@_tenancy.Members.Count(member => !member.LeftOn.HasValue)</strong><small>current members</small></article>
+
+            <article class="overview-card">
+                <span>Start date</span>
+                <strong>@_tenancy.StartDate.ToString("MMMM d, yyyy")</strong>
+            </article>
+
+            <article class="overview-card">
+                <span>End date</span>
+                <strong>
+                    @(_tenancy.EndDate?.ToString("MMMM d, yyyy") ?? "Ongoing")
+                </strong>
+            </article>
+
+            <article class="overview-card">
+                <span>Tenancy status</span>
+                <strong>@GetState()</strong>
+            </article>
+
         </section>
 
-        @if (_tenancy.CanManage && _showEditor)
+        <!-- EDIT TENANCY -->
+        @if (_tenancy.CanManage && _showEditor && !_tenancy.IsCancelled)
         {
             <section class="panel editor-panel">
-                <div class="section-heading"><div><p class="eyebrow">Lease period</p><h2>Edit tenancy</h2></div></div>
-                <EditForm Model="EndDateInput" OnValidSubmit="SaveEndDateAsync" FormName="edit-tenancy">
-                    <div class="field"><label for="tenancy-end">End date <span>Optional</span></label><InputDate id="tenancy-end" class="form-control" @bind-Value="EndDateInput.EndDate" /></div>
-                    <div class="form-actions"><button type="button" class="text-button danger-text" @onclick="CancelTenancyAsync" disabled="@_isSaving">Cancel tenancy</button><button type="submit" class="primary-button" disabled="@_isSaving">Save end date</button></div>
+
+                <div class="section-heading">
+                    <div>
+                        <p class="eyebrow">Lease Management</p>
+                        <h2>Edit Tenancy</h2>
+                    </div>
+                </div>
+
+                <EditForm Model="EndDateInput"
+                          OnValidSubmit="SaveEndDateAsync"
+                          FormName="edit-tenancy">
+
+                    <div class="field">
+                        <label for="tenancy-end">
+                            End date (Optional)
+                        </label>
+
+                        <InputDate id="tenancy-end"
+                                   class="form-control"
+                                   @bind-Value="EndDateInput.EndDate" />
+                    </div>
+
+                    <div class="form-actions">
+
+                        <button type="button"
+                                class="text-button danger-text"
+                                disabled="@_isSaving"
+                                @onclick="ShowCancelConfirmation">
+                            Cancel tenancy
+                        </button>
+
+                        <button type="submit"
+                                class="primary-button"
+                                disabled="@_isSaving">
+                            Save changes
+                        </button>
+
+                    </div>
+
                 </EditForm>
+
             </section>
         }
 
+        <!-- HOUSEHOLD MANAGEMENT -->
         <section class="panel members-panel">
+
             <div class="section-heading">
-                <div><p class="eyebrow">People</p><h2>Household members</h2><p>Members can access shared bills and tenancy-visible maintenance requests.</p></div>
-                @if (_tenancy.CanManage && !_tenancy.IsCancelled) { <a class="primary-button" href="/rental-applications">View rental applications</a> }
+                <div>
+                    <p class="eyebrow">Household Management</p>
+                    <h2>Household Members</h2>
+
+                    <p>
+                        View residents, monitor membership status,
+                        and manage household access.
+                    </p>
+                </div>
+
+                @if (_tenancy.CanManage && !_tenancy.IsCancelled)
+                {
+                    <a class="primary-button"
+                       href="/rental-applications">
+                        View Rental Applications
+                    </a>
+                }
             </div>
 
+            <!-- HOUSEHOLD SUMMARY -->
+            <div class="household-summary">
+
+                <article class="summary-card">
+                    <h3>Total Members</h3>
+                    <strong>@_tenancy.Members.Count</strong>
+                </article>
+
+                <article class="summary-card">
+                    <h3>Active Members</h3>
+                    <strong>
+                        @_tenancy.Members.Count(m => !m.LeftOn.HasValue)
+                    </strong>
+                </article>
+
+                <article class="summary-card">
+                    <h3>Former Members</h3>
+                    <strong>
+                        @_tenancy.Members.Count(m => m.LeftOn.HasValue)
+                    </strong>
+                </article>
+
+            </div>
+
+            <!-- MEMBER LIST -->
             @if (_tenancy.Members.Count == 0)
             {
-                <div class="empty-row"><strong>No members yet</strong><p>Publish this rental space and approve an application to connect the first resident.</p></div>
+                <div class="empty-row">
+                    <strong>No household members yet</strong>
+                    <p>
+                        Approve a rental application to connect
+                        the first resident.
+                    </p>
+                </div>
             }
             else
             {
                 <div class="member-list">
+
                     @foreach (var member in _tenancy.Members)
                     {
                         <article class="member-row">
-                            <span class="member-avatar">@GetInitial(member.DisplayName)</span>
-                            <div><strong>@member.DisplayName</strong><p>@member.Email</p><small>Joined @member.JoinedOn.ToString("MMM d, yyyy")@(member.LeftOn.HasValue ? $" · Left {member.LeftOn.Value:MMM d, yyyy}" : string.Empty)</small></div>
-                            @if (_tenancy.CanManage && !member.LeftOn.HasValue && !_tenancy.IsCancelled)
+
+                            <span class="member-avatar">
+                                @GetInitial(member.DisplayName)
+                            </span>
+
+                            <div class="member-info">
+
+                                <strong>@member.DisplayName</strong>
+
+                                <p>@member.Email</p>
+
+                                <small>
+                                    Joined @member.JoinedOn.ToString("MMM d, yyyy")
+                                </small>
+
+                                <div class="member-status">
+                                    @if (member.LeftOn.HasValue)
+                                    {
+                                        <span class="status-inactive">
+                                            Former Member
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="status-active">
+                                            Active Member
+                                        </span>
+                                    }
+                                </div>
+
+                            </div>
+
+                            @if (_tenancy.CanManage &&
+                                 !member.LeftOn.HasValue &&
+                                 !_tenancy.IsCancelled)
                             {
-                                <button type="button" class="text-button danger-text" disabled="@_isSaving" @onclick="() => MarkLeftAsync(member)">End membership</button>
+                                <button type="button"
+                                        class="text-button danger-text"
+                                        disabled="@_isSaving"
+                                        @onclick="() => ShowMemberConfirmation(member)">
+                                    End Membership
+                                </button>
                             }
+
                         </article>
                     }
+
                 </div>
             }
+
         </section>
 
+        <!-- CONFIRMATION DIALOG -->
+        @if (_showConfirmation)
+        {
+            <div class="confirmation-overlay">
+
+                <div class="confirmation-dialog"
+                     role="alertdialog"
+                     aria-modal="true"
+                     aria-labelledby="confirmation-title"
+                     aria-describedby="confirmation-description">
+
+                    <h2 id="confirmation-title">
+                        Confirm Action
+                    </h2>
+
+                    <p id="confirmation-description">
+                        @_confirmationMessage
+                    </p>
+
+                    <div class="confirmation-actions">
+
+                        <button type="button"
+                                class="secondary-button"
+                                disabled="@_isSaving"
+                                @onclick="CloseConfirmation">
+                            Go Back
+                        </button>
+
+                        <button type="button"
+                                class="primary-button"
+                                disabled="@_isSaving"
+                                @onclick="ConfirmActionAsync">
+                            Confirm
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+        }
     }
+
 </main>
 
 @code {
-    [Parameter] public Guid TenancyId { get; set; }
+
+    [Parameter]
+    public Guid TenancyId { get; set; }
+
     private RentConnect.Application.Tenancies.TenancyDetails? _tenancy;
+
     private Guid _userId;
-    private bool _isLoading = true, _isSaving, _showEditor;
-    private string? _message, _error;
+
+    private bool _isLoading = true;
+    private bool _isSaving;
+    private bool _showEditor;
+
+    private bool _showConfirmation;
+    private bool _confirmCancellation;
+
+    private TenancyMemberItem? _selectedMember;
+
+    private string? _confirmationMessage;
+    private string? _message;
+    private string? _error;
+
     private EndDateModel EndDateInput { get; } = new();
 
     protected override async Task OnParametersSetAsync()
     {
-        _userId = await CurrentUserProfileService.GetRequiredUserProfileIdAsync();
-        await ReloadAsync(); _isLoading = false;
+        _isLoading = true;
+        _error = null;
+        _message = null;
+        _showConfirmation = false;
+        _showEditor = false;
+
+        try
+        {
+            _userId =
+                await CurrentUserProfileService
+                    .GetRequiredUserProfileIdAsync();
+
+            await ReloadAsync();
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+            _error = "Unable to load tenancy information.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
 
-    private async Task ReloadAsync() => _tenancy = await TenancyService.GetDetailsAsync(TenancyId, _userId);
-    private void ToggleEditor() { _showEditor = !_showEditor; if (_showEditor && _tenancy is not null) EndDateInput.EndDate = _tenancy.EndDate; }
-
-    private Task SaveEndDateAsync() => RunAsync(async () => { await TenancyService.UpdateEndDateAsync(new UpdateTenancyEndDateCommand(TenancyId, EndDateInput.EndDate), _userId); _showEditor = false; }, "Tenancy end date updated.");
-    private Task CancelTenancyAsync() => RunAsync(async () => { await TenancyService.CancelAsync(TenancyId, _userId); _showEditor = false; }, "Tenancy cancelled.");
-    private Task MarkLeftAsync(TenancyMemberItem member) => RunAsync(() => TenancyService.MarkMemberLeftAsync(new MarkTenancyMemberLeftCommand(TenancyId, member.UserProfileId, DateOnly.FromDateTime(DateTime.Today)), _userId), $"{member.DisplayName}'s membership ended.");
-
-    private async Task RunAsync(Func<Task> action, string success)
+    private async Task ReloadAsync()
     {
-        if (_isSaving) return; _isSaving = true; _error = null; _message = null;
-        try { await action(); await ReloadAsync(); _message = success; }
-        catch (Exception exception) { Console.Error.WriteLine(exception); _error = exception is InvalidOperationException or ArgumentException ? exception.Message : "The change could not be saved. Please try again."; }
-        finally { _isSaving = false; }
+        _tenancy = await TenancyService.GetDetailsAsync(
+            TenancyId,
+            _userId
+        );
     }
 
-    private string GetState() => _tenancy!.IsCancelled ? "Cancelled" : _tenancy.EndDate is { } end && end < DateOnly.FromDateTime(DateTime.Today) ? "Ended" : _tenancy.StartDate > DateOnly.FromDateTime(DateTime.Today) ? "Upcoming" : "Active";
-    private static string GetInitial(string value) => string.IsNullOrWhiteSpace(value) ? "?" : value.Trim()[..1].ToUpperInvariant();
-    private sealed class EndDateModel { public DateOnly? EndDate { get; set; } }
+    private void ToggleEditor()
+    {
+        _showEditor = !_showEditor;
+
+        if (_showEditor && _tenancy is not null)
+        {
+            EndDateInput.EndDate = _tenancy.EndDate;
+        }
+    }
+
+    private Task SaveEndDateAsync()
+    {
+        return RunAsync(async () =>
+        {
+            await TenancyService.UpdateEndDateAsync(
+                new UpdateTenancyEndDateCommand(
+                    TenancyId,
+                    EndDateInput.EndDate
+                ),
+                _userId
+            );
+
+            _showEditor = false;
+
+        }, "Tenancy end date updated successfully.");
+    }
+
+    // TENANCY CANCELLATION CONFIRMATION
+    private void ShowCancelConfirmation()
+    {
+        if (_isSaving || _tenancy?.CanManage != true ||
+            _tenancy.IsCancelled)
+            return;
+
+        _confirmCancellation = true;
+        _selectedMember = null;
+
+        _confirmationMessage =
+            "Are you sure you want to cancel this tenancy?";
+
+        _showConfirmation = true;
+    }
+
+    // HOUSEHOLD MEMBERSHIP CONFIRMATION
+    private void ShowMemberConfirmation(TenancyMemberItem member)
+    {
+        if (_isSaving || _tenancy?.CanManage != true ||
+            _tenancy.IsCancelled || member.LeftOn.HasValue)
+            return;
+
+        _selectedMember = member;
+        _confirmCancellation = false;
+
+        _confirmationMessage =
+            $"Are you sure you want to end {member.DisplayName}'s membership?";
+
+        _showConfirmation = true;
+    }
+
+    private void CloseConfirmation()
+    {
+        if (_isSaving)
+            return;
+
+        _showConfirmation = false;
+        _selectedMember = null;
+        _confirmCancellation = false;
+    }
+
+    private async Task ConfirmActionAsync()
+    {
+        if (!_showConfirmation || _isSaving)
+            return;
+
+        if (_tenancy?.CanManage != true || _tenancy.IsCancelled)
+        {
+            CloseConfirmation();
+            return;
+        }
+
+        if (_confirmCancellation)
+        {
+            await CancelTenancyAsync();
+        }
+        else if (_selectedMember is not null &&
+                 !_selectedMember.LeftOn.HasValue)
+        {
+            await MarkLeftAsync(_selectedMember);
+        }
+
+        if (_error is null)
+        {
+            _showConfirmation = false;
+            _selectedMember = null;
+            _confirmCancellation = false;
+        }
+    }
+
+    private Task CancelTenancyAsync()
+    {
+        return RunAsync(async () =>
+        {
+            await TenancyService.CancelAsync(
+                TenancyId,
+                _userId
+            );
+
+            _showEditor = false;
+
+        }, "Tenancy cancelled successfully.");
+    }
+
+    private Task MarkLeftAsync(TenancyMemberItem member)
+    {
+        return RunAsync(
+            () => TenancyService.MarkMemberLeftAsync(
+                new MarkTenancyMemberLeftCommand(
+                    TenancyId,
+                    member.UserProfileId,
+                    DateOnly.FromDateTime(DateTime.Today)
+                ),
+                _userId
+            ),
+            $"{member.DisplayName}'s membership ended."
+        );
+    }
+
+    private async Task RunAsync(
+        Func<Task> action,
+        string success)
+    {
+        if (_isSaving)
+            return;
+
+        _isSaving = true;
+        _error = null;
+        _message = null;
+
+        try
+        {
+            await action();
+            await ReloadAsync();
+
+            _message = success;
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(exception);
+
+            _error =
+                exception is InvalidOperationException
+                or ArgumentException
+                    ? exception.Message
+                    : "The change could not be saved. Please try again.";
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private string GetState()
+    {
+        if (_tenancy is null)
+            return "Unknown";
+
+        if (_tenancy.IsCancelled)
+            return "Cancelled";
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        if (_tenancy.EndDate is { } end && end < today)
+            return "Ended";
+
+        if (_tenancy.StartDate > today)
+            return "Upcoming";
+
+        return "Active";
+    }
+
+    private static string GetInitial(string value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? "?"
+            : value.Trim()[..1].ToUpperInvariant();
+    }
+
+    private sealed class EndDateModel
+    {
+        public DateOnly? EndDate { get; set; }
+    }
 }

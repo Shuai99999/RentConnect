@@ -1,5 +1,5 @@
 @page "/rental-applications"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Landlord")]
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization

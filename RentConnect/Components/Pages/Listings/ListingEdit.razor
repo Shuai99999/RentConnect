@@ -1,5 +1,5 @@
 @page "/listings/manage/{RentalUnitId:guid}"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Landlord")]
 @rendermode InteractiveServer
 
 @using System.ComponentModel.DataAnnotations

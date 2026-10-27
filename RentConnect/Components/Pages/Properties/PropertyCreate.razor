@@ -1,5 +1,5 @@
 @page "/properties/new"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Landlord")]
 @rendermode InteractiveServer
 
 @using System.ComponentModel.DataAnnotations

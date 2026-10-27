@@ -94,8 +94,13 @@
             return;
         }
 
+   
         Input.PhoneNumber ??= phoneNumber;
-        Input.DisplayName ??= displayName;
+
+        if (string.IsNullOrWhiteSpace(Input.DisplayName))
+        {
+            Input.DisplayName = displayName;
+        }
     }
 
     private async Task OnValidSubmitAsync()
@@ -152,15 +157,18 @@
         RedirectManager.RedirectToCurrentPageWithStatus("Your profile has been updated", HttpContext);
     }
 
+ 
     private sealed class InputModel
     {
-        [Required]
-        [StringLength(100, ErrorMessage = "The display name cannot exceed {1} characters.")]
+        [Required(ErrorMessage = "Display name is required.")]
+        [StringLength(100, MinimumLength = 2,
+            ErrorMessage = "Display name must be between 2 and 100 characters.")]
         [Display(Name = "Display name")]
         public string DisplayName { get; set; } = string.Empty;
 
-        [Phone]
+        [Phone(ErrorMessage = "Enter a valid phone number.")]
         [Display(Name = "Phone number")]
         public string? PhoneNumber { get; set; }
     }
+
 }
