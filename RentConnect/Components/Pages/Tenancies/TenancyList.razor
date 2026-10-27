@@ -18,7 +18,11 @@
             <h1>Tenancies</h1>
             <p>Manage lease periods, household members, and invitations.</p>
         </div>
-        <a class="primary-button" href="/tenancies/new">Create tenancy</a>
+        <AuthorizeView Roles="Landlord">
+            <a class="primary-button" href="/tenancies/new">
+                Create tenancy
+            </a>
+        </AuthorizeView>
     </header>
 
     @if (_isLoading)
