@@ -47,13 +47,23 @@
                 </p>
             </div>
 
+            
             <div class="quick-actions" aria-label="Quick actions">
                 <a class="primary-action" href="/listings">
                     <span aria-hidden="true">⌕</span>
                     Find a home
                 </a>
+
+                <a class="secondary-action" href="/bills/new">
+                    Add a bill
+                </a>
+
+                <a class="secondary-action" href="/Account/Manage">
+                    My Account
+                </a>
                 <a class="secondary-action" href="/listings/manage">Manage listings</a>
             </div>
+
         </header>
 
         <section class="summary-grid" aria-label="Account summary">
@@ -302,12 +312,16 @@
             _recentNotifications.Clear();
             _recentNotifications.AddRange(notifications.Take(4));
         }
+
+    
         catch (Exception exception)
         {
             Console.Error.WriteLine(exception);
             _errorMessage =
                 "Please try again. If the problem continues, contact support.";
         }
+
+
         finally
         {
             _isLoading = false;
