@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Authorization
 @using RentConnect.Application.Properties
 @using RentConnect.Services
+@using Microsoft.AspNetCore.Components.Authorization
 
 @inject IPropertyService PropertyService
 @inject CurrentUserProfileService CurrentUserProfileService
@@ -18,7 +19,11 @@
             <h1>Properties</h1>
             <p>View rental spaces, current occupancy, and property details.</p>
         </div>
-        <a class="primary-button" href="/properties/new">Add property</a>
+        <AuthorizeView Roles="Landlord">
+            <a class="primary-button" href="/properties/new">
+                Add property
+            </a>
+        </AuthorizeView>
     </header>
 
     @if (_isLoading)
@@ -42,7 +47,11 @@
             </span>
             <h2>No properties connected yet</h2>
             <p>Add a property you own, or accept a tenancy invitation when one arrives..</p>
-            <a class="secondary-button" href="/properties/new">Add your first property</a>
+            <AuthorizeView Roles="Landlord">
+                <a class="secondary-button" href="/properties/new">
+                    Add your first property
+                </a>
+            </AuthorizeView>
         </section>
     }
     else

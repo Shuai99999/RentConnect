@@ -17,7 +17,11 @@
             <h1>Find your next home</h1>
             <p>Browse available spaces and apply directly through RentConnect..</p>
         </div>
-        <a class="primary-button" href="/listings/manage">Manage my listings</a>
+        <AuthorizeView Roles="Landlord">
+            <a class="primary-button" href="/listings/manage">
+                Manage my listings
+            </a>
+        </AuthorizeView>
     </header>
 
     @if (_isLoading)
@@ -33,7 +37,11 @@
         <section class="state-card empty-card">
             <h2>No homes are listed right now</h2>
             <p>Check back soon, or publish a rental space you own.</p>
-            <a class="secondary-button" href="/listings/manage">Publish a rental</a>
+            <AuthorizeView Roles="Landlord">
+                <a class="secondary-button" href="/listings/manage">
+                    Publish a rental
+                </a>
+            </AuthorizeView>
         </section>
     }
     else

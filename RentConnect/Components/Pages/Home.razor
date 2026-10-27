@@ -61,7 +61,11 @@
                 <a class="secondary-action" href="/Account/Manage">
                     My Account
                 </a>
-                <a class="secondary-action" href="/listings/manage">Manage listings</a>
+                <AuthorizeView Roles="Landlord">
+                    <a class="secondary-action" href="/listings/manage">
+                        Manage listings
+                    </a>
+                </AuthorizeView>
             </div>
 
         </header>
