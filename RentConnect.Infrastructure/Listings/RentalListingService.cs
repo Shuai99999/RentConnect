@@ -63,7 +63,6 @@ public sealed class RentalListingService(
                     listing.AvailableFrom,
 
                     context.TenancyMembers.Count(member =>
-                        member.JoinedOn <= today &&
                         (
                             !member.LeftOn.HasValue ||
                             member.LeftOn.Value >= today
@@ -72,7 +71,6 @@ public sealed class RentalListingService(
                             tenancy.Id == member.TenancyId &&
                             tenancy.RentalUnitId == unit.Id &&
                             !tenancy.IsCancelled &&
-                            tenancy.StartDate <= today &&
                             (
                                 !tenancy.EndDate.HasValue ||
                                 tenancy.EndDate.Value >= today
@@ -149,7 +147,6 @@ public sealed class RentalListingService(
             .AsNoTracking()
             .CountAsync(
                 member =>
-                    member.JoinedOn <= today &&
                     (
                         !member.LeftOn.HasValue ||
                         member.LeftOn.Value >= today
@@ -158,7 +155,6 @@ public sealed class RentalListingService(
                         tenancy.Id == member.TenancyId &&
                         tenancy.RentalUnitId == details.Unit.Id &&
                         !tenancy.IsCancelled &&
-                        tenancy.StartDate <= today &&
                         (
                             !tenancy.EndDate.HasValue ||
                             tenancy.EndDate.Value >= today
