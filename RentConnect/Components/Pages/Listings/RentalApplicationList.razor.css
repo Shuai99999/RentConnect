@@ -1,10 +1,1069 @@
-.applications-page { max-width: 980px; margin: 0 auto; padding: 2.5rem 1.5rem 4rem; }
-.page-header { display: flex; justify-content: space-between; align-items: end; gap: 2rem; margin-bottom: 2rem; }.page-header h1 { margin: .2rem 0 .4rem; }.page-header p { margin: 0; color: #667085; }
-.eyebrow { color: #376e5b !important; font-size: .78rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
-.application-list { display: grid; gap: 1rem; }.application-card { display: grid; grid-template-columns: auto 1fr; gap: 1rem; padding: 1.35rem; background: #fff; border: 1px solid #e4e7ec; border-radius: 16px; }
-.applicant-avatar { width: 46px; height: 46px; display: grid; place-items: center; color: #fff; background: #376e5b; border-radius: 50%; font-weight: 800; }
-.application-heading { display: flex; justify-content: space-between; gap: 1rem; }.application-heading h2 { display: inline; margin: 0 .5rem; font-size: 1.15rem; }.application-heading p { margin: .3rem 0 0; color: #667085; }.application-heading small { color: #667085; }
-.status { padding: .2rem .5rem; border-radius: 99px; background: #fff6e8; color: #8b4b16; font-size: .72rem; font-weight: 800; text-transform: uppercase; }.status.approved { color: #17603b; background: #e9f8ef; }.status.rejected { color: #9b2c2c; background: #fff0f0; }
-.listing-name { color: #475467; }.listing-name a { color: #28604e; font-weight: 700; } blockquote { margin: 1rem 0; padding: .8rem 1rem; color: #475467; background: #f8faf9; border-left: 3px solid #77aa97; border-radius: 0 8px 8px 0; }
-.card-actions { display: flex; gap: .65rem; margin-top: 1rem; }
-@media (max-width: 640px) { .page-header, .application-heading { align-items: start; flex-direction: column; }.application-card { grid-template-columns: 1fr; } }
+/* ============================================================
+   RENTCONNECT — RENTAL APPLICATIONS DASHBOARD
+   Modern, responsive landlord interface
+   ============================================================ */
+
+
+/* ============================================================
+   1. MAIN PAGE LAYOUT
+   ============================================================ */
+
+.applications-page {
+    width: 100%;
+    max-width: 1320px;
+    min-height: calc(100vh - 90px);
+    margin: 0 auto;
+    padding: 36px 32px 70px;
+    box-sizing: border-box;
+    background: #f8faf9;
+    color: #172b3a;
+    font-family: inherit;
+}
+
+
+/* ============================================================
+   2. PAGE HEADER
+   ============================================================ */
+
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 24px;
+    margin-bottom: 28px;
+}
+
+    .page-header > div:first-child {
+        flex: 1 1 380px;
+        min-width: 0;
+    }
+
+.eyebrow {
+    display: inline-flex;
+    align-items: center;
+    width: fit-content;
+    margin: 0 0 12px;
+    padding: 7px 13px;
+    background: #e0f3e8;
+    color: #176747;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+}
+
+.page-header h1 {
+    margin: 0 0 10px;
+    color: #152b35;
+    font-size: clamp(28px, 3vw, 36px);
+    font-weight: 800;
+    letter-spacing: -1.2px;
+    line-height: 1.2;
+}
+
+.page-header p {
+    margin: 0;
+    color: #6b7b89;
+    font-size: 14px;
+    line-height: 1.7;
+}
+
+
+/* ============================================================
+   3. SEARCH AND FILTERS
+   ============================================================ */
+
+.header-filters {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 26px;
+}
+
+.search-input,
+.status-filter {
+    height: 46px;
+    box-sizing: border-box;
+    padding: 0 15px;
+    background: #ffffff;
+    color: #263747;
+    border: 1px solid #dfe8e3;
+    border-radius: 11px;
+    font-family: inherit;
+    font-size: 13px;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-input {
+    width: 290px;
+    max-width: 100%;
+}
+
+    .search-input::placeholder {
+        color: #99a5ae;
+    }
+
+.status-filter {
+    min-width: 155px;
+    cursor: pointer;
+}
+
+    .search-input:hover,
+    .status-filter:hover {
+        border-color: #b5d5c8;
+    }
+
+    .search-input:focus,
+    .status-filter:focus {
+        outline: none;
+        border-color: #0e7755;
+        box-shadow: 0 0 0 3px rgba(14, 119, 85, 0.12);
+    }
+
+
+/* ============================================================
+   4. STATISTICS DASHBOARD
+   ============================================================ */
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 18px;
+    margin-bottom: 30px;
+}
+
+.stat-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+    min-height: 110px;
+    box-sizing: border-box;
+    padding: 22px;
+    background: #ffffff;
+    border: 1px solid #e4ece8;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(23, 43, 58, 0.035);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+    .stat-card:hover {
+        transform: translateY(-3px);
+        border-color: #d3e4dc;
+        box-shadow: 0 10px 26px rgba(23, 43, 58, 0.07);
+    }
+
+.stat-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    border-radius: 13px;
+    font-size: 24px;
+    font-weight: 700;
+}
+
+.total-icon {
+    background: #e3f2fa;
+    color: #1679a8;
+}
+
+.pending-icon {
+    background: #fff2d9;
+    color: #b87400;
+}
+
+.approved-icon {
+    background: #e1f5e8;
+    color: #168449;
+}
+
+.declined-icon {
+    background: #ffe4e5;
+    color: #d72b34;
+}
+
+.stat-card > div:last-child {
+    min-width: 0;
+}
+
+.stat-card strong {
+    display: block;
+    color: #172b3a;
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.stat-card span {
+    display: block;
+    margin-top: 7px;
+    color: #758392;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+
+/* ============================================================
+   5. APPLICATION LIST
+   ============================================================ */
+
+.application-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+
+/* ============================================================
+   6. APPLICATION CARD
+   ============================================================ */
+
+.application-card {
+    display: grid;
+    grid-template-columns: 50px minmax(200px, 1.5fr) minmax(190px, 1fr) minmax(150px, auto);
+    align-items: start;
+    gap: 18px;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 24px;
+    background: #ffffff;
+    border: 1px solid #e4ece8;
+    border-radius: 17px;
+    box-shadow: 0 4px 16px rgba(23, 43, 58, 0.035);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+    .application-card:hover {
+        transform: translateY(-2px);
+        border-color: #cfe4d9;
+        box-shadow: 0 12px 30px rgba(23, 43, 58, 0.075);
+    }
+
+
+/* ============================================================
+   7. APPLICANT AVATAR
+   ============================================================ */
+
+.applicant-avatar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 50px;
+    height: 50px;
+    flex-shrink: 0;
+    background: #d8efe4;
+    color: #0c684a;
+    border-radius: 50%;
+    font-size: 16px;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+}
+
+
+/* ============================================================
+   8. APPLICANT INFORMATION
+   ============================================================ */
+
+.applicant-details {
+    min-width: 0;
+}
+
+.applicant-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+    .applicant-top > div {
+        min-width: 0;
+    }
+
+    .applicant-top h2 {
+        margin: 2px 0 6px;
+        color: #172b3a;
+        font-size: 16px;
+        font-weight: 800;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+.applicant-email {
+    margin: 0;
+    color: #788796;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+
+/* ============================================================
+   9. APPLICATION STATUS BADGES
+   ============================================================ */
+
+.status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    padding: 7px 13px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 750;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+    .status.pending {
+        background: #fff1d5;
+        color: #a96500;
+    }
+
+    .status.approved {
+        background: #dcf5e4;
+        color: #14773c;
+    }
+
+    .status.rejected {
+        background: #ffe3e3;
+        color: #c52828;
+    }
+
+
+/* ============================================================
+   10. APPLICANT MESSAGE
+   ============================================================ */
+
+.applicant-message {
+    margin: 16px 0 0;
+    padding: 14px 16px;
+    background: #f6f8fa;
+    border: 0;
+    border-left: 3px solid #b9d9cb;
+    border-radius: 9px;
+    color: #566675;
+    font-size: 12px;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+
+/* ============================================================
+   11. PROPERTY INFORMATION
+   ============================================================ */
+
+.property-details {
+    display: flex;
+    align-items: center;
+    gap: 13px;
+    min-width: 0;
+    padding-top: 2px;
+}
+
+.property-thumbnail {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 70px;
+    height: 70px;
+    flex-shrink: 0;
+    background: #e1efe9;
+    color: #146445;
+    border-radius: 11px;
+    overflow: hidden;
+}
+
+    .property-thumbnail img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+.property-info {
+    min-width: 0;
+}
+
+    .property-info h3 {
+        margin: 0 0 6px;
+        color: #172b3a;
+        font-size: 13px;
+        font-weight: 800;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .property-info p {
+        margin: 0 0 6px;
+        color: #788796;
+        font-size: 12px;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+    }
+
+    .property-info a {
+        color: #176b50;
+        font-size: 11px;
+        font-weight: 650;
+        line-height: 1.5;
+        text-decoration: none;
+        overflow-wrap: anywhere;
+    }
+
+        .property-info a:hover {
+            color: #0c523c;
+            text-decoration: underline;
+        }
+
+
+/* ============================================================
+   12. APPLICATION DATE AND ACTIONS
+   ============================================================ */
+
+.application-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 22px;
+    min-width: 0;
+}
+
+.application-date {
+    color: #788796;
+    font-size: 11px;
+    line-height: 1.5;
+    text-align: right;
+}
+
+.card-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 9px;
+}
+
+
+/* ============================================================
+   13. PRIMARY BUTTON
+   ============================================================ */
+
+.primary-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    box-sizing: border-box;
+    padding: 11px 17px;
+    background: #086747;
+    color: #ffffff;
+    border: 1px solid #086747;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.3;
+    text-decoration: none;
+    text-align: center;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+    .primary-button:hover:not(:disabled) {
+        background: #075239;
+        border-color: #075239;
+        color: #ffffff;
+        transform: translateY(-1px);
+        box-shadow: 0 6px 14px rgba(8, 103, 71, 0.16);
+    }
+
+    .primary-button:active:not(:disabled) {
+        transform: translateY(0);
+    }
+
+
+/* ============================================================
+   14. DECLINE BUTTON
+   ============================================================ */
+
+.decline-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    box-sizing: border-box;
+    padding: 11px 17px;
+    background: #ffffff;
+    color: #c52828;
+    border: 1px solid #e6a5a5;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 750;
+    line-height: 1.3;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+    .decline-button:hover:not(:disabled) {
+        background: #fff0f0;
+        border-color: #c52828;
+        transform: translateY(-1px);
+    }
+
+
+/* ============================================================
+   15. BUTTON ACCESSIBILITY
+   ============================================================ */
+
+.applications-page button:focus-visible,
+.applications-page a:focus-visible,
+.confirmation-dialog button:focus-visible {
+    outline: 3px solid #7ac6a6;
+    outline-offset: 3px;
+}
+
+.applications-page button:disabled,
+.confirmation-dialog button:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+}
+
+
+/* ============================================================
+   16. SUCCESS AND ERROR MESSAGES
+   ============================================================ */
+
+.action-message {
+    margin-bottom: 22px;
+    padding: 15px 18px;
+    border-radius: 11px;
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.6;
+}
+
+.success-message {
+    background: #e0f5e8;
+    color: #176a40;
+    border: 1px solid #bce8ce;
+}
+
+.error-message {
+    background: #ffe6e6;
+    color: #a72222;
+    border: 1px solid #f6c3c3;
+}
+
+
+/* ============================================================
+   17. LOADING AND EMPTY STATES
+   ============================================================ */
+
+.state-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 250px;
+    box-sizing: border-box;
+    padding: 45px 30px;
+    background: #ffffff;
+    border: 1px solid #e4ece8;
+    border-radius: 17px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(23, 43, 58, 0.035);
+}
+
+    .state-card h2 {
+        margin: 0 0 12px;
+        color: #172b3a;
+        font-size: 21px;
+        font-weight: 800;
+    }
+
+    .state-card p {
+        max-width: 450px;
+        margin: 0 0 22px;
+        color: #788796;
+        font-size: 14px;
+        line-height: 1.7;
+    }
+
+.empty-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 68px;
+    height: 68px;
+    margin-bottom: 22px;
+    background: #e6f5ed;
+    color: #176b50;
+    border-radius: 18px;
+    font-size: 34px;
+}
+
+
+/* ============================================================
+   18. CONFIRMATION MODAL OVERLAY
+   ============================================================ */
+
+.confirmation-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(12, 32, 27, 0.65);
+    backdrop-filter: blur(4px);
+}
+
+
+/* ============================================================
+   19. CONFIRMATION DIALOG
+   ============================================================ */
+
+.confirmation-dialog {
+    position: relative;
+    width: 100%;
+    max-width: 480px;
+    max-height: 90vh;
+    box-sizing: border-box;
+    overflow-y: auto;
+    padding: 34px;
+    background: #ffffff;
+    border: 1px solid #e4ece8;
+    border-radius: 20px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
+}
+
+    .confirmation-dialog h2 {
+        margin: 0 35px 16px 0;
+        color: #173d32;
+        font-size: 23px;
+        font-weight: 800;
+        line-height: 1.3;
+    }
+
+.confirmation-description {
+    margin: 0 0 22px;
+    color: #63786e;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+    .confirmation-description strong {
+        color: #173d32;
+        font-weight: 800;
+    }
+
+
+/* ============================================================
+   20. CLOSE DIALOG BUTTON
+   ============================================================ */
+
+.close-dialog {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    background: #f2f5f3;
+    color: #63786e;
+    border: none;
+    border-radius: 9px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+    .close-dialog:hover:not(:disabled) {
+        background: #e5ece8;
+        color: #173d32;
+    }
+
+
+/* ============================================================
+   21. CONFIRMATION PROPERTY PREVIEW
+   ============================================================ */
+
+.confirmation-property {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin: 22px 0;
+    padding: 15px;
+    background: #f5f9f6;
+    border: 1px solid #e0ebe4;
+    border-radius: 13px;
+}
+
+.confirmation-property-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 58px;
+    height: 58px;
+    flex-shrink: 0;
+    background: #e1efe9;
+    border-radius: 11px;
+    overflow: hidden;
+}
+
+    .confirmation-property-icon img {
+        display: block;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+.confirmation-property > div:last-child {
+    min-width: 0;
+}
+
+.confirmation-property strong {
+    display: block;
+    color: #173d32;
+    font-size: 14px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+}
+
+.confirmation-property p {
+    margin: 5px 0 0;
+    color: #788796;
+    font-size: 12px;
+    overflow-wrap: anywhere;
+}
+
+
+/* ============================================================
+   22. CONFIRMATION ACTION BUTTONS
+   ============================================================ */
+
+.confirmation-actions {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-top: 28px;
+}
+
+.cancel-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 11px 18px;
+    background: #ffffff;
+    color: #40564c;
+    border: 1px solid #d6e2da;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+    .cancel-button:hover:not(:disabled) {
+        background: #f1f7f3;
+        border-color: #a9c9b8;
+    }
+
+.decline-confirm-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 42px;
+    padding: 11px 18px;
+    background: #c52828;
+    color: #ffffff;
+    border: 1px solid #c52828;
+    border-radius: 10px;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 750;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+    .decline-confirm-button:hover:not(:disabled) {
+        background: #a91f1f;
+        border-color: #a91f1f;
+        transform: translateY(-1px);
+    }
+
+
+/* ============================================================
+   23. LARGE TABLET RESPONSIVENESS
+   ============================================================ */
+
+@media (max-width: 1100px) {
+
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .application-card {
+        grid-template-columns: 50px minmax(0, 1fr) minmax(190px, 1fr);
+    }
+
+    .application-right {
+        grid-column: 2 / -1;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .application-date {
+        text-align: left;
+    }
+}
+
+
+/* ============================================================
+   24. TABLET RESPONSIVENESS
+   ============================================================ */
+
+@media (max-width: 768px) {
+
+    .applications-page {
+        padding: 26px 20px 50px;
+    }
+
+    .page-header {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 18px;
+    }
+
+        .page-header > div:first-child {
+            flex: 1 1 auto;
+        }
+
+        .page-header h1 {
+            font-size: 30px;
+        }
+
+    .header-filters {
+        width: 100%;
+    }
+
+    .search-input {
+        flex: 1 1 220px;
+        width: auto;
+    }
+
+    .status-filter {
+        flex: 1 1 150px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .stat-card {
+        min-height: 95px;
+        padding: 16px;
+        gap: 12px;
+    }
+
+    .stat-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 20px;
+    }
+
+    .stat-card strong {
+        font-size: 24px;
+    }
+
+    .application-card {
+        grid-template-columns: 48px minmax(0, 1fr);
+        gap: 16px;
+        padding: 20px;
+    }
+
+    .applicant-avatar {
+        width: 48px;
+        height: 48px;
+    }
+
+    .applicant-details {
+        grid-column: 2;
+    }
+
+    .property-details {
+        grid-column: 2;
+    }
+
+    .application-right {
+        grid-column: 2;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .application-date {
+        text-align: left;
+    }
+
+    .card-actions {
+        justify-content: flex-start;
+    }
+}
+
+
+/* ============================================================
+   25. MOBILE RESPONSIVENESS
+   ============================================================ */
+
+@media (max-width: 480px) {
+
+    .applications-page {
+        padding: 20px 14px 40px;
+    }
+
+    .page-header h1 {
+        font-size: 27px;
+    }
+
+    .page-header p {
+        font-size: 13px;
+    }
+
+    .header-filters {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+
+    .search-input,
+    .status-filter {
+        width: 100%;
+        min-width: 0;
+        flex: none;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+    }
+
+    .stat-card {
+        flex-direction: column;
+        align-items: flex-start;
+        min-height: 120px;
+        padding: 15px;
+    }
+
+        .stat-card strong {
+            font-size: 25px;
+        }
+
+        .stat-card span {
+            font-size: 11px;
+        }
+
+    .application-card {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 18px;
+    }
+
+    .applicant-avatar,
+    .applicant-details,
+    .property-details,
+    .application-right {
+        grid-column: 1;
+    }
+
+    .applicant-top {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .property-details {
+        padding-top: 12px;
+        border-top: 1px solid #edf1ee;
+    }
+
+    .application-right {
+        padding-top: 12px;
+        border-top: 1px solid #edf1ee;
+    }
+
+    .card-actions {
+        width: 100%;
+    }
+
+        .card-actions button {
+            flex: 1 1 auto;
+        }
+
+    .confirmation-dialog {
+        padding: 26px 20px;
+    }
+
+        .confirmation-dialog h2 {
+            font-size: 21px;
+        }
+
+    .confirmation-actions {
+        flex-direction: column-reverse;
+        align-items: stretch;
+    }
+
+        .confirmation-actions button {
+            width: 100%;
+        }
+
+    .state-card {
+        padding: 35px 20px;
+    }
+}
+
+
+/* ============================================================
+   26. REDUCED MOTION ACCESSIBILITY
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+
+    .stat-card,
+    .application-card,
+    .primary-button,
+    .decline-button,
+    .decline-confirm-button,
+    .cancel-button,
+    .close-dialog {
+        transition: none;
+    }
+
+        .stat-card:hover,
+        .application-card:hover,
+        .primary-button:hover,
+        .decline-button:hover,
+        .decline-confirm-button:hover {
+            transform: none;
+        }
+}
