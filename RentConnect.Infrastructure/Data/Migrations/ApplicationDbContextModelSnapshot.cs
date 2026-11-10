@@ -18,7 +18,7 @@ namespace RentConnect.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "10.0.13")
+                .HasAnnotation("ProductVersion", "10.0.14")
                 .HasAnnotation("Relational:MaxIdentifierLength", 128);
 
             SqlServerModelBuilderExtensions.UseIdentityColumns(modelBuilder);
@@ -388,9 +388,9 @@ namespace RentConnect.Migrations
 
                     b.ToTable("MaintenanceMessages", null, t =>
                         {
-                            t.HasCheckConstraint("CK_MaintenanceMessages_Deletion", "([DeletedAtUtc] IS NULL AND [DeletedByUserProfileId] IS NULL)\nOR\n([DeletedAtUtc] IS NOT NULL AND [DeletedByUserProfileId] IS NOT NULL)");
+                            t.HasCheckConstraint("CK_MaintenanceMessages_Deletion", "([DeletedAtUtc] IS NULL AND [DeletedByUserProfileId] IS NULL)\r\nOR\r\n([DeletedAtUtc] IS NOT NULL AND [DeletedByUserProfileId] IS NOT NULL)");
 
-                            t.HasCheckConstraint("CK_MaintenanceMessages_EditedAfterCreation", "[EditedAtUtc] IS NULL\nOR [EditedAtUtc] > [CreatedAtUtc]");
+                            t.HasCheckConstraint("CK_MaintenanceMessages_EditedAfterCreation", "[EditedAtUtc] IS NULL\r\nOR [EditedAtUtc] > [CreatedAtUtc]");
                         });
                 });
 
@@ -555,6 +555,34 @@ namespace RentConnect.Migrations
                     b.HasIndex("CreatedAtUtc");
 
                     b.ToTable("Properties", (string)null);
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.PropertyImage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasMaxLength(5242880)
+                        .HasColumnType("varbinary(max)");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<Guid>("PropertyId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTimeOffset>("UploadedAtUtc")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PropertyId", "UploadedAtUtc");
+
+                    b.ToTable("PropertyImages", (string)null);
                 });
 
             modelBuilder.Entity("RentConnect.Core.Entities.PropertyOwner", b =>
@@ -1251,6 +1279,15 @@ namespace RentConnect.Migrations
                     b.HasOne("RentConnect.Core.Entities.MaintenanceRequest", null)
                         .WithMany("StatusHistory")
                         .HasForeignKey("MaintenanceRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RentConnect.Core.Entities.PropertyImage", b =>
+                {
+                    b.HasOne("RentConnect.Core.Entities.Property", null)
+                        .WithMany()
+                        .HasForeignKey("PropertyId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

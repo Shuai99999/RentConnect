@@ -34,6 +34,7 @@ builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuth
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISharedBillService, SharedBillService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
+builder.Services.AddScoped<IPropertyImageService, PropertyImageService>();
 builder.Services.AddScoped<ITenancyService, TenancyService>();
 builder.Services.AddScoped<IRentalListingService, RentalListingService>();
 
@@ -129,9 +130,10 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
         options.Lockout.MaxFailedAccessAttempts = 5;
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
     })
-    .AddEntityFrameworkStores<ApplicationDbContext>()
-    .AddSignInManager()
-    .AddDefaultTokenProviders();
+    .AddRoles<IdentityRole>()
+.AddEntityFrameworkStores<ApplicationDbContext>()
+.AddSignInManager()
+.AddDefaultTokenProviders();
 
 builder.Services.ConfigureApplicationCookie(options =>
 {
@@ -156,6 +158,27 @@ if (builder.Configuration.GetValue(
     await using var migrationContext =
         await dbContextFactory.CreateDbContextAsync();
     await migrationContext.Database.MigrateAsync();
+}
+
+using (var scope = app.Services.CreateScope())
+{
+    var roleManager = scope.ServiceProvider
+        .GetRequiredService<RoleManager<IdentityRole>>();
+
+    foreach (var role in new[] { "Landlord", "Renter" })
+    {
+        if (!await roleManager.RoleExistsAsync(role))
+        {
+            var result = await roleManager.CreateAsync(
+                new IdentityRole(role));
+
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to create role: {role}");
+            }
+        }
+    }
 }
 
 // Configure the HTTP request pipeline.
@@ -283,6 +306,18 @@ app.MapGet(
             ? Results.Ok(new { status = "healthy" })
             : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
     });
+
+app.MapGet("/properties/images/{imageId:guid}", async (
+    Guid imageId, HttpContext http, UserManager<ApplicationUser> users,
+    IPropertyImageService images, CancellationToken cancellationToken) =>
+{
+    var user = await users.GetUserAsync(http.User);
+    if (user?.UserProfileId is not Guid userId) return Results.NotFound();
+    var image = await images.OpenAsync(imageId,userId,cancellationToken);
+    http.Response.Headers["Cache-Control"] = "private, no-store";
+    http.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    return image is null ? Results.NotFound() : Results.File(image.Content,image.ContentType);
+}).RequireAuthorization();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()

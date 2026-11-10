@@ -12,7 +12,9 @@ public sealed record PublicListingSummary(
     string? Region,
     decimal MonthlyRent,
     DateOnly AvailableFrom,
-    int TenantCount);
+    int TenantCount,
+    Guid PropertyId = default,
+    Guid? CoverImageId = null);
 
 public sealed record PublicListingDetails(
     Guid Id,
@@ -29,7 +31,10 @@ public sealed record PublicListingDetails(
     DateOnly AvailableFrom,
     int TenantCount,
     bool CanManage,
-    RentalApplicationStatus? CurrentUserApplicationStatus);
+    RentalApplicationStatus? CurrentUserApplicationStatus,
+    Guid PropertyId = default,
+    double? Latitude = null,
+    double? Longitude = null);
 
 public sealed record OwnedListingUnit(
     Guid RentalUnitId,
@@ -43,7 +48,8 @@ public sealed record OwnedListingUnit(
     string? Description,
     decimal? MonthlyRent,
     DateOnly? AvailableFrom,
-    bool IsPublished);
+    bool IsPublished,
+    Guid PropertyId = default);
 
 public sealed record ManagedRentalApplication(
     Guid Id,

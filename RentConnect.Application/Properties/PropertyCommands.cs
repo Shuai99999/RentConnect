@@ -9,7 +9,9 @@ public sealed record CreatePropertyCommand(
     string City,
     string? Region,
     string? PostalCode,
-    string CountryCode);
+    string CountryCode,
+    double? Latitude = null,
+    double? Longitude = null);
 
 public sealed record UpdatePropertyCommand(
     Guid PropertyId,
@@ -19,7 +21,9 @@ public sealed record UpdatePropertyCommand(
     string City,
     string? Region,
     string? PostalCode,
-    string CountryCode);
+    string CountryCode,
+    double? Latitude = null,
+    double? Longitude = null);
 
 public sealed record AddRentalUnitCommand(
     Guid PropertyId,

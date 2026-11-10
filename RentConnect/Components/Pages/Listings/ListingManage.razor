@@ -1,5 +1,5 @@
 @page "/listings/manage"
-@attribute [Authorize]
+@attribute [Authorize(Roles = "Landlord")]
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization

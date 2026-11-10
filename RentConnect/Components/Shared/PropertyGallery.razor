@@ -1,0 +1,91 @@
+@using RentConnect.Application.Properties
+@using RentConnect.Core.Entities
+@using RentConnect.Services
+@inject IPropertyImageService Images
+@inject CurrentUserProfileService CurrentUser
+@inject ILogger<PropertyGallery> Logger
+
+<section class="property-gallery" aria-label="Property photographs">
+    @if (_loading)
+    {
+        <p>Loading photographs...</p>
+    }
+    else if (_images.Count == 0)
+    {
+        <p class="photo-empty">No photographs have been added yet.</p>
+    }
+    <div class="property-photo-grid">
+        @foreach (var image in _images)
+        {
+            <figure @key="image.Id">
+                <img src="@($"/properties/images/{image.Id}")" alt="Property photograph" loading="lazy" />
+                @if (CanManage)
+                {
+                    <button type="button" class="text-button danger-text" disabled="@_busy" @onclick="() => DeleteAsync(image.Id)">Remove photograph</button>
+                }
+            </figure>
+        }
+    </div>
+    @if (CanManage)
+    {
+        <div class="property-photo-picker">
+            <label for="@_inputId">Choose a photograph</label>
+            <InputFile id="@_inputId" OnChange="UploadAsync" accept="image/jpeg,image/png" disabled="@(_busy || _images.Count >= 10)" />
+            <small>JPEG or PNG, up to 5 MB each. Maximum 10 photographs. The first photograph is the listing cover.</small>
+            @if (_busy) { <p role="status">Saving photograph...</p> }
+        </div>
+    }
+    @if (_error is not null) { <p class="photo-error" role="alert">@_error</p> }
+    @if (_message is not null) { <p class="photo-success" role="status">@_message</p> }
+</section>
+
+@code {
+    [Parameter] public Guid PropertyId { get; set; }
+    [Parameter] public bool CanManage { get; set; }
+    private readonly string _inputId = $"property-photo-{Guid.NewGuid():N}";
+    private Guid _user;
+    private bool _busy, _loading = true;
+    private string? _error, _message;
+    private IReadOnlyList<PropertyImageItem> _images = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true; _error = null;
+        try
+        {
+            _user = await CurrentUser.GetRequiredUserProfileIdAsync();
+            await ReloadAsync();
+        }
+        catch (Exception e) { Logger.LogError(e,"Could not load property photographs."); _error = "Photographs could not be loaded. Please refresh the page."; }
+        finally { _loading = false; }
+    }
+    private async Task ReloadAsync() => _images = await Images.GetAsync(PropertyId,_user);
+
+    private async Task UploadAsync(InputFileChangeEventArgs args)
+    {
+        if (_busy) return;
+        _busy = true; _error = null; _message = null;
+        try
+        {
+            if (args.File.Size > PropertyImage.MaxBytes) throw new ArgumentException("Choose a photograph smaller than 5 MB.");
+            await using var stream = args.File.OpenReadStream(PropertyImage.MaxBytes);
+            await Images.AddAsync(PropertyId,_user,stream);
+            await ReloadAsync();
+            _message = "Photograph uploaded. It is now saved with this property.";
+        }
+        catch (Exception e)
+        {
+            Logger.LogError(e,"Could not upload property photograph.");
+            _error = e is ArgumentException or IOException or InvalidOperationException ? e.Message : "The photograph could not be saved. Please try again.";
+        }
+        finally { _busy = false; }
+    }
+    private async Task DeleteAsync(Guid imageId)
+    {
+        if (_busy) return;
+        _busy = true; _error = null; _message = null;
+        try { await Images.DeleteAsync(imageId,_user); await ReloadAsync(); _message = "Photograph removed."; }
+        catch (Exception e) { Logger.LogError(e,"Could not remove property photograph."); _error = "The photograph could not be removed. Please refresh and try again."; }
+        finally { _busy = false; }
+    }
+}

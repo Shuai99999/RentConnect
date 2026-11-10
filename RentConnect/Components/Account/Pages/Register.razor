@@ -54,6 +54,18 @@
                 <label for="Input.ConfirmPassword">Confirm Password</label>
                 <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
             </div>
+            <div class="form-floating mb-3">
+                <InputSelect @bind-Value="Input.Role"
+                             id="Input.Role"
+                             class="form-select">
+                    <option value="">Select account type</option>
+                    <option value="Renter">Renter</option>
+                    <option value="Landlord">Landlord</option>
+                </InputSelect>
+                <label for="Input.Role">Account type</label>
+                <ValidationMessage For="() => Input.Role"
+                                   class="text-danger" />
+            </div>
             <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
         </EditForm>
     </div>
@@ -101,6 +113,24 @@
         if (!result.Succeeded)
         {
             identityErrors = result.Errors;
+            return;
+        }
+
+        var roleResult = await UserManager.AddToRoleAsync(user, Input.Role);
+
+        if (!roleResult.Succeeded)
+        {
+            identityErrors = roleResult.Errors;
+
+            var deleteResult = await UserManager.DeleteAsync(user);
+
+            if (!deleteResult.Succeeded)
+            {
+                Logger.LogError(
+                    "Failed to remove account after role assignment failure.");
+            }
+
+            Logger.LogError("Failed to assign role during registration.");
             return;
         }
 
@@ -172,5 +202,10 @@
         [Display(Name = "Confirm password")]
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = "";
+        [Required(ErrorMessage = "Please select an account type.")]
+        [RegularExpression("^(Renter|Landlord)$",
+    ErrorMessage = "Please select a valid account type.")]
+        [Display(Name = "Account type")]
+        public string Role { get; set; } = "";
     }
 }

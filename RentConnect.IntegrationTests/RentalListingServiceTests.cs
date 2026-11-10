@@ -46,7 +46,8 @@ public sealed class RentalListingServiceTests
             context.Tenancies.Add(emptyTenancy);
             await context.SaveChangesAsync();
 
-            var service = new RentalListingService(factory, new TestTimeProvider(now));
+            var testClock = new TestTimeProvider(now);
+            var service = new RentalListingService(factory, testClock);
             var listingId = await service.PublishAsync(
                 new PublishListingCommand(unitId, "Sunny garden suite", "Walk to campus.", 1250m, availableFrom),
                 ownerId);
@@ -88,6 +89,7 @@ public sealed class RentalListingServiceTests
             Assert.Equal(availableFrom, Assert.Single(tenancy.Members).JoinedOn);
             Assert.False((await context.RentalListings.SingleAsync(item => item.Id == listingId)).IsPublished);
             Assert.Empty(await service.GetPublishedAsync());
+            testClock.CurrentTime = new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);
 
             var resolved = await service.GetManagedApplicationsAsync(ownerId);
             Assert.Equal(RentalApplicationStatus.Approved,
@@ -168,6 +170,8 @@ public sealed class RentalListingServiceTests
 
     private sealed class TestTimeProvider(DateTimeOffset now) : TimeProvider
     {
-        public override DateTimeOffset GetUtcNow() => now;
+        public DateTimeOffset CurrentTime { get; set; } = now;
+
+        public override DateTimeOffset GetUtcNow() => CurrentTime;
     }
 }

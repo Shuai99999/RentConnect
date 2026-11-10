@@ -37,4 +37,6 @@ public sealed record PropertyDetails(
     string CountryCode,
     bool CanManage,
     IReadOnlyList<string> OwnerNames,
-    IReadOnlyList<RentalUnitItem> Units);
+    IReadOnlyList<RentalUnitItem> Units,
+    double? Latitude = null,
+    double? Longitude = null);
