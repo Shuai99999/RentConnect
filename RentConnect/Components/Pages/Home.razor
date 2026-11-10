@@ -3,13 +3,19 @@
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using RentConnect.Application.Billing
+@using RentConnect.Application.Listings
 @using RentConnect.Application.Maintenance
 @using RentConnect.Application.Notifications
+@using RentConnect.Application.Properties
 @using RentConnect.Core.Enums
 @using RentConnect.Services
 
+@inject AuthenticationStateProvider AuthenticationStateProvider
 @inject CurrentUserProfileService CurrentUserProfileService
+@inject IPropertyService PropertyService
+@inject IRentalListingService RentalListingService
 @inject IMaintenanceService MaintenanceService
 @inject ISharedBillService SharedBillService
 @inject INotificationService NotificationService
@@ -39,91 +45,166 @@
     {
         <header class="dashboard-hero">
             <div class="hero-copy">
-                <p class="eyebrow">Rental overview</p>
+                <p class="eyebrow">@(_isLandlord ? "Landlord workspace" : "Renter overview")</p>
                 <h1>Welcome back, @GetFirstName(_displayName)</h1>
-                <p>
-                    Browse available homes, manage your listings, and keep up with
-                    everything happening in your tenancy.
-                </p>
+                <p>@GetHeroDescription()</p>
             </div>
 
-            
             <div class="quick-actions" aria-label="Quick actions">
-                <a class="primary-action" href="/listings">
-                    <span aria-hidden="true">⌕</span>
-                    Find a home
-                </a>
-
-                <a class="secondary-action" href="/bills/new">
-                    Add a bill
-                </a>
-
-                <a class="secondary-action" href="/Account/Manage">
-                    My Account
-                </a>
-                <AuthorizeView Roles="Landlord">
+                @if (_isLandlord)
+                {
+                    <a class="primary-action" href="/properties/new">
+                        <span aria-hidden="true">+</span>
+                        Add property
+                    </a>
                     <a class="secondary-action" href="/listings/manage">
                         Manage listings
                     </a>
-                </AuthorizeView>
+                    <a class="secondary-action" href="/rental-applications">
+                        Applications
+                    </a>
+                    <a class="secondary-action" href="/bills/new">
+                        Add bill
+                    </a>
+                }
+                else
+                {
+                    <a class="primary-action" href="/listings">
+                        <span aria-hidden="true">⌕</span>
+                        Find a home
+                    </a>
+                    <a class="secondary-action" href="/maintenance/new">
+                        Report a problem
+                    </a>
+                    <a class="secondary-action" href="/tenancies">
+                        My tenancy
+                    </a>
+                    <a class="secondary-action" href="/bills">
+                        My bills
+                    </a>
+                }
             </div>
-
         </header>
 
         <section class="summary-grid" aria-label="Account summary">
-            <a class="summary-card" href="/maintenance">
-                <span class="summary-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                        <path d="m14.5 6.5 3-3a4 4 0 0 1-5 5l-6.8 6.8a2.4 2.4 0 1 1-3-3l6.8-6.8a4 4 0 0 1 5-5l-3 3 3 3Z" />
-                    </svg>
-                </span>
-                <span class="summary-copy">
-                    <small>Active requests</small>
-                    <strong>@_activeRequestCount</strong>
-                    <span>@GetRequestSummary()</span>
-                </span>
-                <span class="card-arrow" aria-hidden="true">→</span>
-            </a>
+            @if (_isLandlord)
+            {
+                <a class="summary-card" href="/properties">
+                    <span class="summary-icon property-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="m3 11 9-7 9 7" />
+                            <path d="M5 10v10h14V10M9 20v-6h6v6" />
+                        </svg>
+                    </span>
+                    <span class="summary-copy">
+                        <small>Properties</small>
+                        <strong>@_propertyCount</strong>
+                        <span>@GetPropertySummary()</span>
+                    </span>
+                    <span class="card-arrow" aria-hidden="true">→</span>
+                </a>
 
-            <a class="summary-card" href="/bills">
-                <span class="summary-icon bill-icon" aria-hidden="true">$</span>
-                <span class="summary-copy">
-                    <small>Bills to review</small>
-                    <strong>@_attentionBillCount</strong>
-                    <span>@GetBillSummary()</span>
-                </span>
-                <span class="card-arrow" aria-hidden="true">→</span>
-            </a>
+                <a class="summary-card" href="/listings/manage">
+                    <span class="summary-icon listing-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M4 5h16v14H4z" />
+                            <path d="M8 9h8M8 13h6" />
+                        </svg>
+                    </span>
+                    <span class="summary-copy">
+                        <small>Published listings</small>
+                        <strong>@_publishedListingCount</strong>
+                        <span>@GetListingSummary()</span>
+                    </span>
+                    <span class="card-arrow" aria-hidden="true">→</span>
+                </a>
 
-            <a class="summary-card" href="/notifications">
-                <span class="summary-icon notification-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                        <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
-                        <path d="M10 21h4" />
-                    </svg>
-                </span>
-                <span class="summary-copy">
-                    <small>Unread updates</small>
-                    <strong>@_unreadNotificationCount</strong>
-                    <span>@(_unreadNotificationCount == 0 ? "You're all caught up" : "New activity needs a look")</span>
-                </span>
-                <span class="card-arrow" aria-hidden="true">→</span>
-            </a>
+                <a class="summary-card" href="/rental-applications">
+                    <span class="summary-icon application-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="m17 11 2 2 4-4" />
+                        </svg>
+                    </span>
+                    <span class="summary-copy">
+                        <small>Pending applications</small>
+                        <strong>@_pendingApplicationCount</strong>
+                        <span>@GetApplicationSummary()</span>
+                    </span>
+                    <span class="card-arrow" aria-hidden="true">→</span>
+                </a>
 
-            <a class="summary-card rental-summary" href="/tenancies">
-                <span class="summary-icon rental-icon" aria-hidden="true">
-                    <svg viewBox="0 0 24 24" focusable="false">
-                        <path d="m3 11 9-7 9 7" />
-                        <path d="M5 10v10h14V10M9 20v-6h6v6" />
-                    </svg>
-                </span>
-                <span class="summary-copy">
-                    <small>Active tenancies</small>
-                    <strong>@_tenancies.Count</strong>
-                    <span>@GetRentalSummary()</span>
-                </span>
-                <span class="card-arrow" aria-hidden="true">→</span>
-            </a>
+                <a class="summary-card" href="/maintenance">
+                    <span class="summary-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="m14.5 6.5 3-3a4 4 0 0 1-5 5l-6.8 6.8a2.4 2.4 0 1 1-3-3l6.8-6.8a4 4 0 0 1 5-5l-3 3 3 3Z" />
+                        </svg>
+                    </span>
+                    <span class="summary-copy">
+                        <small>Active requests</small>
+                        <strong>@_activeRequestCount</strong>
+                        <span>@GetRequestSummary()</span>
+                    </span>
+                    <span class="card-arrow" aria-hidden="true">→</span>
+                </a>
+            }
+            else
+            {
+                <a class="summary-card rental-summary" href="/tenancies">
+                    <span class="summary-icon rental-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="m3 11 9-7 9 7" />
+                            <path d="M5 10v10h14V10M9 20v-6h6v6" />
+                        </svg>
+                    </span>
+                    <span class="summary-copy">
+                        <small>Active tenancies</small>
+                        <strong>@_tenancies.Count</strong>
+                        <span>@GetRentalSummary()</span>
+                    </span>
+                    <span class="card-arrow" aria-hidden="true">→</span>
+                </a>
+
+                <a class="summary-card" href="/bills">
+                    <span class="summary-icon bill-icon" aria-hidden="true">$</span>
+                    <span class="summary-copy">
+                        <small>Bills to review</small>
+                        <strong>@_attentionBillCount</strong>
+                        <span>@GetBillSummary()</span>
+                    </span>
+                    <span class="card-arrow" aria-hidden="true">→</span>
+                </a>
+
+                <a class="summary-card" href="/maintenance">
+                    <span class="summary-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="m14.5 6.5 3-3a4 4 0 0 1-5 5l-6.8 6.8a2.4 2.4 0 1 1-3-3l6.8-6.8a4 4 0 0 1 5-5l-3 3 3 3Z" />
+                        </svg>
+                    </span>
+                    <span class="summary-copy">
+                        <small>Active requests</small>
+                        <strong>@_activeRequestCount</strong>
+                        <span>@GetRequestSummary()</span>
+                    </span>
+                    <span class="card-arrow" aria-hidden="true">→</span>
+                </a>
+
+                <a class="summary-card" href="/notifications">
+                    <span class="summary-icon notification-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" focusable="false">
+                            <path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z" />
+                            <path d="M10 21h4" />
+                        </svg>
+                    </span>
+                    <span class="summary-copy">
+                        <small>Unread updates</small>
+                        <strong>@_unreadNotificationCount</strong>
+                        <span>@(_unreadNotificationCount == 0 ? "You're all caught up" : "New activity needs a look")</span>
+                    </span>
+                    <span class="card-arrow" aria-hidden="true">→</span>
+                </a>
+            }
         </section>
 
         <div class="dashboard-columns">
@@ -207,6 +288,53 @@
             </section>
         </div>
 
+        @if (_isLandlord)
+        {
+            <section class="dashboard-panel applications-panel">
+                <header class="panel-heading">
+                    <div>
+                        <p class="eyebrow">Rental applications</p>
+                        <h2>Recent applicants</h2>
+                    </div>
+                    <a href="/rental-applications">Review all <span aria-hidden="true">→</span></a>
+                </header>
+
+                @if (_recentApplications.Count == 0)
+                {
+                    <div class="compact-empty">
+                        <span aria-hidden="true">✓</span>
+                        <div>
+                            <strong>No applications waiting</strong>
+                            <p>New applications to your listings will appear here.</p>
+                        </div>
+                    </div>
+                }
+                else
+                {
+                    <div class="application-list">
+                        @foreach (var application in _recentApplications)
+                        {
+                            <a class="application-item" href="/rental-applications">
+                                <span class="applicant-avatar" aria-hidden="true">
+                                    @GetInitials(application.ApplicantName)
+                                </span>
+                                <span class="item-main">
+                                    <strong>@application.ApplicantName</strong>
+                                    <small>@application.ListingTitle · @application.RentalUnitName</small>
+                                </span>
+                                <span class="application-meta">
+                                    <span class="@($"status-pill application-status-{application.Status.ToString().ToLowerInvariant()}")">
+                                        @application.Status
+                                    </span>
+                                    <LocalDateTime Value="application.CreatedAtUtc" Display="LocalDateTimeDisplay.Relative" />
+                                </span>
+                            </a>
+                        }
+                    </div>
+                }
+            </section>
+        }
+
         <section class="dashboard-panel activity-panel">
             <header class="panel-heading">
                 <div>
@@ -252,13 +380,20 @@
     private readonly List<MaintenanceRequestSummary> _recentRequests = [];
     private readonly List<SharedBillSummary> _upcomingBills = [];
     private readonly List<UserNotificationItem> _recentNotifications = [];
+    private readonly List<ManagedRentalApplication> _recentApplications = [];
     private string _displayName = "there";
     private string? _errorMessage;
+    private int _propertyCount;
+    private int _unitCount;
+    private int _occupiedUnitCount;
+    private int _publishedListingCount;
+    private int _pendingApplicationCount;
     private int _activeRequestCount;
     private int _attentionBillCount;
     private int _urgentRequestCount;
     private int _overdueBillCount;
     private int _unreadNotificationCount;
+    private bool _isLandlord;
     private bool _isLoading = true;
 
     protected override Task OnInitializedAsync() => LoadDashboardAsync();
@@ -273,6 +408,10 @@
             var profile = await CurrentUserProfileService
                 .GetRequiredUserProfileAsync();
             _displayName = profile.DisplayName;
+
+            var authenticationState = await AuthenticationStateProvider
+                .GetAuthenticationStateAsync();
+            _isLandlord = authenticationState.User.IsInRole("Landlord");
 
             var tenancies = await MaintenanceService
                 .GetAvailableTenanciesAsync(profile.Id);
@@ -297,7 +436,9 @@
                 request.Priority is MaintenancePriority.High or
                     MaintenancePriority.Emergency);
             _recentRequests.Clear();
-            _recentRequests.AddRange(requests.Take(4));
+            _recentRequests.AddRange(requests
+                .OrderByDescending(request => request.UpdatedAtUtc)
+                .Take(4));
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
             var attentionBills = bills
@@ -315,22 +456,77 @@
 
             _recentNotifications.Clear();
             _recentNotifications.AddRange(notifications.Take(4));
-        }
 
-    
+            ResetLandlordSummary();
+            if (_isLandlord)
+            {
+                await LoadLandlordSummaryAsync(profile.Id);
+            }
+        }
         catch (Exception exception)
         {
             Console.Error.WriteLine(exception);
             _errorMessage =
                 "Please try again. If the problem continues, contact support.";
         }
-
-
         finally
         {
             _isLoading = false;
         }
     }
+
+    private async Task LoadLandlordSummaryAsync(Guid userProfileId)
+    {
+        var properties = await PropertyService
+            .GetVisiblePropertiesAsync(userProfileId);
+        var units = await RentalListingService
+            .GetOwnedUnitsAsync(userProfileId);
+        var applications = await RentalListingService
+            .GetManagedApplicationsAsync(userProfileId);
+
+        _propertyCount = properties.Count(property => property.CanManage);
+        _unitCount = units.Count;
+        _occupiedUnitCount = units.Count(unit => unit.HasTenants);
+        _publishedListingCount = units.Count(unit => unit.IsPublished);
+        _pendingApplicationCount = applications.Count(application =>
+            application.Status == RentalApplicationStatus.Pending);
+
+        _recentApplications.AddRange(applications
+            .OrderByDescending(application => application.CreatedAtUtc)
+            .Take(4));
+    }
+
+    private void ResetLandlordSummary()
+    {
+        _propertyCount = 0;
+        _unitCount = 0;
+        _occupiedUnitCount = 0;
+        _publishedListingCount = 0;
+        _pendingApplicationCount = 0;
+        _recentApplications.Clear();
+    }
+
+    private string GetHeroDescription() => _isLandlord
+        ? "Track your properties, published listings, applications, maintenance, and shared bills from one place."
+        : "Keep up with your tenancy, shared bills, maintenance requests, and recent account activity.";
+
+    private string GetPropertySummary() =>
+        _unitCount == 0
+            ? "No rental units added"
+            : $"{_unitCount} unit{(_unitCount == 1 ? string.Empty : "s")} · {_occupiedUnitCount} occupied";
+
+    private string GetListingSummary()
+    {
+        var unpublishedCount = Math.Max(0, _unitCount - _publishedListingCount);
+        return unpublishedCount == 0
+            ? "All eligible spaces are listed"
+            : $"{unpublishedCount} space{(unpublishedCount == 1 ? string.Empty : "s")} not published";
+    }
+
+    private string GetApplicationSummary() =>
+        _pendingApplicationCount == 0
+            ? "No applications waiting"
+            : "Waiting for your review";
 
     private string GetRequestSummary() =>
         _urgentRequestCount > 0
@@ -364,6 +560,20 @@
         var parts = displayName
             .Split(' ', StringSplitOptions.RemoveEmptyEntries);
         return parts.Length == 0 ? "there" : parts[0];
+    }
+
+    private static string GetInitials(string displayName)
+    {
+        var parts = displayName
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
+        return parts.Length switch
+        {
+            0 => "?",
+            1 => parts[0][..1].ToUpperInvariant(),
+            _ => string.Concat(parts[0][..1], parts[^1][..1])
+                .ToUpperInvariant()
+        };
     }
 
     private static string FormatDueDate(DateOnly dueDate)
