@@ -29,3 +29,35 @@
     .listing-card { transition: none; }
     .listing-card:hover { transform: none; }
 }
+
+.city-filter {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: .75rem;
+    margin-bottom: 1.5rem;
+    padding: 1rem;
+    background: #fff;
+    border: 1px solid #dce5e3;
+    border-radius: 14px;
+}
+
+.city-filter-field {
+    display: grid;
+    flex: 1 1 14rem;
+    gap: .4rem;
+    min-width: 0;
+}
+
+.city-filter-field label {
+    font-weight: 700;
+}
+
+.city-filter-field input {
+    width: 100%;
+    min-height: 44px;
+    padding: .55rem .75rem;
+    border: 1px solid #a2b4b0;
+    border-radius: 8px;
+    font: inherit;
+}
