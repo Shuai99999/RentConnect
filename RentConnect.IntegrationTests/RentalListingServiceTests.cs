@@ -135,6 +135,75 @@ public sealed class RentalListingServiceTests
         }
     }
 
+    [Fact]
+    public async Task SearchNearbyAsync_IncludesNearbyCitiesAndUsesSavedCoordinates()
+    {
+        await using var provider = CreateServiceProvider(CreateConnectionString());
+        var factory = provider.GetRequiredService<IDbContextFactory<ApplicationDbContext>>();
+        await using var context = await factory.CreateDbContextAsync();
+        var ownerId = Guid.NewGuid();
+        var cityCentre = new GeoCoordinate(51.05, -114.07);
+
+        try
+        {
+            await context.Database.MigrateAsync();
+            AddUser(context, ownerId, "Landlord", "owner@example.com");
+
+            var downtown = AddUnit("Calgary");
+            var airdrie = AddUnit("Airdrie");
+            var edmonton = AddUnit("Edmonton");
+            var geolocated = AddUnit("Rocky View County", cityCentre);
+            var unlocated = AddUnit("Unmapped community");
+            var draft = AddUnit("Chestermere");
+            await context.SaveChangesAsync();
+
+            var now = new DateTimeOffset(2026, 11, 1, 12, 0, 0, TimeSpan.Zero);
+            var service = new RentalListingService(factory, new TestTimeProvider(now));
+            foreach (var unit in new[] { downtown, airdrie, edmonton, geolocated, unlocated, draft })
+            {
+                await service.SaveAsync(
+                    new PublishListingCommand(unit.Id, unit.Name, "Rental details", 1000m,
+                        DateOnly.FromDateTime(now.UtcDateTime)),
+                    publish: unit != draft,
+                    userProfileId: ownerId);
+            }
+
+            var exact = await service.SearchAsync("Calgary");
+            Assert.Equal(downtown.Name, Assert.Single(exact).Title);
+
+            var nearby = await service.SearchNearbyAsync(" calgary ", 50);
+            Assert.Equal(3, nearby.Count);
+            Assert.Contains(nearby, listing => listing.Title == downtown.Name);
+            Assert.Contains(nearby, listing => listing.Title == geolocated.Name);
+            Assert.Equal(airdrie.Name, nearby[^1].Title);
+            Assert.InRange(nearby[^1].DistanceKm.GetValueOrDefault(), 25d, 35d);
+
+            var closer = await service.SearchNearbyAsync("Calgary", 10);
+            Assert.Equal(2, closer.Count);
+            Assert.DoesNotContain(closer, listing => listing.Title == airdrie.Name);
+        }
+        finally
+        {
+            await context.Database.EnsureDeletedAsync();
+        }
+
+        RentalUnit AddUnit(string city, GeoCoordinate? location = null)
+        {
+            var property = new Property(Guid.NewGuid(), city,
+                new Address("10 College Road", null, city, "Alberta", "T2A 1A1", "CA"),
+                ownerId);
+            if (location is not null)
+            {
+                property.SetLocation(location);
+            }
+
+            var unit = new RentalUnit(Guid.NewGuid(), property.Id, city, RentalUnitType.Apartment);
+            context.Properties.Add(property);
+            context.RentalUnits.Add(unit);
+            return unit;
+        }
+    }
+
     private static void AddUser(ApplicationDbContext context, Guid profileId, string displayName, string email)
     {
         var profile = new UserProfile(profileId, displayName);

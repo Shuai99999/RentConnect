@@ -53,7 +53,8 @@
     font-weight: 700;
 }
 
-.city-filter-field input {
+.city-filter-field input,
+.city-filter-field select {
     width: 100%;
     min-height: 44px;
     padding: .55rem .75rem;
@@ -61,3 +62,8 @@
     border-radius: 8px;
     font: inherit;
 }
+
+.radius-filter { flex: 0 1 11rem; }
+.city-filter-note { flex-basis: 100%; margin: 0; color: #516671; }
+.city-filter-note[role="alert"] { color: #a32424; }
+.location-summary { color: #214e3f; font-weight: 700; }

@@ -4,6 +4,7 @@
 
 @using Microsoft.AspNetCore.Authorization
 @using RentConnect.Application.Listings
+@using RentConnect.Core
 @using RentConnect.Core.Enums
 
 @inject IRentalListingService ListingService
@@ -24,12 +25,29 @@
         </AuthorizeView>
     </header>
 
-    <form class="city-filter" role="search" aria-label="Find rentals by city"
+    <form class="city-filter" role="search" aria-label="Find rentals by location"
           @onsubmit="SearchByCityAsync" @onsubmit:preventDefault>
         <div class="city-filter-field">
             <label for="listing-city">City</label>
             <input id="listing-city" type="search" placeholder="e.g. Edmonton"
-                   @bind="_city" @bind:event="oninput" disabled="@_isLoading" />
+                   @bind="_city" @bind:event="oninput" disabled="@_isLoading" list="nearby-cities" />
+            <datalist id="nearby-cities">
+                @foreach (var city in AlbertaRentalSearch.Cities)
+                {
+                    <option value="@city"></option>
+                }
+            </datalist>
+        </div>
+        <div class="city-filter-field radius-filter">
+            <label for="listing-radius">Distance</label>
+            <select id="listing-radius" @bind="_radiusKm" disabled="@_isLoading"
+                    aria-describedby="radius-help">
+                <option value="0">City only</option>
+                <option value="10">Within 10 km</option>
+                <option value="25">Within 25 km</option>
+                <option value="50">Within 50 km</option>
+                <option value="100">Within 100 km</option>
+            </select>
         </div>
         <button class="primary-button" type="submit" disabled="@_isLoading">Search</button>
         @if (_appliedCity is not null)
@@ -37,7 +55,21 @@
             <button class="secondary-button" type="button" @onclick="ClearCityAsync"
                     disabled="@_isLoading">Clear filter</button>
         }
+        <p id="radius-help" class="city-filter-note">
+            Distance search starts at a supported Alberta city centre. Distances may be approximate.
+        </p>
+        @if (_filterError is not null)
+        {
+            <p class="city-filter-note" role="alert">@_filterError</p>
+        }
     </form>
+
+    @if (_appliedCity is not null && !_isLoading && _error is null)
+    {
+        <p class="location-summary" role="status">
+            @(_appliedRadiusKm > 0 ? $"Within {_appliedRadiusKm} km of {_appliedCity}, AB" : $"City: {_appliedCity}")
+        </p>
+    }
 
     @if (_isLoading)
     {
@@ -50,7 +82,7 @@
     else if (_listings.Count == 0 && _appliedCity is not null)
     {
         <section class="state-card empty-card" role="status">
-            <h2>No rentals found in @_appliedCity</h2>
+            <h2>No rentals match this location</h2>
             <p>Try another city or clear the filter to see all available rentals.</p>
         </section>
     }
@@ -86,7 +118,12 @@
                         <span class="type-badge">@(listing.TenantCount > 0 ? "Shared space" : FormatType(listing.UnitType))</span>
                         <h2>@listing.Title</h2>
                         <p>@listing.PropertyName · @listing.RentalUnitName</p>
-                        <p>@listing.City@FormatRegion(listing.Region)</p>
+                        <p>@listing.City@FormatRegion(listing.Region)
+                            @if (listing.DistanceKm is double distance)
+                            {
+                                <span> · approx. @distance.ToString("0.#") km</span>
+                            }
+                        </p>
                         <div class="listing-footer">
                             <strong>$@listing.MonthlyRent.ToString("N0")<small> total/month</small></strong>
                             <span>Available @listing.AvailableFrom.ToString("MMM d")</span>
@@ -105,26 +142,43 @@
 
     private string _city = string.Empty;
     private string? _appliedCity;
+    private int _radiusKm;
+    private int _appliedRadiusKm;
+    private string? _filterError;
 
-    protected override Task OnInitializedAsync() => LoadListingsAsync(null);
+    protected override Task OnInitializedAsync() => LoadListingsAsync(null, 0);
 
-    private Task SearchByCityAsync() => LoadListingsAsync(_city);
+    private Task SearchByCityAsync()
+    {
+        if (_radiusKm > 0 && AlbertaRentalSearch.FindCentre(_city) is null)
+        {
+            _filterError = "Choose a suggested Alberta city for distance search, or select City only.";
+            return Task.CompletedTask;
+        }
+
+        return LoadListingsAsync(_city, _radiusKm);
+    }
 
     private Task ClearCityAsync()
     {
         _city = string.Empty;
-        return LoadListingsAsync(null);
+        _radiusKm = 0;
+        return LoadListingsAsync(null, 0);
     }
 
-    private async Task LoadListingsAsync(string? city)
+    private async Task LoadListingsAsync(string? city, int radiusKm)
     {
         _isLoading = true;
         _error = null;
+        _filterError = null;
+        _appliedRadiusKm = radiusKm;
         _appliedCity = string.IsNullOrWhiteSpace(city) ? null : city.Trim();
 
         try
         {
-            _listings = await ListingService.SearchAsync(_appliedCity);
+            _listings = radiusKm > 0 && _appliedCity is not null
+                ? await ListingService.SearchNearbyAsync(_appliedCity, radiusKm)
+                : await ListingService.SearchAsync(_appliedCity);
         }
         catch (Exception exception)
         {
