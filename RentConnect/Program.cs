@@ -34,6 +34,16 @@ builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuth
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISharedBillService, SharedBillService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
+var azureMapsKey = builder.Configuration["AzureMaps:SubscriptionKey"];
+if (!string.IsNullOrWhiteSpace(azureMapsKey))
+{
+    builder.Services.AddHttpClient("PropertyGeocoding", client => client.Timeout = TimeSpan.FromSeconds(4))
+        .RemoveAllLoggers();
+    builder.Services.AddScoped<IPropertyGeocoder>(services => new AzureMapsPropertyGeocoder(
+        services.GetRequiredService<IHttpClientFactory>().CreateClient("PropertyGeocoding"),
+        azureMapsKey,
+        services.GetRequiredService<ILogger<AzureMapsPropertyGeocoder>>()));
+}
 builder.Services.AddScoped<IPropertyImageService, PropertyImageService>();
 builder.Services.AddScoped<ITenancyService, TenancyService>();
 builder.Services.AddScoped<IRentalListingService, RentalListingService>();

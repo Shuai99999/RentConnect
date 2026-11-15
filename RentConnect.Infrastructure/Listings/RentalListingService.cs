@@ -234,8 +234,8 @@ public sealed class RentalListingService(
             details.CanManage,
             applicationStatus,
             details.Property.Id,
-            details.Property.Location?.Latitude,
-            details.Property.Location?.Longitude);
+            details.CanManage ? details.Property.Location?.Latitude : null,
+            details.CanManage ? details.Property.Location?.Longitude : null);
     }
 
     public async Task<IReadOnlyList<OwnedListingUnit>>
