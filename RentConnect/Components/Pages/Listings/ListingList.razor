@@ -40,8 +40,7 @@
         </div>
         <div class="city-filter-field radius-filter">
             <label for="listing-radius">Distance</label>
-            <select id="listing-radius" @bind="_radiusKm" disabled="@_isLoading"
-                    aria-describedby="radius-help">
+            <select id="listing-radius" @bind="_radiusKm" disabled="@_isLoading">
                 <option value="0">City only</option>
                 <option value="10">Within 10 km</option>
                 <option value="25">Within 25 km</option>
@@ -55,9 +54,6 @@
             <button class="secondary-button" type="button" @onclick="ClearCityAsync"
                     disabled="@_isLoading">Clear filter</button>
         }
-        <p id="radius-help" class="city-filter-note">
-            Distance search starts at a supported Alberta city centre. Distances may be approximate.
-        </p>
         @if (_filterError is not null)
         {
             <p class="city-filter-note" role="alert">@_filterError</p>
