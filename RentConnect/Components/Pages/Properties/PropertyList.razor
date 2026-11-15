@@ -3,11 +3,12 @@
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using RentConnect.Application.Properties
 @using RentConnect.Services
-@using Microsoft.AspNetCore.Components.Authorization
 
 @inject IPropertyService PropertyService
+@inject IPropertyImageService PropertyImageService
 @inject CurrentUserProfileService CurrentUserProfileService
 
 <PageTitle>Properties</PageTitle>
@@ -19,6 +20,7 @@
             <h1>Properties</h1>
             <p>View rental spaces, current occupancy, and property details.</p>
         </div>
+
         <AuthorizeView Roles="Landlord">
             <a class="primary-button" href="/properties/new">
                 Add property
@@ -28,7 +30,9 @@
 
     @if (_isLoading)
     {
-        <section class="state-card">Loading properties...</section>
+        <section class="state-card">
+            Loading properties...
+        </section>
     }
     else if (_errorMessage is not null)
     {
@@ -45,9 +49,16 @@
                     <path d="m3 11 9-7 9 7M5 10v10h14V10M9 20v-6h6v6" />
                 </svg>
             </span>
+
             <h2>No properties connected yet</h2>
-            <p>Add a property you own, or accept a tenancy invitation when one arrives.</p>
-            <a class="secondary-button" href="/properties/new">Add your first property</a>
+            <p>
+                Add a property you own, or accept a tenancy
+                invitation when one arrives.
+            </p>
+
+            <a class="secondary-button" href="/properties/new">
+                Add your first property
+            </a>
         </section>
     }
     else
@@ -55,26 +66,44 @@
         <section class="property-grid" aria-label="Properties">
             @foreach (var property in _properties)
             {
-                <a class="property-card" href="@($"/properties/{property.Id}")">
-                    <div class="property-visual" aria-hidden="true">
-                        <svg viewBox="0 0 48 48" focusable="false">
-                            <path d="m7 23 17-14 17 14" />
-                            <path d="M11 20v20h26V20M19 40V27h10v13" />
-                        </svg>
+                <a class="property-card"
+                   href="@($"/properties/{property.Id}")">
+
+                    <div class="property-visual">
+                        @if (_coverImages.TryGetValue(
+                            property.Id, out var imageId))
+                        {
+                            <img src="@($"/properties/images/{imageId}")"
+                                 alt="@($"Photograph of {property.Name}")"
+                                 loading="lazy" />
+                        }
+                        else
+                        {
+                            <svg viewBox="0 0 48 48"
+                                 focusable="false"
+                                 aria-hidden="true">
+                                <path d="m7 23 17-14 17 14" />
+                                <path d="M11 20v20h26V20M19 40V27h10v13" />
+                            </svg>
+                        }
                     </div>
+
                     <div class="card-heading">
                         <span class="access-badge @(property.CanManage ? "owner" : "resident")">
                             @(property.CanManage ? "Owner" : "Resident")
                         </span>
                         <span aria-hidden="true">→</span>
                     </div>
+
                     <h2>@property.Name</h2>
                     <p>@FormatAddress(property)</p>
+
                     <dl>
                         <div>
                             <dt>Spaces</dt>
                             <dd>@property.VisibleUnitCount</dd>
                         </div>
+
                         <div>
                             <dt>Active rentals</dt>
                             <dd>@property.ActiveTenancyCount</dd>
@@ -88,6 +117,9 @@
 
 @code {
     private IReadOnlyList<PropertySummary> _properties = [];
+
+    private readonly Dictionary<Guid, Guid> _coverImages = new();
+
     private bool _isLoading = true;
     private string? _errorMessage;
 
@@ -97,13 +129,40 @@
         {
             var profileId = await CurrentUserProfileService
                 .GetRequiredUserProfileIdAsync();
+
+            // Load all properties visible to the current user.
             _properties = await PropertyService
                 .GetVisiblePropertiesAsync(profileId);
+
+            // Retrieve the first photograph for each property.
+            foreach (var property in _properties)
+            {
+                try
+                {
+                    var images = await PropertyImageService.GetAsync(
+                        property.Id,
+                        profileId);
+
+                    if (images.Count > 0)
+                    {
+                        _coverImages[property.Id] = images[0].Id;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Console.Error.WriteLine(
+                        $"Unable to load photographs for " +
+                        $"{property.Name}: {exception}");
+                }
+            }
         }
         catch (Exception exception)
         {
             Console.Error.WriteLine(exception);
-            _errorMessage = "Please try again. If the problem continues, contact support.";
+
+            _errorMessage =
+                "Please try again. If the problem continues, " +
+                "contact support.";
         }
         finally
         {
@@ -116,6 +175,7 @@
         var region = string.IsNullOrWhiteSpace(property.Region)
             ? string.Empty
             : $", {property.Region}";
+
         return $"{property.AddressLine1}, {property.City}{region}";
     }
 }

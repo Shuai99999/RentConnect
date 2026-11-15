@@ -3,13 +3,14 @@
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Web
 @using RentConnect.Application.Listings
+@using RentConnect.Application.Properties
 @using RentConnect.Core.Enums
 @using RentConnect.Services
 
-
 @inject IRentalListingService ListingService
+@inject IPropertyService PropertyService
+@inject IPropertyImageService PropertyImageService
 @inject CurrentUserProfileService CurrentUserProfileService
 @inject NavigationManager NavigationManager
 
@@ -17,23 +18,17 @@
 
 <main class="applications-page">
 
-    <!-- PAGE HEADER -->
     <header class="page-header">
-
         <div>
             <span class="eyebrow">LANDLORD DASHBOARD</span>
-
             <h1>Rental Applications</h1>
-
             <p>
                 Review applications, manage prospective tenants,
                 and make informed rental decisions.
             </p>
         </div>
 
-        <!-- SEARCH AND FILTER -->
         <div class="header-filters">
-
             <input class="search-input"
                    type="search"
                    placeholder="Search applicants, property, or unit..."
@@ -44,370 +39,264 @@
             <select class="status-filter"
                     aria-label="Filter applications by status"
                     @bind="_statusFilter">
-
                 <option value="All">All Statuses</option>
                 <option value="Pending">Pending</option>
                 <option value="Approved">Approved</option>
                 <option value="Rejected">Declined</option>
-
             </select>
-
         </div>
-
     </header>
 
-    <!-- APPLICATION STATISTICS -->
     <section class="stats-grid" aria-label="Application statistics">
 
-        <!-- TOTAL APPLICATIONS -->
         <article class="stat-card">
-
             <div class="stat-icon total-icon">
-                â–¤
+                &#9633;
             </div>
-
             <div>
                 <strong>@_applications.Count</strong>
                 <span>Total Applications</span>
             </div>
-
         </article>
 
-        <!-- PENDING APPLICATIONS -->
         <article class="stat-card">
-
             <div class="stat-icon pending-icon">
-                â—·
+                &#9675;
             </div>
-
             <div>
                 <strong>
-                    @_applications.Count(a => a.Status == RentalApplicationStatus.Pending)
+                    @_applications.Count(a =>
+                        a.Status == RentalApplicationStatus.Pending)
                 </strong>
-
                 <span>Pending Review</span>
             </div>
-
         </article>
 
-        <!-- APPROVED APPLICATIONS -->
         <article class="stat-card">
-
             <div class="stat-icon approved-icon">
-                âœ“
+                &#10003;
             </div>
-
             <div>
                 <strong>
-                    @_applications.Count(a => a.Status == RentalApplicationStatus.Approved)
+                    @_applications.Count(a =>
+                        a.Status == RentalApplicationStatus.Approved)
                 </strong>
-
                 <span>Approved</span>
             </div>
-
         </article>
 
-        <!-- DECLINED APPLICATIONS -->
         <article class="stat-card">
-
             <div class="stat-icon declined-icon">
-                âœ•
+                &#10005;
             </div>
-
             <div>
                 <strong>
-                    @_applications.Count(a => a.Status == RentalApplicationStatus.Rejected)
+                    @_applications.Count(a =>
+                        a.Status == RentalApplicationStatus.Rejected)
                 </strong>
-
                 <span>Declined</span>
             </div>
-
         </article>
 
     </section>
 
-    <!-- SUCCESS MESSAGE -->
     @if (!string.IsNullOrWhiteSpace(_message))
     {
-        <div class="action-message success-message"
-             role="status">
-
+        <div class="action-message success-message" role="status">
             @_message
-
         </div>
     }
 
-    <!-- ERROR MESSAGE -->
     @if (!string.IsNullOrWhiteSpace(_error))
     {
-        <div class="action-message error-message"
-             role="alert">
-
+        <div class="action-message error-message" role="alert">
             @_error
-
         </div>
     }
 
-    <!-- APPLICATION CONTENT -->
     @if (_isLoading)
     {
         <section class="state-card" role="status">
-
             <h2>Loading Applications...</h2>
-
+            <p>Please wait while we retrieve your rental applications.</p>
+        </section>
+    }
+    else if (_applications.Count == 0)
+    {
+        <section class="state-card empty-card">
+            <div class="empty-icon">&#8962;</div>
+            <h2>No Applications Yet</h2>
             <p>
-                Please wait while we retrieve your rental applications.
+                Applications will appear here when someone
+                applies to one of your published rental listings.
             </p>
-
+            <a class="primary-button" href="/listings/manage">
+                Manage Rental Listings
+            </a>
+        </section>
+    }
+    else if (!FilteredApplications.Any())
+    {
+        <section class="state-card empty-card">
+            <h2>No Matching Applications</h2>
+            <p>
+                Try searching for another applicant,
+                property, or changing the status filter.
+            </p>
+            <button type="button"
+                    class="primary-button"
+                    @onclick="ClearFilters">
+                Clear Filters
+            </button>
         </section>
     }
     else
     {
-        @if (_applications.Count == 0)
-        {
-            <!-- EMPTY STATE -->
-            <section class="state-card empty-card">
+        <section class="application-list"
+                 aria-label="Rental applications">
 
-                <div class="empty-icon">
-                    âŒ‚
-                </div>
-
-                <h2>No Applications Yet</h2>
-
-                <p>
-                    Applications will appear here when someone
-                    applies to one of your published rental listings.
-                </p>
-
-                <a class="primary-button"
-                   href="/listings/manage">
-
-                    Manage Rental Listings
-
-                </a>
-
-            </section>
-        }
-        else
-        {
-            @if (!FilteredApplications.Any())
+            @foreach (var application in FilteredApplications)
             {
-                <!-- NO MATCHING APPLICATIONS -->
-                <section class="state-card empty-card">
+                <article class="application-card"
+                         @key="application.Id">
 
-                    <h2>No Matching Applications</h2>
+                    <div class="applicant-avatar" aria-hidden="true">
+                        @GetInitials(application.ApplicantName)
+                    </div>
 
-                    <p>
-                        Try searching for another applicant,
-                        property, or changing the status filter.
-                    </p>
+                    <div class="applicant-details">
+                        <div class="applicant-top">
+                            <div>
+                                <h2>@application.ApplicantName</h2>
+                                <p class="applicant-email">
+                                    @application.ApplicantEmail
+                                </p>
+                            </div>
 
-                    <button type="button"
-                            class="primary-button"
-                            @onclick="ClearFilters">
+                            <span class="status @application.Status.ToString().ToLowerInvariant()">
+                                @switch (application.Status)
+                                {
+                                    case RentalApplicationStatus.Pending:
+                                        <span>Pending</span>
+                                        break;
 
-                        Clear Filters
+                                    case RentalApplicationStatus.Approved:
+                                        <span>Approved</span>
+                                        break;
 
-                    </button>
+                                    case RentalApplicationStatus.Rejected:
+                                        <span>Declined</span>
+                                        break;
+                                }
+                            </span>
+                        </div>
 
-                </section>
+                        @if (!string.IsNullOrWhiteSpace(application.Message))
+                        {
+                            <blockquote class="applicant-message">
+                                @application.Message
+                            </blockquote>
+                        }
+                    </div>
+
+                    <div class="property-details">
+
+                        <div class="property-thumbnail">
+                            @if (TryGetCoverImage(
+                                application.PropertyName,
+                                out var imageId))
+                            {
+                                <img src="@($"/properties/images/{imageId}")"
+                                     alt="@($"Apartment at {application.PropertyName}")"
+                                     loading="lazy" />
+                            }
+                            else
+                            {
+                                <div role="img"
+                                     aria-label="No property photograph available"
+                                     style="display:grid;place-items:center;width:100%;height:100%;min-height:72px;background:#e8efed;color:#35645e;">
+                                    &#8962;
+                                </div>
+                            }
+                        </div>
+
+                        <div class="property-info">
+                            <h3>@application.PropertyName</h3>
+                            <p>@application.RentalUnitName</p>
+
+                            <a href="@($"/listings/{application.ListingId}")">
+                                @application.ListingTitle
+                            </a>
+                        </div>
+                    </div>
+
+                    <div class="application-right">
+
+                        <div class="application-date">
+                            <LocalDateTime Value="application.CreatedAtUtc" />
+                        </div>
+
+                        @if (application.Status == RentalApplicationStatus.Pending)
+                        {
+                            <div class="card-actions">
+                                <button type="button"
+                                        class="primary-button"
+                                        disabled="@_isSaving"
+                                        @onclick="() => ShowConfirmation(application, true)">
+                                    Approve
+                                </button>
+
+                                <button type="button"
+                                        class="decline-button"
+                                        disabled="@_isSaving"
+                                        @onclick="() => ShowConfirmation(application, false)">
+                                    Decline
+                                </button>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card-actions">
+                                <span class="status @application.Status.ToString().ToLowerInvariant()">
+                                    @(application.Status == RentalApplicationStatus.Approved
+                                        ? "Application Approved"
+                                        : "Application Declined")
+                                </span>
+                            </div>
+                        }
+
+                    </div>
+
+                </article>
             }
-            else
-            {
-                <!-- APPLICATION LIST -->
-                <section class="application-list"
-                         aria-label="Rental applications">
 
-                    @foreach (var application in FilteredApplications)
-                    {
-                        <article class="application-card"
-                                 @key="application.Id">
-
-                            <!-- APPLICANT AVATAR -->
-                            <div class="applicant-avatar"
-                                 aria-hidden="true">
-
-                                @GetInitials(application.ApplicantName)
-
-                            </div>
-
-                            <!-- APPLICANT DETAILS -->
-                            <div class="applicant-details">
-
-                                <div class="applicant-top">
-
-                                    <div>
-
-                                        <h2>
-                                            @application.ApplicantName
-                                        </h2>
-
-                                        <p class="applicant-email">
-                                            @application.ApplicantEmail
-                                        </p>
-
-                                    </div>
-
-                                    <!-- STATUS BADGE -->
-                                    <span class="status @application.Status.ToString().ToLowerInvariant()">
-
-                                        @switch (application.Status)
-                                        {
-                                            case RentalApplicationStatus.Pending:
-                                                <span>â— Pending</span>
-                                                break;
-
-                                            case RentalApplicationStatus.Approved:
-                                                <span>âœ“ Approved</span>
-                                                break;
-
-                                            case RentalApplicationStatus.Rejected:
-                                                <span>âœ• Declined</span>
-                                                break;
-                                        }
-
-                                    </span>
-
-                                </div>
-
-                                <!-- APPLICANT MESSAGE -->
-                                @if (!string.IsNullOrWhiteSpace(application.Message))
-                                {
-                                    <blockquote class="applicant-message">
-
-                                        @application.Message
-
-                                    </blockquote>
-                                }
-
-                            </div>
-
-                            <!-- PROPERTY DETAILS -->
-                            <div class="property-details">
-
-                                <div class="property-thumbnail">
-
-                                    <img src="/images/apartment-placeholder.svg"
-                                         alt="@($"Apartment at {application.PropertyName}")"
-                                         loading="lazy" />
-
-                                </div>
-
-                                <div class="property-info">
-
-                                    <h3>
-                                        @application.PropertyName
-                                    </h3>
-
-                                    <p>
-                                        @application.RentalUnitName
-                                    </p>
-
-                                    <a href="@($"/listings/{application.ListingId}")">
-
-                                        @application.ListingTitle
-
-                                    </a>
-
-                                </div>
-
-                            </div>
-
-                            <!-- APPLICATION ACTIONS -->
-                            <div class="application-right">
-
-                                <!-- APPLICATION DATE -->
-                                <div class="application-date">
-
-                                    <LocalDateTime Value="application.CreatedAtUtc" />
-
-                                </div>
-
-                                @if (application.Status == RentalApplicationStatus.Pending)
-                                {
-                                    <div class="card-actions">
-
-                                        <!-- APPROVE BUTTON -->
-                                        <button type="button"
-                                                class="primary-button"
-                                                disabled="@_isSaving"
-                                                @onclick="() => ShowConfirmation(application, true)">
-
-                                            âœ“ Approve
-
-                                        </button>
-
-                                        <!-- DECLINE BUTTON -->
-                                        <button type="button"
-                                                class="decline-button"
-                                                disabled="@_isSaving"
-                                                @onclick="() => ShowConfirmation(application, false)">
-
-                                            âœ• Decline
-
-                                        </button>
-
-                                    </div>
-                                }
-                                else
-                                {
-                                    <div class="card-actions">
-
-                                        <span class="status @application.Status.ToString().ToLowerInvariant()">
-
-                                            @(application.Status == RentalApplicationStatus.Approved
-                                                ? "Application Approved"
-                                                : "Application Declined")
-
-                                        </span>
-
-                                    </div>
-                                }
-
-                            </div>
-
-                        </article>
-                    }
-
-                </section>
-            }
-        }
+        </section>
     }
-
 </main>
 
-<!-- CONFIRMATION DIALOG -->
 @if (_selectedApplication is not null)
 {
     <div class="confirmation-overlay">
-
         <section class="confirmation-dialog"
                  role="dialog"
                  aria-modal="true"
                  aria-labelledby="confirmation-title"
                  aria-describedby="confirmation-description">
 
-            <!-- CLOSE BUTTON -->
             <button type="button"
                     class="close-dialog"
                     aria-label="Close confirmation dialog"
                     disabled="@_isSaving"
                     @onclick="CloseConfirmation">
-
-                âœ•
-
+                &#10005;
             </button>
 
-            <!-- CONFIRMATION TITLE -->
             <h2 id="confirmation-title">
-
                 @(_isApprovalConfirmation
                     ? "Approve Rental Application?"
                     : "Decline Rental Application?")
-
             </h2>
 
-            <!-- CONFIRMATION DESCRIPTION -->
             <p id="confirmation-description"
                class="confirmation-description">
 
@@ -429,49 +318,50 @@
                         rental application?
                     </span>
                 }
-
             </p>
 
-            <!-- PROPERTY PREVIEW -->
             <div class="confirmation-property">
-
                 <div class="confirmation-property-icon">
 
-                    <img src="/images/apartment-placeholder.svg"
-                         alt="Apartment preview" />
+                    @if (TryGetCoverImage(
+                        _selectedApplication.PropertyName,
+                        out var selectedImageId))
+                    {
+                        <img src="@($"/properties/images/{selectedImageId}")"
+                             alt="@($"Apartment at {_selectedApplication.PropertyName}")" />
+                    }
+                    else
+                    {
+                        <span aria-label="No photograph available">
+                            &#8962;
+                        </span>
+                    }
 
                 </div>
 
                 <div>
-
                     <strong>
                         @_selectedApplication.PropertyName
                     </strong>
-
                     <p>
                         @_selectedApplication.RentalUnitName
                     </p>
-
                 </div>
-
             </div>
 
-            <!-- CONFIRMATION BUTTONS -->
             <div class="confirmation-actions">
 
-                <!-- CANCEL BUTTON -->
                 <button type="button"
                         class="cancel-button"
                         disabled="@_isSaving"
                         @onclick="CloseConfirmation">
-
                     Go Back
-
                 </button>
 
-                <!-- CONFIRM BUTTON -->
                 <button type="button"
-                        class="@(_isApprovalConfirmation ? "primary-button" : "decline-confirm-button")"
+                        class="@(_isApprovalConfirmation
+                            ? "primary-button"
+                            : "decline-confirm-button")"
                         disabled="@_isSaving"
                         @onclick="ConfirmApplicationActionAsync">
 
@@ -487,83 +377,49 @@
                                 : "Confirm Decline")
                         </span>
                     }
-
                 </button>
 
             </div>
-
         </section>
-
     </div>
 }
 
 @code {
-
-    // =====================================
-    // APPLICATION DATA
-    // =====================================
-
     private IReadOnlyList<ManagedRentalApplication> _applications = [];
+
+    private readonly Dictionary<string, Guid> _coverImagesByName =
+        new(StringComparer.OrdinalIgnoreCase);
 
     private Guid _userProfileId;
 
-    // =====================================
-    // PAGE STATE
-    // =====================================
-
     private bool _isLoading = true;
-
     private bool _isSaving;
 
-    // =====================================
-    // SUCCESS AND ERROR MESSAGES
-    // =====================================
-
     private string? _message;
-
     private string? _error;
 
-    // =====================================
-    // SEARCH AND FILTER
-    // =====================================
-
     private string _searchTerm = string.Empty;
-
     private string _statusFilter = "All";
 
-    // =====================================
-    // CONFIRMATION STATE
-    // =====================================
-
     private ManagedRentalApplication? _selectedApplication;
-
     private bool _isApprovalConfirmation;
-
-    // =====================================
-    // FILTER APPLICATIONS
-    // =====================================
 
     private IEnumerable<ManagedRentalApplication> FilteredApplications =>
         _applications.Where(application =>
             (
                 string.IsNullOrWhiteSpace(_searchTerm)
-
                 || application.ApplicantName.Contains(
                     _searchTerm,
                     StringComparison.OrdinalIgnoreCase)
-
                 || application.ApplicantEmail.Contains(
                     _searchTerm,
                     StringComparison.OrdinalIgnoreCase)
-
                 || application.PropertyName.Contains(
                     _searchTerm,
                     StringComparison.OrdinalIgnoreCase)
-
                 || application.RentalUnitName.Contains(
                     _searchTerm,
                     StringComparison.OrdinalIgnoreCase)
-
                 || application.ListingTitle.Contains(
                     _searchTerm,
                     StringComparison.OrdinalIgnoreCase)
@@ -571,33 +427,25 @@
             &&
             (
                 _statusFilter == "All"
-
                 || application.Status.ToString() == _statusFilter
             )
         );
 
-    // =====================================
-    // INITIAL PAGE LOAD
-    // =====================================
-
     protected override async Task OnInitializedAsync()
     {
         _isLoading = true;
-
         _error = null;
 
         try
         {
-            _userProfileId =
-                await CurrentUserProfileService
-                    .GetRequiredUserProfileIdAsync();
+            _userProfileId = await CurrentUserProfileService
+                .GetRequiredUserProfileIdAsync();
 
             await ReloadAsync();
         }
         catch (Exception exception)
         {
             Console.Error.WriteLine(exception);
-
             _error = "Applications could not be loaded.";
         }
         finally
@@ -606,31 +454,76 @@
         }
     }
 
-    // =====================================
-    // RELOAD APPLICATIONS
-    // =====================================
-
     private async Task ReloadAsync()
     {
-        _applications =
-            await ListingService.GetManagedApplicationsAsync(
-                _userProfileId);
+        _applications = await ListingService
+            .GetManagedApplicationsAsync(_userProfileId);
+
+        await LoadPropertyImagesAsync();
     }
 
-    // =====================================
-    // CLEAR FILTERS
-    // =====================================
+    private async Task LoadPropertyImagesAsync()
+    {
+        _coverImagesByName.Clear();
+
+        try
+        {
+            var properties = await PropertyService
+                .GetVisiblePropertiesAsync(_userProfileId);
+
+            // Only match names that uniquely identify a property.
+            var uniqueProperties = properties
+                .Where(p => !string.IsNullOrWhiteSpace(p.Name))
+                .GroupBy(p => p.Name.Trim(),
+                    StringComparer.OrdinalIgnoreCase)
+                .Where(group => group.Count() == 1)
+                .Select(group => group.Single());
+
+            foreach (var property in uniqueProperties)
+            {
+                try
+                {
+                    var images = await PropertyImageService.GetAsync(
+                        property.Id,
+                        _userProfileId);
+
+                    if (images.Count > 0)
+                    {
+                        _coverImagesByName[property.Name.Trim()] =
+                            images[0].Id;
+                    }
+                }
+                catch (Exception exception)
+                {
+                    Console.Error.WriteLine(
+                        $"Unable to load image for {property.Name}: {exception}");
+                }
+            }
+        }
+        catch (Exception exception)
+        {
+            Console.Error.WriteLine(
+                $"Unable to retrieve property images: {exception}");
+        }
+    }
+
+    private bool TryGetCoverImage(
+        string? propertyName,
+        out Guid imageId)
+    {
+        imageId = Guid.Empty;
+
+        return !string.IsNullOrWhiteSpace(propertyName)
+            && _coverImagesByName.TryGetValue(
+                propertyName.Trim(),
+                out imageId);
+    }
 
     private void ClearFilters()
     {
         _searchTerm = string.Empty;
-
         _statusFilter = "All";
     }
-
-    // =====================================
-    // SHOW CONFIRMATION
-    // =====================================
 
     private void ShowConfirmation(
         ManagedRentalApplication application,
@@ -643,17 +536,10 @@
             return;
 
         _selectedApplication = application;
-
         _isApprovalConfirmation = approve;
-
         _message = null;
-
         _error = null;
     }
-
-    // =====================================
-    // CLOSE CONFIRMATION
-    // =====================================
 
     private void CloseConfirmation()
     {
@@ -663,17 +549,12 @@
         _selectedApplication = null;
     }
 
-    // =====================================
-    // CONFIRM APPLICATION ACTION
-    // =====================================
-
     private async Task ConfirmApplicationActionAsync()
     {
         if (_selectedApplication is null || _isSaving)
             return;
 
         var application = _selectedApplication;
-
         var approve = _isApprovalConfirmation;
 
         if (approve)
@@ -691,10 +572,6 @@
         }
     }
 
-    // =====================================
-    // APPROVE APPLICATION
-    // =====================================
-
     private async Task ApproveAsync(
         ManagedRentalApplication application)
     {
@@ -702,15 +579,13 @@
             return;
 
         _isSaving = true;
-
         _error = null;
 
         try
         {
-            var tenancyId =
-                await ListingService.ApproveAsync(
-                    application.Id,
-                    _userProfileId);
+            var tenancyId = await ListingService.ApproveAsync(
+                application.Id,
+                _userProfileId);
 
             NavigationManager.NavigateTo(
                 $"/tenancies/{tenancyId}");
@@ -719,20 +594,15 @@
         {
             Console.Error.WriteLine(exception);
 
-            _error =
-                exception is InvalidOperationException
-                    ? exception.Message
-                    : "The application could not be approved.";
+            _error = exception is InvalidOperationException
+                ? exception.Message
+                : "The application could not be approved.";
         }
         finally
         {
             _isSaving = false;
         }
     }
-
-    // =====================================
-    // DECLINE APPLICATION
-    // =====================================
 
     private Task RejectAsync(
         ManagedRentalApplication application)
@@ -744,10 +614,6 @@
             "Application declined successfully.");
     }
 
-    // =====================================
-    // SHARED ACTION HANDLER
-    // =====================================
-
     private async Task RunAsync(
         Func<Task> action,
         string success)
@@ -756,15 +622,12 @@
             return;
 
         _isSaving = true;
-
         _error = null;
-
         _message = null;
 
         try
         {
             await action();
-
             await ReloadAsync();
 
             _message = success;
@@ -773,20 +636,15 @@
         {
             Console.Error.WriteLine(exception);
 
-            _error =
-                exception is InvalidOperationException
-                    ? exception.Message
-                    : "The application could not be updated.";
+            _error = exception is InvalidOperationException
+                ? exception.Message
+                : "The application could not be updated.";
         }
         finally
         {
             _isSaving = false;
         }
     }
-
-    // =====================================
-    // GENERATE APPLICANT INITIALS
-    // =====================================
 
     private static string GetInitials(string name)
     {
@@ -806,4 +664,3 @@
         ).ToUpperInvariant();
     }
 }
-
