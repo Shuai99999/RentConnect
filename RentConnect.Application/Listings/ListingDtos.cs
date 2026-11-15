@@ -14,7 +14,7 @@ public sealed record PublicListingSummary(
     DateOnly AvailableFrom,
     int TenantCount,
     Guid PropertyId = default,
-    Guid? CoverImageId = null);
+    Guid? CoverImageId = null, double? DistanceKm = null);
 
 public sealed record PublicListingDetails(
     Guid Id,

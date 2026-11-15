@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using RentConnect.Application.Listings;
+using RentConnect.Core;
 using RentConnect.Core.Entities;
 using RentConnect.Core.Enums;
 using RentConnect.Data;
@@ -19,9 +20,31 @@ public sealed class RentalListingService(
             cancellationToken);
     }
 
-    public async Task<IReadOnlyList<PublicListingSummary>> SearchAsync(
+    public Task<IReadOnlyList<PublicListingSummary>> SearchAsync(
         string? city,
+        CancellationToken cancellationToken = default) =>
+        SearchListingsAsync(city, null, null, cancellationToken);
+
+    public Task<IReadOnlyList<PublicListingSummary>> SearchNearbyAsync(
+        string city,
+        int radiusKm,
         CancellationToken cancellationToken = default)
+    {
+        var origin = AlbertaRentalSearch.FindCentre(city)
+            ?? throw new ArgumentException("Choose a supported Alberta city.", nameof(city));
+        if (radiusKm is < 1 or > 200)
+        {
+            throw new ArgumentOutOfRangeException(nameof(radiusKm));
+        }
+
+        return SearchListingsAsync(null, origin, radiusKm, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<PublicListingSummary>> SearchListingsAsync(
+        string? city,
+        RentConnect.Core.ValueObjects.GeoCoordinate? origin,
+        int? radiusKm,
+        CancellationToken cancellationToken)
     {
         city = string.IsNullOrWhiteSpace(city)
             ? null
@@ -33,7 +56,7 @@ public sealed class RentalListingService(
             await contextFactory.CreateDbContextAsync(
                 cancellationToken);
 
-        return await (
+        var candidates = await (
                 from listing in context.RentalListings.AsNoTracking()
 
                 join unit in context.RentalUnits.AsNoTracking()
@@ -51,41 +74,74 @@ public sealed class RentalListingService(
 
                 orderby listing.CreatedAtUtc descending
 
-                select new PublicListingSummary(
-                    listing.Id,
-                    listing.Title,
-                    property.Name,
-                    unit.Name,
-                    unit.Type,
-                    property.Address.City,
-                    property.Address.Region,
-                    listing.MonthlyRent,
-                    listing.AvailableFrom,
+                select new
+                {
+                    property.Address.CountryCode,
+                    Location = property.Location,
+                    Summary = new PublicListingSummary(
+                        listing.Id,
+                        listing.Title,
+                        property.Name,
+                        unit.Name,
+                        unit.Type,
+                        property.Address.City,
+                        property.Address.Region,
+                        listing.MonthlyRent,
+                        listing.AvailableFrom,
 
-                    context.TenancyMembers.Count(member =>
-                        (
-                            !member.LeftOn.HasValue ||
-                            member.LeftOn.Value >= today
-                        ) &&
-                        context.Tenancies.Any(tenancy =>
-                            tenancy.Id == member.TenancyId &&
-                            tenancy.RentalUnitId == unit.Id &&
-                            !tenancy.IsCancelled &&
+                        context.TenancyMembers.Count(member =>
                             (
-                                !tenancy.EndDate.HasValue ||
-                                tenancy.EndDate.Value >= today
-                            ))),
+                                !member.LeftOn.HasValue ||
+                                member.LeftOn.Value >= today
+                            ) &&
+                            context.Tenancies.Any(tenancy =>
+                                tenancy.Id == member.TenancyId &&
+                                tenancy.RentalUnitId == unit.Id &&
+                                !tenancy.IsCancelled &&
+                                (
+                                    !tenancy.EndDate.HasValue ||
+                                    tenancy.EndDate.Value >= today
+                                ))),
 
-                    property.Id,
+                        property.Id,
 
-                    context.PropertyImages
-                        .Where(image =>
-                            image.PropertyId == property.Id)
-                        .OrderBy(image => image.UploadedAtUtc)
-                        .ThenBy(image => image.Id)
-                        .Select(image => (Guid?)image.Id)
-                        .FirstOrDefault()))
+                        context.PropertyImages
+                            .Where(image =>
+                                image.PropertyId == property.Id)
+                            .OrderBy(image => image.UploadedAtUtc)
+                            .ThenBy(image => image.Id)
+                            .Select(image => (Guid?)image.Id)
+                            .FirstOrDefault())
+                })
             .ToArrayAsync(cancellationToken);
+
+        if (origin is null)
+        {
+            return candidates.Select(candidate => candidate.Summary).ToArray();
+        }
+
+        var nearby = new List<PublicListingSummary>();
+        foreach (var candidate in candidates)
+        {
+            var summary = candidate.Summary;
+            var isAlberta = candidate.CountryCode == "CA" &&
+                (string.Equals(summary.Region?.Trim(), "Alberta", StringComparison.OrdinalIgnoreCase) ||
+                 string.Equals(summary.Region?.Trim(), "AB", StringComparison.OrdinalIgnoreCase));
+            var location = candidate.Location ??
+                (isAlberta ? AlbertaRentalSearch.FindCentre(summary.City) : null);
+            if (location is null)
+            {
+                continue;
+            }
+
+            var distance = AlbertaRentalSearch.DistanceKm(origin, location);
+            if (distance <= radiusKm)
+            {
+                nearby.Add(summary with { DistanceKm = distance });
+            }
+        }
+
+        return nearby.OrderBy(listing => listing.DistanceKm).ToArray();
     }
 
     public async Task<PublicListingDetails?> GetDetailsAsync(
