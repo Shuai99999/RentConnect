@@ -52,25 +52,6 @@
                 <h1>Welcome back, @GetFirstName(_displayName)</h1>
                 <p>@GetHeroDescription()</p>
             </div>
-
-            @if (_isLandlord)
-            {
-                <div class="quick-actions" aria-label="Quick actions">
-                    <a class="primary-action" href="/properties/new">
-                        <span aria-hidden="true">+</span>
-                        Add property
-                    </a>
-                    <a class="secondary-action" href="/properties">
-                        Manage properties
-                    </a>
-                    <a class="secondary-action" href="/rental-applications">
-                        Applications
-                    </a>
-                    <a class="secondary-action" href="/bills/new">
-                        Add bill
-                    </a>
-                </div>
-            }
         </header>
 
         <section class="summary-grid" aria-label="Account summary">
