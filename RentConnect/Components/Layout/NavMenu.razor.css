@@ -1,3 +1,4 @@
+
 .site-header {
     position: sticky;
     top: 0;
@@ -9,15 +10,16 @@
 
 .header-content {
     display: flex;
-    width: min(1360px, calc(100% - 2rem));
+    width: min(100% - 2rem, 1600px);
     min-height: 72px;
     margin: 0 auto;
     align-items: center;
-    gap: 2rem;
+    gap: 1rem;
 }
 
 .brand {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     gap: 0.7rem;
     color: var(--color-text);
@@ -28,6 +30,7 @@
     display: grid;
     width: 40px;
     height: 40px;
+    flex: 0 0 40px;
     place-items: center;
     border: 1px solid rgb(255 255 255 / 16%);
     border-radius: 0.8rem;
@@ -36,30 +39,30 @@
     box-shadow: 0 8px 18px rgb(var(--color-primary-rgb) / 24%);
 }
 
-.brand-mark svg {
-    width: 29px;
-    height: 29px;
-    overflow: visible;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
+    .brand-mark svg {
+        width: 29px;
+        height: 29px;
+        overflow: visible;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+    }
 
-.brand-mark .brand-logo-secondary {
-    opacity: 0.58;
-}
+    .brand-mark .brand-logo-secondary {
+        opacity: 0.58;
+    }
 
-.brand-mark .brand-logo-link {
-    stroke: var(--color-accent);
-    stroke-width: 2.4;
-}
+    .brand-mark .brand-logo-link {
+        stroke: var(--color-accent);
+        stroke-width: 2.4;
+    }
 
-.brand-mark .brand-logo-node {
-    fill: var(--color-accent);
-    stroke: none;
-}
+    .brand-mark .brand-logo-node {
+        fill: var(--color-accent);
+        stroke: none;
+    }
 
 .brand-text {
     display: grid;
@@ -80,215 +83,247 @@
 .account-navigation {
     display: flex;
     align-items: center;
-    gap: 0.35rem;
+    gap: 0.25rem;
 }
 
 .primary-navigation {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: max-content;
+    justify-content: center;
+}
+
+.account-navigation {
+    flex: 0 0 auto;
     min-width: 0;
+    margin-left: auto;
 }
 
-.account-navigation form {
-    margin: 0;
-}
-
-.primary-navigation ::deep a,
-.account-navigation ::deep a,
-.logout-button {
-    display: inline-flex;
-    min-height: 40px;
-    padding: 0.55rem 0.8rem;
-    align-items: center;
-    border: 0;
-    border-radius: 0.65rem;
-    background: transparent;
-    color: var(--color-text-secondary);
-    font: inherit;
-    font-size: 0.9rem;
-    font-weight: 650;
-    text-decoration: none;
-    white-space: nowrap;
-    cursor: pointer;
-}
-
-    .primary-navigation ::deep a:hover,
-    .account-navigation ::deep a:hover,
-    .logout-button:hover {
-        background: var(--color-surface-muted);
-        color: var(--color-primary-strong);
-    }
-
-    .primary-navigation ::deep a.active {
-        background: var(--color-primary-soft);
-        color: var(--color-primary-strong);
-    }
-
-.account-navigation ::deep .register-link {
-    background: var(--color-primary-deep);
-    color: white;
-}
-
-.account-navigation ::deep .notifications-link {
-    gap: 0.45rem;
-}
-
-.account-navigation ::deep .notification-icon {
-    display: none;
-    width: 1.2rem;
-    height: 1.2rem;
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 1.8;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-}
-
-.account-navigation ::deep .notification-count {
-    display: inline-grid;
-    min-width: 1.35rem;
-    height: 1.35rem;
-    padding: 0 0.3rem;
-    place-items: center;
-    border-radius: 999px;
-    background: var(--color-primary);
-    color: white;
-    font-size: 0.7rem;
-    font-weight: 800;
-    line-height: 1;
-}
-
-.account-navigation ::deep .notifications-link.active {
-    background: var(--color-primary-soft);
-    color: var(--color-primary-strong);
-}
-
-.account-navigation ::deep .account-profile {
-    gap: 0.55rem;
-    padding-block: 0.35rem;
-}
-
-.account-navigation ::deep .user-avatar {
-    display: grid;
-    width: 32px;
-    height: 32px;
-    flex: 0 0 32px;
-    place-items: center;
-    border-radius: 50%;
-    background: var(--color-primary-soft);
-    color: var(--color-primary-strong);
-    font-size: 0.78rem;
-    font-weight: 850;
-}
-
-.account-navigation ::deep .user-summary {
-    display: grid;
-    max-width: 11rem;
-    line-height: 1.15;
-}
-
-.account-navigation ::deep .user-summary strong,
-.account-navigation ::deep .user-summary small {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.account-navigation ::deep .user-summary strong {
-    color: var(--color-text);
-    font-size: 0.82rem;
-}
-
-.account-navigation ::deep .user-summary small {
-    margin-top: 0.2rem;
-    color: var(--color-text-subtle);
-    font-size: 0.68rem;
-    font-weight: 550;
-}
-
-    .account-navigation ::deep .register-link:hover {
-        background: var(--color-primary-strong);
-        color: white;
-    }
-
-@media (max-width: 1350px) {
-    .header-content {
-        width: min(100% - 1rem, 1360px);
-        gap: 0.65rem;
-    }
-
-    .brand-text small,
-    .account-navigation ::deep .user-summary,
-    .account-navigation ::deep .notification-label {
-        display: none;
-    }
-
-    .primary-navigation {
-        gap: 0.1rem;
+    .account-navigation form {
+        margin: 0;
+        flex: 0 0 auto;
     }
 
     .primary-navigation ::deep a,
     .account-navigation ::deep a,
     .logout-button {
-        padding-inline: 0.55rem;
-        font-size: 0.82rem;
+        display: inline-flex;
+        min-height: 40px;
+        padding: 0.55rem 0.65rem;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        border-radius: 0.65rem;
+        background: transparent;
+        color: var(--color-text-secondary);
+        font: inherit;
+        font-size: 0.86rem;
+        font-weight: 650;
+        text-decoration: none;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+        .primary-navigation ::deep a:hover,
+        .account-navigation ::deep a:hover,
+        .logout-button:hover {
+            background: var(--color-surface-muted);
+            color: var(--color-primary-strong);
+        }
+
+        .primary-navigation ::deep a.active,
+        .account-navigation ::deep .notifications-link.active {
+            background: var(--color-primary-soft);
+            color: var(--color-primary-strong);
+        }
+
+    .account-navigation ::deep .register-link {
+        background: var(--color-primary-deep);
+        color: white;
+    }
+
+        .account-navigation ::deep .register-link:hover {
+            background: var(--color-primary-strong);
+            color: white;
+        }
+
+    .account-navigation ::deep .notifications-link {
+        gap: 0.4rem;
     }
 
     .account-navigation ::deep .notification-icon {
-        display: block;
+        display: none;
+        width: 1.2rem;
+        height: 1.2rem;
+        flex: 0 0 1.2rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
     }
 
-    .account-navigation ::deep .notifications-link,
+    .account-navigation ::deep .notification-count {
+        display: inline-grid;
+        min-width: 1.35rem;
+        height: 1.35rem;
+        padding: 0 0.3rem;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--color-primary);
+        color: white;
+        font-size: 0.7rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+
     .account-navigation ::deep .account-profile {
+        gap: 0.55rem;
+        padding-block: 0.35rem;
+    }
+
+    .account-navigation ::deep .user-avatar {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        flex: 0 0 32px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--color-primary-soft);
+        color: var(--color-primary-strong);
+        font-size: 0.78rem;
+        font-weight: 850;
+    }
+
+    .account-navigation ::deep .user-summary {
+        display: grid;
+        max-width: 9rem;
+        min-width: 0;
+        line-height: 1.15;
+    }
+
+        .account-navigation ::deep .user-summary strong,
+        .account-navigation ::deep .user-summary small {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .account-navigation ::deep .user-summary strong {
+            color: var(--color-text);
+            font-size: 0.82rem;
+        }
+
+        .account-navigation ::deep .user-summary small {
+            margin-top: 0.2rem;
+            color: var(--color-text-subtle);
+            font-size: 0.68rem;
+            font-weight: 550;
+        }
+
+/* Medium desktop and tablet layout */
+@media (max-width: 1550px) {
+    .header-content {
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 0.35rem 1rem;
+        padding: 0.65rem 0;
+    }
+
+    .brand {
+        order: 1;
+    }
+
+    .account-navigation {
+        order: 2;
+        margin-left: auto;
+    }
+
+    .primary-navigation {
+        order: 3;
+        flex: 0 0 100%;
+        min-width: 0;
         justify-content: center;
-        padding-inline: 0.45rem;
+        gap: 0.35rem;
+        overflow-x: auto;
+        scrollbar-width: none;
+    }
+
+        .primary-navigation::-webkit-scrollbar {
+            display: none;
+        }
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+    .header-content {
+        width: calc(100% - 1.5rem);
+    }
+
+    .primary-navigation {
+        justify-content: flex-start;
+        gap: 0.15rem;
+    }
+
+        .primary-navigation ::deep a {
+            padding-inline: 0.65rem;
+            font-size: 0.84rem;
+        }
+
+    .account-navigation ::deep .user-summary {
+        max-width: 7rem;
     }
 }
 
-@media (max-width: 720px) {
+/* Mobile */
+@media (max-width: 600px) {
     .header-content {
-        flex-wrap: wrap;
-        min-height: 64px;
-        padding-top: 0.5rem;
-        gap: 0.5rem;
+        width: calc(100% - 1rem);
+        gap: 0.4rem;
     }
 
     .brand-text {
         display: none;
     }
 
-    .primary-navigation {
-        order: 3;
-        flex: 0 0 100%;
-        gap: 0;
-        padding-bottom: 0.45rem;
-        overflow-x: auto;
-        scrollbar-width: none;
-    }
-
-    .primary-navigation::-webkit-scrollbar {
-        display: none;
+    .brand-mark {
+        width: 38px;
+        height: 38px;
+        flex-basis: 38px;
     }
 
     .account-navigation {
-        margin-left: auto;
+        gap: 0.15rem;
     }
 
-        .primary-navigation ::deep a,
-        .account-navigation ::deep a,
-        .logout-button {
-            padding-inline: 0.55rem;
-            font-size: 0.82rem;
+        .account-navigation ::deep .notification-label,
+        .account-navigation ::deep .user-summary {
+            display: none;
         }
 
-    .account-navigation ::deep .register-link {
-        display: none;
+        .account-navigation ::deep .notification-icon {
+            display: block;
+        }
+
+        .account-navigation ::deep .notifications-link,
+        .account-navigation ::deep .account-profile {
+            padding-inline: 0.4rem;
+        }
+
+        .account-navigation ::deep .register-link {
+            display: none;
+        }
+
+    .logout-button {
+        padding-inline: 0.5rem;
+        font-size: 0.8rem;
     }
 
-    .account-navigation ::deep .user-summary {
-        display: none;
+    .primary-navigation {
+        padding-bottom: 0.25rem;
     }
 
-    .account-navigation ::deep .account-profile {
-        padding-inline: 0.25rem;
-    }
+        .primary-navigation ::deep a {
+            padding: 0.5rem 0.6rem;
+            font-size: 0.8rem;
+        }
 }

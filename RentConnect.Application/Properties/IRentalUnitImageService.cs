@@ -1,21 +1,20 @@
-﻿namespace RentConnect.Application.Properties;
+namespace RentConnect.Application.Properties;
 
-public sealed record PropertyImageItem(
-    Guid Id);
+public sealed record RentalUnitImageItem(Guid Id);
 
-public sealed record PropertyImageContent(
+public sealed record RentalUnitImageContent(
     byte[] Content,
     string ContentType);
 
-public interface IPropertyImageService
+public interface IRentalUnitImageService
 {
-    Task<IReadOnlyList<PropertyImageItem>> GetAsync(
-        Guid propertyId,
+    Task<IReadOnlyList<RentalUnitImageItem>> GetAsync(
+        Guid rentalUnitId,
         Guid userId,
         CancellationToken cancellationToken = default);
 
     Task<Guid> AddAsync(
-        Guid propertyId,
+        Guid rentalUnitId,
         Guid userId,
         Stream content,
         CancellationToken cancellationToken = default);
@@ -25,7 +24,7 @@ public interface IPropertyImageService
         Guid userId,
         CancellationToken cancellationToken = default);
 
-    Task<PropertyImageContent?> OpenAsync(
+    Task<RentalUnitImageContent?> OpenAsync(
         Guid imageId,
         Guid userId,
         CancellationToken cancellationToken = default);

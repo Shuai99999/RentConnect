@@ -14,7 +14,7 @@ public sealed record PublicListingSummary(
     DateOnly AvailableFrom,
     int TenantCount,
     Guid PropertyId = default,
-    Guid? CoverImageId = null);
+    Guid? CoverImageId = null, double? DistanceKm = null);
 
 public sealed record PublicListingDetails(
     Guid Id,
@@ -54,6 +54,7 @@ public sealed record OwnedListingUnit(
 public sealed record ManagedRentalApplication(
     Guid Id,
     Guid ListingId,
+    Guid RentalUnitId,
     string ListingTitle,
     string PropertyName,
     string RentalUnitName,

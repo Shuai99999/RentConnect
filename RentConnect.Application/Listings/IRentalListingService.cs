@@ -6,6 +6,11 @@ public interface IRentalListingService
         string? city,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<PublicListingSummary>> SearchNearbyAsync(
+        string city,
+        int radiusKm,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<PublicListingSummary>> GetPublishedAsync(
         CancellationToken cancellationToken = default);
 
