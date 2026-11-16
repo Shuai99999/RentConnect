@@ -38,7 +38,17 @@ builder.Services.AddScoped<
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISharedBillService, SharedBillService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
-builder.Services.AddScoped<IRentalUnitImageService, RentalUnitImageService>();
+var azureMapsKey = builder.Configuration["AzureMaps:SubscriptionKey"];
+if (!string.IsNullOrWhiteSpace(azureMapsKey))
+{
+    builder.Services.AddHttpClient("PropertyGeocoding", client => client.Timeout = TimeSpan.FromSeconds(4))
+        .RemoveAllLoggers();
+    builder.Services.AddScoped<IPropertyGeocoder>(services => new AzureMapsPropertyGeocoder(
+        services.GetRequiredService<IHttpClientFactory>().CreateClient("PropertyGeocoding"),
+        azureMapsKey,
+        services.GetRequiredService<ILogger<AzureMapsPropertyGeocoder>>()));
+}
+builder.Services.AddScoped<IPropertyImageService, PropertyImageService>();
 builder.Services.AddScoped<ITenancyService, TenancyService>();
 builder.Services.AddScoped<IRentalListingService, RentalListingService>();
 
@@ -192,6 +202,10 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddSingleton<
     IEmailSender<ApplicationUser>,
     IdentityNoOpEmailSender>();
+
+builder.Services.AddHttpClient("VisitorLocation", client => client.Timeout = TimeSpan.FromSeconds(3))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+    .RemoveAllLoggers();
 
 var app = builder.Build();
 
@@ -408,31 +422,9 @@ app.MapGet(
     {
         var user = await users.GetUserAsync(http.User);
 
-        if (user?.UserProfileId is not Guid userId)
-        {
-            return Results.NotFound();
-        }
-
-        var image = await images.OpenAsync(
-            imageId,
-            userId,
-            cancellationToken);
-
-        http.Response.Headers[
-            "Cache-Control"] = "private, no-store";
-
-        http.Response.Headers[
-            "X-Content-Type-Options"] = "nosniff";
-
-        return image is null
-            ? Results.NotFound()
-            : Results.File(
-                image.Content,
-                image.ContentType);
-    })
+app.MapGet("/listings/visitor-location", RentConnect.Services.VisitorLocation.GetAsync)
     .RequireAuthorization();
 
-// Map Blazor components.
 app.MapStaticAssets();
 
 app.MapRazorComponents<App>()

@@ -8,7 +8,8 @@ namespace RentConnect.Infrastructure.Properties;
 
 public sealed class PropertyService(
     IDbContextFactory<ApplicationDbContext> contextFactory,
-    TimeProvider timeProvider)
+    TimeProvider timeProvider,
+    IPropertyGeocoder? geocoder = null)
     : IPropertyService
 {
     public async Task<IReadOnlyList<PropertySummary>>
@@ -206,7 +207,9 @@ public sealed class PropertyService(
             property.Address.CountryCode,
             canManage,
             ownerNames,
-            units);
+            units,
+            canManage ? property.Location?.Latitude : null,
+            canManage ? property.Location?.Longitude : null);
     }
 
     public async Task<Guid> CreateAsync(
@@ -227,6 +230,7 @@ public sealed class PropertyService(
 
         await using var context =
             await contextFactory.CreateDbContextAsync(cancellationToken);
+        await UpdateLocationAsync(property, command.Latitude, command.Longitude, cancellationToken);
         context.Properties.Add(property);
         await context.SaveChangesAsync(cancellationToken);
         return propertyId;
@@ -254,7 +258,32 @@ public sealed class PropertyService(
             cancellationToken);
         property.Rename(command.Name);
         property.ChangeAddress(CreateAddress(command));
+        await UpdateLocationAsync(property, command.Latitude, command.Longitude, cancellationToken);
         await context.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task UpdateLocationAsync(
+        Property property, double? latitude, double? longitude, CancellationToken cancellationToken)
+    {
+        if (latitude.HasValue != longitude.HasValue)
+        {
+            throw new ArgumentException("Provide both latitude and longitude.");
+        }
+
+        if (latitude is double lat && longitude is double lon)
+        {
+            property.SetLocation(new GeoCoordinate(lat, lon));
+            return;
+        }
+
+        if (property.Location is null && geocoder is not null)
+        {
+            var location = await geocoder.FindAsync(property.Address, cancellationToken);
+            if (location is not null)
+            {
+                property.SetLocation(location);
+            }
+        }
     }
 
     public async Task<Guid> AddRentalUnitAsync(

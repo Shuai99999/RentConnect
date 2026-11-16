@@ -67,3 +67,21 @@
 .city-filter-note { flex-basis: 100%; margin: 0; color: #516671; }
 .city-filter-note[role="alert"] { color: #a32424; }
 .location-summary { color: #214e3f; font-weight: 700; }
+.visitor-location {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    padding: .35rem .4rem;
+    color: #214e3f;
+    font-weight: 700;
+}
+
+.visitor-location svg {
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.65;
+}
