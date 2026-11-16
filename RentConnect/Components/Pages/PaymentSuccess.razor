@@ -1,0 +1,78 @@
+﻿@page "/payments/success"
+
+@using Stripe.Checkout
+@inject IConfiguration Configuration
+
+<PageTitle>Payment Confirmation - RentConnect</PageTitle>
+
+<h2>Rent Payment Confirmation</h2>
+
+@if (_isLoading)
+{
+    <p>Verifying your payment...</p>
+}
+else if (_isPaid)
+{
+    <h3>Payment Successful!</h3>
+    <p>Your payment has been confirmed by Stripe.</p>
+}
+else
+{
+    <h3>Payment Not Confirmed</h3>
+    <p>@_message</p>
+}
+
+<a href="/payments">Back to Payments</a>
+
+@code {
+    [SupplyParameterFromQuery(Name = "session_id")]
+    private string? SessionId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isPaid;
+    private string _message = "Unable to verify payment.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _isPaid = false;
+
+        if (string.IsNullOrWhiteSpace(SessionId))
+        {
+            _message = "Missing Stripe Checkout session.";
+            _isLoading = false;
+            return;
+        }
+
+        try
+        {
+            var secretKey = Configuration["Stripe:SecretKey"];
+
+            if (string.IsNullOrWhiteSpace(secretKey))
+            {
+                _message = "Stripe is not configured.";
+                return;
+            }
+
+            var client = new Stripe.StripeClient(secretKey);
+            var service = new SessionService(client);
+
+            var session = await service.GetAsync(SessionId);
+
+            _isPaid = session.PaymentStatus == "paid";
+
+            if (!_isPaid)
+            {
+                _message = "Payment is pending or incomplete.";
+            }
+        }
+        catch
+        {
+            _message = "Payment verification failed.";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}
