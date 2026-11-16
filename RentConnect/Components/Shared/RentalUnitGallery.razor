@@ -30,7 +30,7 @@
     {
         <div class="property-photo-picker">
             <label for="@_inputId">Choose a photograph</label>
-            <InputFile id="@_inputId" OnChange="SelectAsync" accept="image/jpeg,image/png" disabled="@(_busy || _images.Count >= 10)" />
+            <InputFile id="@_inputId" class="property-photo-input" OnChange="SelectAsync" accept="image/jpeg,image/png" disabled="@(_busy || _images.Count >= 10)" />
             <small>JPEG or PNG, up to 5 MB each. Maximum 10 photographs. The first photograph is this rental space's listing cover.</small>
         </div>
 
