@@ -38,8 +38,8 @@ public class ApplicationDbContext(
     public DbSet<MaintenanceRequest> MaintenanceRequests =>
         Set<MaintenanceRequest>();
 
-    public DbSet<PropertyImage> PropertyImages =>
-    Set<PropertyImage>();
+    public DbSet<RentalUnitImage> RentalUnitImages =>
+        Set<RentalUnitImage>();
 
     public DbSet<MaintenanceStatusChange>
         MaintenanceStatusChanges =>

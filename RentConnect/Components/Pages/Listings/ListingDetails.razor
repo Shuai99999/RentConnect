@@ -27,7 +27,7 @@
         <BackNavigation Href="/listings" Label="Available rentals" />
         <div class="details-layout">
             <section>
-                <PropertyGallery PropertyId="_listing.PropertyId" CanManage="_listing.CanManage" />
+                <RentalUnitGallery RentalUnitId="_listing.RentalUnitId" CanManage="_listing.CanManage" />
                 <div class="listing-copy">
                     <p class="eyebrow">@(_listing.TenantCount > 0 ? "Shared space" : FormatType(_listing.UnitType))</p>
                     <h1>@_listing.Title</h1>

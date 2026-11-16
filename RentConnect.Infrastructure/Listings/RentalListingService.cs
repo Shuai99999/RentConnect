@@ -105,9 +105,9 @@ public sealed class RentalListingService(
 
                         property.Id,
 
-                        context.PropertyImages
+                        context.RentalUnitImages
                             .Where(image =>
-                                image.PropertyId == property.Id)
+                                image.RentalUnitId == unit.Id)
                             .OrderBy(image => image.UploadedAtUtc)
                             .ThenBy(image => image.Id)
                             .Select(image => (Guid?)image.Id)
@@ -581,6 +581,7 @@ public sealed class RentalListingService(
                 select new ManagedRentalApplication(
                     application.Id,
                     listing.Id,
+                    unit.Id,
                     listing.Title,
                     property.Name,
                     unit.Name,

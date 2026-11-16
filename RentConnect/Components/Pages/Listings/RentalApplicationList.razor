@@ -9,8 +9,7 @@
 @using RentConnect.Services
 
 @inject IRentalListingService ListingService
-@inject IPropertyService PropertyService
-@inject IPropertyImageService PropertyImageService
+@inject IRentalUnitImageService RentalUnitImageService
 @inject CurrentUserProfileService CurrentUserProfileService
 @inject NavigationManager NavigationManager
 
@@ -203,10 +202,10 @@
 
                         <div class="property-thumbnail">
                             @if (TryGetCoverImage(
-                                application.PropertyName,
+                                application.RentalUnitId,
                                 out var imageId))
                             {
-                                <img src="@($"/properties/images/{imageId}")"
+                                <img src="@($"/rental-units/images/{imageId}")"
                                      alt="@($"Apartment at {application.PropertyName}")"
                                      loading="lazy" />
                             }
@@ -324,10 +323,10 @@
                 <div class="confirmation-property-icon">
 
                     @if (TryGetCoverImage(
-                        _selectedApplication.PropertyName,
+                        _selectedApplication.RentalUnitId,
                         out var selectedImageId))
                     {
-                        <img src="@($"/properties/images/{selectedImageId}")"
+                        <img src="@($"/rental-units/images/{selectedImageId}")"
                              alt="@($"Apartment at {_selectedApplication.PropertyName}")" />
                     }
                     else
@@ -387,8 +386,7 @@
 @code {
     private IReadOnlyList<ManagedRentalApplication> _applications = [];
 
-    private readonly Dictionary<string, Guid> _coverImagesByName =
-        new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<Guid, Guid> _coverImagesByUnitId = new();
 
     private Guid _userProfileId;
 
@@ -459,44 +457,34 @@
         _applications = await ListingService
             .GetManagedApplicationsAsync(_userProfileId);
 
-        await LoadPropertyImagesAsync();
+        await LoadRentalUnitImagesAsync();
     }
 
-    private async Task LoadPropertyImagesAsync()
+    private async Task LoadRentalUnitImagesAsync()
     {
-        _coverImagesByName.Clear();
+        _coverImagesByUnitId.Clear();
 
         try
         {
-            var properties = await PropertyService
-                .GetVisiblePropertiesAsync(_userProfileId);
-
-            // Only match names that uniquely identify a property.
-            var uniqueProperties = properties
-                .Where(p => !string.IsNullOrWhiteSpace(p.Name))
-                .GroupBy(p => p.Name.Trim(),
-                    StringComparer.OrdinalIgnoreCase)
-                .Where(group => group.Count() == 1)
-                .Select(group => group.Single());
-
-            foreach (var property in uniqueProperties)
+            foreach (var rentalUnitId in _applications
+                         .Select(application => application.RentalUnitId)
+                         .Distinct())
             {
                 try
                 {
-                    var images = await PropertyImageService.GetAsync(
-                        property.Id,
+                    var images = await RentalUnitImageService.GetAsync(
+                        rentalUnitId,
                         _userProfileId);
 
                     if (images.Count > 0)
                     {
-                        _coverImagesByName[property.Name.Trim()] =
-                            images[0].Id;
+                        _coverImagesByUnitId[rentalUnitId] = images[0].Id;
                     }
                 }
                 catch (Exception exception)
                 {
                     Console.Error.WriteLine(
-                        $"Unable to load image for {property.Name}: {exception}");
+                        $"Unable to load image for rental unit {rentalUnitId}: {exception}");
                 }
             }
         }
@@ -508,15 +496,12 @@
     }
 
     private bool TryGetCoverImage(
-        string? propertyName,
+        Guid rentalUnitId,
         out Guid imageId)
     {
         imageId = Guid.Empty;
 
-        return !string.IsNullOrWhiteSpace(propertyName)
-            && _coverImagesByName.TryGetValue(
-                propertyName.Trim(),
-                out imageId);
+        return _coverImagesByUnitId.TryGetValue(rentalUnitId, out imageId);
     }
 
     private void ClearFilters()

@@ -110,10 +110,6 @@
             </section>
         }
 
-        <section class="panel property-photos-panel">
-            <h2>Property photographs</h2>
-            <PropertyGallery PropertyId="PropertyId" CanManage="_property.CanManage" />
-        </section>
         <section class="overview-grid" aria-label="Property overview">
             <article class="overview-card address-card">
                 <span>Address</span>
@@ -241,6 +237,11 @@
                                 </div>
                             }
                         </article>
+
+                        <section class="property-photos-panel" aria-label="@($"Photographs for {unit.Name}")">
+                            <h3>@unit.Name photographs</h3>
+                            <RentalUnitGallery RentalUnitId="unit.Id" CanManage="_property.CanManage" />
+                        </section>
 
                         @if (_property.CanManage && _editingUnitId == unit.Id)
                         {

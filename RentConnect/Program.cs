@@ -34,7 +34,7 @@ builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuth
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISharedBillService, SharedBillService>();
 builder.Services.AddScoped<IPropertyService, PropertyService>();
-builder.Services.AddScoped<IPropertyImageService, PropertyImageService>();
+builder.Services.AddScoped<IRentalUnitImageService, RentalUnitImageService>();
 builder.Services.AddScoped<ITenancyService, TenancyService>();
 builder.Services.AddScoped<IRentalListingService, RentalListingService>();
 
@@ -307,16 +307,16 @@ app.MapGet(
             : Results.StatusCode(StatusCodes.Status503ServiceUnavailable);
     });
 
-app.MapGet("/properties/images/{imageId:guid}", async (
+app.MapGet("/rental-units/images/{imageId:guid}", async (
     Guid imageId, HttpContext http, UserManager<ApplicationUser> users,
-    IPropertyImageService images, CancellationToken cancellationToken) =>
+    IRentalUnitImageService images, CancellationToken cancellationToken) =>
 {
     var user = await users.GetUserAsync(http.User);
     if (user?.UserProfileId is not Guid userId) return Results.NotFound();
-    var image = await images.OpenAsync(imageId,userId,cancellationToken);
+    var image = await images.OpenAsync(imageId, userId, cancellationToken);
     http.Response.Headers["Cache-Control"] = "private, no-store";
     http.Response.Headers["X-Content-Type-Options"] = "nosniff";
-    return image is null ? Results.NotFound() : Results.File(image.Content,image.ContentType);
+    return image is null ? Results.NotFound() : Results.File(image.Content, image.ContentType);
 }).RequireAuthorization();
 
 app.MapStaticAssets();

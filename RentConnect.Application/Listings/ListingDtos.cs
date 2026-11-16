@@ -54,6 +54,7 @@ public sealed record OwnedListingUnit(
 public sealed record ManagedRentalApplication(
     Guid Id,
     Guid ListingId,
+    Guid RentalUnitId,
     string ListingTitle,
     string PropertyName,
     string RentalUnitName,

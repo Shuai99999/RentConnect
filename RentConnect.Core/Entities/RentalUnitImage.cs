@@ -1,22 +1,23 @@
-﻿namespace RentConnect.Core.Entities;
+namespace RentConnect.Core.Entities;
 
-public sealed class PropertyImage
+public sealed class RentalUnitImage
 {
     public const int MaxBytes = 5 * 1024 * 1024;
 
-    private PropertyImage()
+    private RentalUnitImage()
     {
     }
 
-    public PropertyImage(
-        Guid propertyId,
+    public RentalUnitImage(
+        Guid rentalUnitId,
         byte[] content,
         DateTimeOffset uploadedAtUtc)
     {
-        if (propertyId == Guid.Empty)
+        if (rentalUnitId == Guid.Empty)
         {
             throw new ArgumentException(
-                "Property is required.");
+                "Rental unit is required.",
+                nameof(rentalUnitId));
         }
 
         ArgumentNullException.ThrowIfNull(content);
@@ -24,22 +25,22 @@ public sealed class PropertyImage
         if (content.Length == 0 || content.Length > MaxBytes)
         {
             throw new ArgumentException(
-                "Images must be between 1 byte and 5 MB.");
+                "Images must be between 1 byte and 5 MB.",
+                nameof(content));
         }
 
         ContentType = DetectContentType(content);
-
         Id = Guid.NewGuid();
-        PropertyId = propertyId;
+        RentalUnitId = rentalUnitId;
         Content = content.ToArray();
         UploadedAtUtc = uploadedAtUtc.ToUniversalTime();
     }
 
     public Guid Id { get; private set; }
 
-    public Guid PropertyId { get; private set; }
+    public Guid RentalUnitId { get; private set; }
 
-    public string ContentType { get; private set; } = "";
+    public string ContentType { get; private set; } = string.Empty;
 
     public byte[] Content { get; private set; } = [];
 
@@ -47,13 +48,11 @@ public sealed class PropertyImage
 
     private static string DetectContentType(byte[] bytes)
     {
-        var pngSignature = new byte[]
-        {
-            137, 80, 78, 71, 13, 10, 26, 10
-        };
+        ReadOnlySpan<byte> pngSignature =
+            [137, 80, 78, 71, 13, 10, 26, 10];
 
-        if (bytes.Length >= 8 &&
-            bytes.AsSpan(0, 8).SequenceEqual(pngSignature))
+        if (bytes.Length >= pngSignature.Length &&
+            bytes.AsSpan(0, pngSignature.Length).SequenceEqual(pngSignature))
         {
             return "image/png";
         }
@@ -67,6 +66,7 @@ public sealed class PropertyImage
         }
 
         throw new ArgumentException(
-            "Upload a PNG or JPEG image.");
+            "Upload a PNG or JPEG image.",
+            nameof(bytes));
     }
 }
