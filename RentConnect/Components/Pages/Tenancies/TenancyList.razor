@@ -38,7 +38,11 @@
         <section class="state-card empty-card">
             <h2>No tenancies yet</h2>
             <p>Owners can create a tenancy for a vacant rental space. Residents will see one here after accepting an invitation.</p>
-            <a class="secondary-button" href="/tenancies/new">Create a tenancy</a>
+            <AuthorizeView Roles="Landlord">
+                <a class="secondary-button" href="/tenancies/new">
+                    Create a tenancy
+                </a>
+            </AuthorizeView>
         </section>
     }
     else

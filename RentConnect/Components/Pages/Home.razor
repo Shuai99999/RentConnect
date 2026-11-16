@@ -36,7 +36,8 @@
             <span class="state-symbol" aria-hidden="true">!</span>
             <h1>We couldn't load your dashboard</h1>
             <p>@_errorMessage</p>
-            <button type="button" class="secondary-button" @onclick="LoadDashboardAsync">
+            <button type="button" class="secondary-button"
+                    @onclick="LoadDashboardAsync">
                 Try again
             </button>
         </section>
@@ -45,14 +46,16 @@
     {
         <header class="dashboard-hero">
             <div class="hero-copy">
-                <p class="eyebrow">@(_isLandlord ? "Landlord workspace" : "Renter overview")</p>
+                <p class="eyebrow">
+                    @(_isLandlord ? "Landlord workspace" : "Renter overview")
+                </p>
                 <h1>Welcome back, @GetFirstName(_displayName)</h1>
                 <p>@GetHeroDescription()</p>
             </div>
 
-            <div class="quick-actions" aria-label="Quick actions">
-                @if (_isLandlord)
-                {
+            @if (_isLandlord)
+            {
+                <div class="quick-actions" aria-label="Quick actions">
                     <a class="primary-action" href="/properties/new">
                         <span aria-hidden="true">+</span>
                         Add property
@@ -66,24 +69,8 @@
                     <a class="secondary-action" href="/bills/new">
                         Add bill
                     </a>
-                }
-                else
-                {
-                    <a class="primary-action" href="/listings">
-                        <span aria-hidden="true">⌕</span>
-                        Find a home
-                    </a>
-                    <a class="secondary-action" href="/maintenance/new">
-                        Report a problem
-                    </a>
-                    <a class="secondary-action" href="/tenancies">
-                        My tenancy
-                    </a>
-                    <a class="secondary-action" href="/bills">
-                        My bills
-                    </a>
-                }
-            </div>
+                </div>
+            }
         </header>
 
         <section class="summary-grid" aria-label="Account summary">
@@ -200,7 +187,11 @@
                     <span class="summary-copy">
                         <small>Unread updates</small>
                         <strong>@_unreadNotificationCount</strong>
-                        <span>@(_unreadNotificationCount == 0 ? "You're all caught up" : "New activity needs a look")</span>
+                        <span>
+                            @(_unreadNotificationCount == 0
+                                ? "You're all caught up"
+                                : "New activity needs a look")
+                        </span>
                     </span>
                     <span class="card-arrow" aria-hidden="true">→</span>
                 </a>
@@ -214,7 +205,9 @@
                         <p class="eyebrow">Maintenance</p>
                         <h2>Recent requests</h2>
                     </div>
-                    <a href="/maintenance">View all <span aria-hidden="true">→</span></a>
+                    <a href="/maintenance">
+                        View all <span aria-hidden="true">→</span>
+                    </a>
                 </header>
 
                 @if (_recentRequests.Count == 0)
@@ -232,11 +225,17 @@
                     <div class="item-list">
                         @foreach (var request in _recentRequests)
                         {
-                            <a class="list-item" href="@($"/maintenance/{request.Id}")">
+                            <a class="list-item"
+                               href="@($"/maintenance/{request.Id}")">
                                 <span class="item-marker @GetPriorityCssClass(request.Priority)"></span>
                                 <span class="item-main">
                                     <strong>@request.Title</strong>
-                                    <small>@FormatMaintenanceCategory(request.Category) · <LocalDateTime Value="request.UpdatedAtUtc" Display="LocalDateTimeDisplay.Relative" /></small>
+                                    <small>
+                                        @FormatMaintenanceCategory(request.Category)
+                                        ·
+                                        <LocalDateTime Value="request.UpdatedAtUtc"
+                                                       Display="LocalDateTimeDisplay.Relative" />
+                                    </small>
                                 </span>
                                 <span class="status-pill @GetMaintenanceStatusCssClass(request.Status)">
                                     @FormatMaintenanceStatus(request.Status)
@@ -253,7 +252,9 @@
                         <p class="eyebrow">Shared finances</p>
                         <h2>Upcoming bills</h2>
                     </div>
-                    <a href="/bills">View all <span aria-hidden="true">→</span></a>
+                    <a href="/bills">
+                        View all <span aria-hidden="true">→</span>
+                    </a>
                 </header>
 
                 @if (_upcomingBills.Count == 0)
@@ -271,16 +272,22 @@
                     <div class="item-list">
                         @foreach (var bill in _upcomingBills)
                         {
-                            <a class="list-item" href="@($"/bills/{bill.Id}")">
+                            <a class="list-item"
+                               href="@($"/bills/{bill.Id}")">
                                 <span class="bill-date" aria-hidden="true">
                                     <small>@bill.DueDate.ToString("MMM")</small>
                                     <strong>@bill.DueDate.Day</strong>
                                 </span>
                                 <span class="item-main">
                                     <strong>@bill.Title</strong>
-                                    <small>@FormatBillCategory(bill.Category) · Due @FormatDueDate(bill.DueDate)</small>
+                                    <small>
+                                        @FormatBillCategory(bill.Category)
+                                        · Due @FormatDueDate(bill.DueDate)
+                                    </small>
                                 </span>
-                                <span class="bill-amount">@FormatMoney(bill.TotalAmount, bill.Currency)</span>
+                                <span class="bill-amount">
+                                    @FormatMoney(bill.TotalAmount, bill.Currency)
+                                </span>
                             </a>
                         }
                     </div>
@@ -296,7 +303,9 @@
                         <p class="eyebrow">Rental applications</p>
                         <h2>Recent applicants</h2>
                     </div>
-                    <a href="/rental-applications">Review all <span aria-hidden="true">→</span></a>
+                    <a href="/rental-applications">
+                        Review all <span aria-hidden="true">→</span>
+                    </a>
                 </header>
 
                 @if (_recentApplications.Count == 0)
@@ -320,13 +329,17 @@
                                 </span>
                                 <span class="item-main">
                                     <strong>@application.ApplicantName</strong>
-                                    <small>@application.ListingTitle · @application.RentalUnitName</small>
+                                    <small>
+                                        @application.ListingTitle
+                                        · @application.RentalUnitName
+                                    </small>
                                 </span>
                                 <span class="application-meta">
                                     <span class="@($"status-pill application-status-{application.Status.ToString().ToLowerInvariant()}")">
                                         @application.Status
                                     </span>
-                                    <LocalDateTime Value="application.CreatedAtUtc" Display="LocalDateTimeDisplay.Relative" />
+                                    <LocalDateTime Value="application.CreatedAtUtc"
+                                                   Display="LocalDateTimeDisplay.Relative" />
                                 </span>
                             </a>
                         }
@@ -341,7 +354,9 @@
                     <p class="eyebrow">Latest activity</p>
                     <h2>Updates for you</h2>
                 </div>
-                <a href="/notifications">Open notifications <span aria-hidden="true">→</span></a>
+                <a href="/notifications">
+                    Open notifications <span aria-hidden="true">→</span>
+                </a>
             </header>
 
             @if (_recentNotifications.Count == 0)
@@ -350,7 +365,7 @@
                     <span aria-hidden="true">•</span>
                     <div>
                         <strong>Nothing new yet</strong>
-                            <p>Applications, requests, and other updates will be collected here.</p>
+                        <p>Applications, requests, and other updates will be collected here.</p>
                     </div>
                 </div>
             }
@@ -366,7 +381,8 @@
                                 <strong>@notification.Title</strong>
                                 <small>@notification.Message</small>
                             </span>
-                            <LocalDateTime Value="notification.CreatedAtUtc" Display="LocalDateTimeDisplay.Relative" />
+                            <LocalDateTime Value="notification.CreatedAtUtc"
+                                           Display="LocalDateTimeDisplay.Relative" />
                         </a>
                     }
                 </div>
@@ -381,8 +397,10 @@
     private readonly List<SharedBillSummary> _upcomingBills = [];
     private readonly List<UserNotificationItem> _recentNotifications = [];
     private readonly List<ManagedRentalApplication> _recentApplications = [];
+
     private string _displayName = "there";
     private string? _errorMessage;
+
     private int _propertyCount;
     private int _unitCount;
     private int _occupiedUnitCount;
@@ -393,6 +411,7 @@
     private int _urgentRequestCount;
     private int _overdueBillCount;
     private int _unreadNotificationCount;
+
     private bool _isLandlord;
     private bool _isLoading = true;
 
@@ -407,20 +426,26 @@
         {
             var profile = await CurrentUserProfileService
                 .GetRequiredUserProfileAsync();
+
             _displayName = profile.DisplayName;
 
             var authenticationState = await AuthenticationStateProvider
                 .GetAuthenticationStateAsync();
+
             _isLandlord = authenticationState.User.IsInRole("Landlord");
 
             var tenancies = await MaintenanceService
                 .GetAvailableTenanciesAsync(profile.Id);
+
             var requests = await MaintenanceService
                 .GetVisibleRequestsAsync(profile.Id);
+
             var bills = await SharedBillService
                 .GetVisibleBillsAsync(profile.Id);
+
             var notifications = await NotificationService
                 .GetRecentAsync(profile.Id, 6);
+
             _unreadNotificationCount = await NotificationService
                 .GetUnreadCountAsync(profile.Id);
 
@@ -430,17 +455,20 @@
             _activeRequestCount = requests.Count(request =>
                 request.Status is not MaintenanceStatus.Closed and
                     not MaintenanceStatus.Cancelled);
+
             _urgentRequestCount = requests.Count(request =>
                 request.Status is not MaintenanceStatus.Closed and
                     not MaintenanceStatus.Cancelled &&
                 request.Priority is MaintenancePriority.High or
                     MaintenancePriority.Emergency);
+
             _recentRequests.Clear();
             _recentRequests.AddRange(requests
                 .OrderByDescending(request => request.UpdatedAtUtc)
                 .Take(4));
 
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
+
             var attentionBills = bills
                 .Where(bill => bill.Status is
                     SharedBillStatus.Published or
@@ -448,9 +476,12 @@
                     SharedBillStatus.Disputed)
                 .OrderBy(bill => bill.DueDate)
                 .ToArray();
+
             _attentionBillCount = attentionBills.Length;
+
             _overdueBillCount = attentionBills.Count(bill =>
                 bill.DueDate < today);
+
             _upcomingBills.Clear();
             _upcomingBills.AddRange(attentionBills.Take(4));
 
@@ -458,6 +489,7 @@
             _recentNotifications.AddRange(notifications.Take(4));
 
             ResetLandlordSummary();
+
             if (_isLandlord)
             {
                 await LoadLandlordSummaryAsync(profile.Id);
@@ -466,6 +498,7 @@
         catch (Exception exception)
         {
             Console.Error.WriteLine(exception);
+
             _errorMessage =
                 "Please try again. If the problem continues, contact support.";
         }
@@ -479,8 +512,10 @@
     {
         var properties = await PropertyService
             .GetVisiblePropertiesAsync(userProfileId);
+
         var units = await RentalListingService
             .GetOwnedUnitsAsync(userProfileId);
+
         var applications = await RentalListingService
             .GetManagedApplicationsAsync(userProfileId);
 
@@ -488,6 +523,7 @@
         _unitCount = units.Count;
         _occupiedUnitCount = units.Count(unit => unit.HasTenants);
         _publishedListingCount = units.Count(unit => unit.IsPublished);
+
         _pendingApplicationCount = applications.Count(application =>
             application.Status == RentalApplicationStatus.Pending);
 
@@ -518,6 +554,7 @@
     private string GetListingSummary()
     {
         var unpublishedCount = Math.Max(0, _unitCount - _publishedListingCount);
+
         return unpublishedCount == 0
             ? "All eligible spaces are listed"
             : $"{unpublishedCount} space{(unpublishedCount == 1 ? string.Empty : "s")} not published";
@@ -550,6 +587,7 @@
         }
 
         var first = _tenancies[0];
+
         return _tenancies.Count == 1
             ? $"{first.PropertyName} · {first.RentalUnitName}"
             : $"{first.PropertyName} and {_tenancies.Count - 1} more";
@@ -559,6 +597,7 @@
     {
         var parts = displayName
             .Split(' ', StringSplitOptions.RemoveEmptyEntries);
+
         return parts.Length == 0 ? "there" : parts[0];
     }
 
@@ -591,7 +630,9 @@
     }
 
     private static string FormatMoney(decimal amount, string currency) =>
-        currency == "JPY" ? $"{currency} {amount:N0}" : $"{currency} {amount:N2}";
+        currency == "JPY"
+            ? $"{currency} {amount:N0}"
+            : $"{currency} {amount:N2}";
 
     private static string FormatMaintenanceStatus(MaintenanceStatus status) =>
         status switch

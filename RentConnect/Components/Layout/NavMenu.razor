@@ -51,15 +51,17 @@
                         Find a home
                     </NavLink>
 
-                    <NavLink href="properties">
-                        Properties
-                    </NavLink>
-
                     <AuthorizeView Roles="Landlord"
                                    Context="landlordContext">
+
+                        <NavLink href="properties">
+                            Properties
+                        </NavLink>
+
                         <NavLink href="rental-applications">
                             Applications
                         </NavLink>
+
                     </AuthorizeView>
 
                     <NavLink href="tenancies">
