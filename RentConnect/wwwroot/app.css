@@ -376,7 +376,52 @@ textarea.form-control:focus {
 .property-photo-grid img { display:block; width:100%; height:220px; object-fit:cover; border-radius:.8rem; }
 .property-photo-picker { display:flex; flex-direction:column; gap:.6rem; margin:1rem 0; }
 .property-photo-picker label { font-weight:700; color:var(--color-text-secondary); }
-.property-photo-picker input { max-width:100%; }
+.property-photo-input {
+    width: 100%;
+    max-width: 42rem;
+    min-height: 50px;
+    padding: 0.35rem;
+    border: 1px solid var(--color-border-strong);
+    border-radius: 0.78rem;
+    background: var(--color-surface-subtle);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: border-color 0.16s ease, background-color 0.16s ease,
+        box-shadow 0.16s ease;
+}
+.property-photo-input:hover:not(:disabled) {
+    border-color: var(--color-primary-border);
+    background: var(--color-primary-soft);
+}
+.property-photo-input:focus-visible {
+    border-color: var(--color-primary);
+    outline: 3px solid rgb(var(--color-primary-rgb) / 14%);
+    outline-offset: 1px;
+}
+.property-photo-input::file-selector-button {
+    min-height: 38px;
+    margin-right: 0.85rem;
+    padding: 0.55rem 0.9rem;
+    border: 0;
+    border-radius: 0.58rem;
+    background: var(--color-primary);
+    color: white;
+    font: inherit;
+    font-weight: 750;
+    cursor: pointer;
+    transition: background-color 0.16s ease, box-shadow 0.16s ease;
+}
+.property-photo-input:hover:not(:disabled)::file-selector-button {
+    background: var(--color-primary-strong);
+    box-shadow: 0 5px 14px rgb(var(--color-primary-rgb) / 20%);
+}
+.property-photo-input:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.property-photo-input:disabled::file-selector-button {
+    cursor: not-allowed;
+}
 .property-photo-picker small,.photo-empty { color:var(--color-text-muted); line-height:1.5; }
 .property-photo-preview { margin:1rem 0; }
 .property-photo-preview img { display:block; max-width:100%; max-height:260px; border-radius:.8rem; }

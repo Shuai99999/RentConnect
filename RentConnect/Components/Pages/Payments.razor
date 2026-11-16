@@ -1,0 +1,97 @@
+﻿@page "/payments"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Services
+@inject StripePaymentService StripePaymentService
+@inject NavigationManager Navigation
+@attribute [Authorize]
+
+<PageTitle>Rent Payments - RentConnect</PageTitle>
+
+<div class="container mt-4">
+
+    <h2>Rent Payments</h2>
+
+    <p class="text-muted">
+        Pay your monthly rent securely with Stripe.
+    </p>
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+
+            <h4>Monthly Rent</h4>
+
+            <h2 class="text-primary">
+                $1,500.00 CAD
+            </h2>
+
+            <p>
+                <strong>Status:</strong>
+                <span class="badge bg-warning text-dark">
+                    Payment Pending
+                </span>
+            </p>
+
+            <p>
+                <strong>Payment Method:</strong>
+                Stripe Checkout
+            </p>
+
+            <button class="btn btn-primary"
+                    @onclick="PayRent"
+                    disabled="@isProcessing">
+                @(isProcessing
+                    ? "Processing..."
+                    : "Pay Rent with Stripe")
+            </button>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <p class="text-danger mt-3">
+                    @errorMessage
+                </p>
+            }
+
+        </div>
+    </div>
+
+</div>
+
+@code {
+    private bool isProcessing = false;
+    private string? errorMessage;
+
+    private async Task PayRent()
+    {
+        if (isProcessing)
+            return;
+
+        isProcessing = true;
+        errorMessage = null;
+
+        try
+        {
+            var baseUrl = Navigation.BaseUri.TrimEnd('/');
+
+            var checkoutUrl =
+                await StripePaymentService
+                    .CreateCheckoutSessionAsync(
+                        150000,
+                        Guid.NewGuid().ToString(),
+                        baseUrl);
+
+            Navigation.NavigateTo(
+                checkoutUrl,
+                forceLoad: true);
+        }
+        catch (Exception)
+        {
+            errorMessage =
+                "Unable to start Stripe Checkout. Please check your Stripe configuration.";
+        }
+        finally
+        {
+            isProcessing = false;
+        }
+    }
+}
