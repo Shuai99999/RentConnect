@@ -7,7 +7,9 @@
 @using RentConnect.Core
 @using RentConnect.Core.Enums
 
+@using Microsoft.JSInterop
 @inject IRentalListingService ListingService
+@inject IJSRuntime JS
 
 <PageTitle>Find a home</PageTitle>
 
@@ -49,6 +51,13 @@
             </select>
         </div>
         <button class="primary-button" type="submit" disabled="@_isLoading">Search</button>
+        <span class="visitor-location" title="Location estimated from your IP address" aria-live="polite">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M20 10c0 5-8 11-8 11S4 15 4 10a8 8 0 1 1 16 0Z" />
+                <circle cx="12" cy="10" r="2.5" />
+            </svg>
+            @(_visitorLocation ?? (_locationChecked ? "Location unavailable" : "Detecting location…"))
+        </span>
         @if (_appliedCity is not null)
         {
             <button class="secondary-button" type="button" @onclick="ClearCityAsync"
@@ -135,6 +144,38 @@
     private IReadOnlyList<PublicListingSummary> _listings = [];
     private bool _isLoading = true;
     private string? _error;
+
+    private string? _visitorLocation;
+    private bool _locationChecked;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var module = await JS.InvokeAsync<IJSObjectReference>(
+                "import", "./visitor-location.js");
+            var location = await module.InvokeAsync<string?>(
+                "getVisitorLocation", "/listings/visitor-location");
+            if (!string.IsNullOrWhiteSpace(location))
+            {
+                _visitorLocation = location;
+            }
+        }
+        catch (Exception exception) when (exception is JSException or OperationCanceledException)
+        {
+            // A failed lookup leaves the location unavailable.
+        }
+        finally
+        {
+            _locationChecked = true;
+            StateHasChanged();
+        }
+    }
 
     private string _city = string.Empty;
     private string? _appliedCity;

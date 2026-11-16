@@ -156,6 +156,10 @@ builder.Services.ConfigureApplicationCookie(options =>
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
+builder.Services.AddHttpClient("VisitorLocation", client => client.Timeout = TimeSpan.FromSeconds(3))
+    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
+    .RemoveAllLoggers();
+
 var app = builder.Build();
 
 if (builder.Configuration.GetValue(
@@ -328,6 +332,9 @@ app.MapGet("/properties/images/{imageId:guid}", async (
     http.Response.Headers["X-Content-Type-Options"] = "nosniff";
     return image is null ? Results.NotFound() : Results.File(image.Content,image.ContentType);
 }).RequireAuthorization();
+
+app.MapGet("/listings/visitor-location", RentConnect.Services.VisitorLocation.GetAsync)
+    .RequireAuthorization();
 
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
