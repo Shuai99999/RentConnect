@@ -23,12 +23,12 @@
         <section class="state-card error-card">
             <h1>Rental space not found</h1>
             <p>It does not exist or you do not have permission to manage it.</p>
-            <a class="secondary-button" href="/listings/manage">Back to listings</a>
+            <a class="secondary-button" href="/properties">Back to properties</a>
         </section>
     }
     else
     {
-        <BackNavigation Href="/listings/manage" Label="Manage listings" />
+        <BackNavigation Href="@PropertyReturnUrl" Label="@_unit.PropertyName" />
 
         <header class="editor-header">
             <div>
@@ -81,7 +81,7 @@
                     </div>
 
                     <div class="form-actions">
-                        <a class="secondary-button" href="/listings/manage">Cancel</a>
+                        <a class="secondary-button" href="@PropertyReturnUrl">Cancel</a>
                         <button type="submit" class="primary-button" disabled="@_isSaving">
                             @(_isSaving ? "Saving..." : GetSaveLabel())
                         </button>
@@ -121,6 +121,9 @@
     private string? _message;
     private string? _error;
     private ListingInput Input { get; } = new();
+    private string PropertyReturnUrl => _unit is null
+        ? "/properties"
+        : $"/properties/{_unit.PropertyId}#rental-unit-{_unit.RentalUnitId}";
 
     protected override async Task OnParametersSetAsync()
     {

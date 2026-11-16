@@ -8,7 +8,7 @@ public sealed class ListingPageAuthorizationTests
     [Theory]
     [InlineData(typeof(ListingEdit))]
     [InlineData(typeof(ListingManage))]
-    public void OwnedListingPages_RequireAuthenticationWithoutRoleGate(
+    public void ListingManagementRoutes_RequireAuthenticationWithoutRoleGate(
         Type pageType)
     {
         var attributes = pageType

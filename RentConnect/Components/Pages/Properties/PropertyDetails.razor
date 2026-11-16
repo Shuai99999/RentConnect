@@ -188,7 +188,7 @@
                 <div class="unit-list">
                     @foreach (var unit in _property.Units)
                     {
-                        <article class="unit-card @(!unit.IsActive ? "inactive" : string.Empty)">
+                        <article id="@($"rental-unit-{unit.Id}")" class="unit-card @(!unit.IsActive ? "inactive" : string.Empty)">
                             <div class="unit-icon" aria-hidden="true">
                                 <svg viewBox="0 0 24 24" focusable="false">
                                     <path d="m3 11 9-7 9 7M5 10v10h14V10" />
