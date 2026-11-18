@@ -161,6 +161,7 @@
 @code {
     private IReadOnlyList<PublicListingSummary> _listings = [];
     private IJSObjectReference? _mapModule;
+    private string? _mapInstanceId;
     private bool _isLoading = true;
     private bool _isLocating;
     private string? _error;
@@ -196,7 +197,13 @@
             _mapModule = await JS.InvokeAsync<IJSObjectReference>("import", "./listing-map.js");
             if (_mapEnabled)
             {
-                await _mapModule.InvokeVoidAsync("initializeMap", "listing-map", AzureMapsKey, GetMapListings());
+                _mapInstanceId = Guid.NewGuid().ToString("N");
+                await _mapModule.InvokeVoidAsync(
+                    "initializeMap",
+                    _mapInstanceId,
+                    "listing-map",
+                    AzureMapsKey,
+                    GetMapListings());
             }
         }
         catch (JSException exception)
@@ -232,7 +239,7 @@
         try
         {
             _mapModule ??= await JS.InvokeAsync<IJSObjectReference>("import", "./listing-map.js");
-            var location = await _mapModule.InvokeAsync<UserCoordinates>("locateUser");
+            var location = await _mapModule.InvokeAsync<UserCoordinates>("locateUser", _mapInstanceId);
             var userCoordinate = new RentConnect.Core.ValueObjects.GeoCoordinate(location.Latitude, location.Longitude);
             var nearest = AlbertaRentalSearch.Cities
                 .Select(city => new
@@ -290,9 +297,9 @@
             _isLoading = false;
         }
 
-        if (_mapModule is not null && _mapEnabled)
+        if (_mapModule is not null && _mapInstanceId is not null && _mapEnabled)
         {
-            await _mapModule.InvokeVoidAsync("updateListings", GetMapListings());
+            await _mapModule.InvokeVoidAsync("updateListings", _mapInstanceId, GetMapListings());
         }
     }
 
@@ -322,7 +329,10 @@
 
         try
         {
-            await _mapModule.InvokeVoidAsync("disposeMap");
+            if (_mapInstanceId is not null)
+            {
+                await _mapModule.InvokeVoidAsync("disposeMap", _mapInstanceId);
+            }
             await _mapModule.DisposeAsync();
         }
         catch (JSDisconnectedException)

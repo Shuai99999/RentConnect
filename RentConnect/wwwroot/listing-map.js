@@ -1,11 +1,7 @@
 const sdkScriptUrl = "https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js";
 const sdkStyleUrl = "https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css";
 
-let map;
-let popup;
-let mapReady;
-let rentalMarkers = [];
-let userMarker;
+let activeMap;
 
 function loadAzureMaps() {
     if (window.atlas) {
@@ -37,10 +33,13 @@ function loadAzureMaps() {
     });
 }
 
-export async function initializeMap(containerId, subscriptionKey, listings) {
+export async function initializeMap(instanceId, containerId, subscriptionKey, listings) {
     await loadAzureMaps();
 
-    map = new atlas.Map(containerId, {
+    activeMap?.resolveReady?.();
+    activeMap?.map.dispose();
+
+    const map = new atlas.Map(containerId, {
         authOptions: {
             authType: atlas.AuthenticationType.subscriptionKey,
             subscriptionKey
@@ -52,32 +51,54 @@ export async function initializeMap(containerId, subscriptionKey, listings) {
         style: "road_shaded_relief"
     });
 
-    mapReady = new Promise(resolve => {
+    const state = {
+        instanceId,
+        map,
+        popup: undefined,
+        mapReady: undefined,
+        resolveReady: undefined,
+        rentalMarkers: [],
+        userMarker: undefined
+    };
+    activeMap = state;
+
+    state.mapReady = new Promise(resolve => {
+        state.resolveReady = resolve;
         map.events.add("ready", () => {
+            if (activeMap !== state) {
+                resolve();
+                return;
+            }
+
             map.controls.add([
                 new atlas.control.ZoomControl(),
                 new atlas.control.CompassControl()
             ], { position: "top-right" });
-            popup = new atlas.Popup({ closeButton: true, pixelOffset: [0, -18] });
+            state.popup = new atlas.Popup({ closeButton: true, pixelOffset: [0, -18] });
             resolve();
         });
     });
 
-    await mapReady;
-    await updateListings(listings);
+    await state.mapReady;
+    await updateListings(instanceId, listings);
 }
 
-export async function updateListings(listings) {
-    if (!map || !mapReady) {
+export async function updateListings(instanceId, listings) {
+    const state = getActiveMap(instanceId);
+    if (!state) {
         return;
     }
 
-    await mapReady;
-    popup?.close();
-    for (const marker of rentalMarkers) {
-        map.markers.remove(marker);
+    await state.mapReady;
+    if (activeMap !== state) {
+        return;
     }
-    rentalMarkers = [];
+
+    state.popup?.close();
+    for (const marker of state.rentalMarkers) {
+        state.map.markers.remove(marker);
+    }
+    state.rentalMarkers = [];
 
     const properties = groupByProperty(listings ?? []);
     const positions = [];
@@ -99,15 +120,15 @@ export async function updateListings(listings) {
             htmlContent: button,
             anchor: "bottom"
         });
-        map.markers.add(marker);
-        map.events.add("click", marker, () => openPropertyPopup(property, position));
-        rentalMarkers.push(marker);
+        state.map.markers.add(marker);
+        state.map.events.add("click", marker, () => openPropertyPopup(state, property, position));
+        state.rentalMarkers.push(marker);
     }
 
     if (positions.length === 1) {
-        map.setCamera({ center: positions[0], zoom: 13, type: "ease", duration: 500 });
+        state.map.setCamera({ center: positions[0], zoom: 13, type: "ease", duration: 500 });
     } else if (positions.length > 1) {
-        map.setCamera({
+        state.map.setCamera({
             bounds: atlas.data.BoundingBox.fromPositions(positions),
             padding: 70,
             maxZoom: 14,
@@ -142,7 +163,11 @@ function groupByProperty(listings) {
     return [...groups.values()];
 }
 
-function openPropertyPopup(property, position) {
+function openPropertyPopup(state, property, position) {
+    if (activeMap !== state || !state.popup) {
+        return;
+    }
+
     const content = document.createElement("div");
     content.className = "rent-map-popup";
 
@@ -166,11 +191,11 @@ function openPropertyPopup(property, position) {
         content.appendChild(link);
     }
 
-    popup.setOptions({ position, content });
-    popup.open(map);
+    state.popup.setOptions({ position, content });
+    state.popup.open(state.map);
 }
 
-export function locateUser() {
+export function locateUser(instanceId) {
     if (!navigator.geolocation) {
         return Promise.reject(new Error("Location is not supported by this browser."));
     }
@@ -182,7 +207,7 @@ export function locateUser() {
                     latitude: position.coords.latitude,
                     longitude: position.coords.longitude
                 };
-                showUserLocation(result);
+                showUserLocation(instanceId, result);
                 resolve(result);
             },
             error => {
@@ -196,34 +221,45 @@ export function locateUser() {
     });
 }
 
-async function showUserLocation(location) {
-    if (!map || !mapReady) {
+async function showUserLocation(instanceId, location) {
+    const state = getActiveMap(instanceId);
+    if (!state) {
         return;
     }
 
-    await mapReady;
-    if (userMarker) {
-        map.markers.remove(userMarker);
+    await state.mapReady;
+    if (activeMap !== state) {
+        return;
+    }
+
+    if (state.userMarker) {
+        state.map.markers.remove(state.userMarker);
     }
 
     const dot = document.createElement("div");
     dot.className = "rent-user-location";
     dot.setAttribute("aria-label", "Your approximate location");
-    userMarker = new atlas.HtmlMarker({
+    state.userMarker = new atlas.HtmlMarker({
         position: [location.longitude, location.latitude],
         htmlContent: dot,
         anchor: "center"
     });
-    map.markers.add(userMarker);
-    map.setCamera({ center: [location.longitude, location.latitude], zoom: 11, type: "ease", duration: 600 });
+    state.map.markers.add(state.userMarker);
+    state.map.setCamera({ center: [location.longitude, location.latitude], zoom: 11, type: "ease", duration: 600 });
 }
 
-export function disposeMap() {
-    popup?.close();
-    map?.dispose();
-    map = undefined;
-    popup = undefined;
-    mapReady = undefined;
-    rentalMarkers = [];
-    userMarker = undefined;
+export function disposeMap(instanceId) {
+    const state = getActiveMap(instanceId);
+    if (!state) {
+        return;
+    }
+
+    state.popup?.close();
+    state.resolveReady?.();
+    state.map.dispose();
+    activeMap = undefined;
+}
+
+function getActiveMap(instanceId) {
+    return activeMap?.instanceId === instanceId ? activeMap : undefined;
 }
