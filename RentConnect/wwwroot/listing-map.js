@@ -49,6 +49,16 @@ export async function initializeMap(instanceId, containerId, subscriptionKey, li
     registerMapRecoveryListeners();
     lastMapConfiguration = { instanceId, containerId, subscriptionKey, listings: listings ?? [] };
 
+    if (activeMap?.container === container) {
+        const state = activeMap;
+        state.instanceId = instanceId;
+        await state.mapReady;
+        if (activeMap === state) {
+            await updateListings(instanceId, listings);
+        }
+        return;
+    }
+
     activeMap?.resolveReady?.();
     activeMap?.map.dispose();
     container.replaceChildren();
