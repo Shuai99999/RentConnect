@@ -4,6 +4,7 @@ const sdkStyleUrl = "https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atl
 let activeMap;
 let lastMapConfiguration;
 let recoveryTimer;
+let recoveryInProgress = false;
 let recoveryListenersRegistered = false;
 
 function loadAzureMaps() {
@@ -37,6 +38,7 @@ function loadAzureMaps() {
 }
 
 export async function initializeMap(instanceId, containerId, subscriptionKey, listings) {
+    window.clearTimeout(recoveryTimer);
     await loadAzureMaps();
 
     const container = document.getElementById(containerId);
@@ -294,29 +296,42 @@ function registerMapRecoveryListeners() {
 
 function queueMapRecovery() {
     window.clearTimeout(recoveryTimer);
-    recoveryTimer = window.setTimeout(restoreMapIfNeeded, 0);
+    recoveryTimer = window.setTimeout(restoreMapIfNeeded, 500);
 }
 
 async function restoreMapIfNeeded() {
-    const configuration = lastMapConfiguration;
-    if (!configuration) {
+    if (recoveryInProgress) {
         return;
     }
 
-    const container = document.getElementById(configuration.containerId);
-    if (!container) {
-        return;
-    }
-
-    const expectedMarkers = groupByProperty(configuration.listings).length;
-    const renderedMarkers = container.querySelectorAll(".rent-map-marker").length;
-    if (activeMap?.instanceId === configuration.instanceId &&
-        activeMap.container === container &&
-        renderedMarkers === expectedMarkers) {
-        return;
-    }
-
+    recoveryInProgress = true;
     try {
+        const configuration = lastMapConfiguration;
+        if (!configuration) {
+            return;
+        }
+
+        const container = document.getElementById(configuration.containerId);
+        if (!container) {
+            return;
+        }
+
+        if (activeMap?.container === container) {
+            const state = activeMap;
+            await state.mapReady;
+            if (activeMap !== state) {
+                return;
+            }
+
+            const latestListings = lastMapConfiguration?.listings ?? [];
+            const expectedMarkers = groupByProperty(latestListings).length;
+            const renderedMarkers = container.querySelectorAll(".rent-map-marker").length;
+            if (renderedMarkers !== expectedMarkers) {
+                await updateListings(state.instanceId, latestListings);
+            }
+            return;
+        }
+
         await initializeMap(
             configuration.instanceId,
             configuration.containerId,
@@ -324,5 +339,7 @@ async function restoreMapIfNeeded() {
             configuration.listings);
     } catch (error) {
         console.error("The rental map could not be restored after navigation.", error);
+    } finally {
+        recoveryInProgress = false;
     }
 }
