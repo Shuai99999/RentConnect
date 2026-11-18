@@ -111,7 +111,11 @@ public sealed class RentalListingService(
                             .OrderBy(image => image.UploadedAtUtc)
                             .ThenBy(image => image.Id)
                             .Select(image => (Guid?)image.Id)
-                            .FirstOrDefault())
+                            .FirstOrDefault(),
+
+                        null,
+                        property.Location == null ? null : property.Location.Latitude,
+                        property.Location == null ? null : property.Location.Longitude)
                 })
             .ToArrayAsync(cancellationToken);
 

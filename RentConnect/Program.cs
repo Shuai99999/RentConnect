@@ -203,10 +203,6 @@ builder.Services.AddSingleton<
     IEmailSender<ApplicationUser>,
     IdentityNoOpEmailSender>();
 
-builder.Services.AddHttpClient("VisitorLocation", client => client.Timeout = TimeSpan.FromSeconds(3))
-    .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false })
-    .RemoveAllLoggers();
-
 var app = builder.Build();
 
 // Apply database migrations.
@@ -291,7 +287,7 @@ app.Use(async (httpContext, next) =>
 
         headers.TryAdd(
             "Permissions-Policy",
-            "camera=(), microphone=(), geolocation=(), payment=()");
+            "camera=(), microphone=(), geolocation=(self), payment=()");
 
         return Task.CompletedTask;
     });
@@ -444,9 +440,6 @@ app.MapGet(
                 image.Content,
                 image.ContentType);
     })
-    .RequireAuthorization();
-
-app.MapGet("/listings/visitor-location", RentConnect.Services.VisitorLocation.GetAsync)
     .RequireAuthorization();
 
 app.MapStaticAssets();

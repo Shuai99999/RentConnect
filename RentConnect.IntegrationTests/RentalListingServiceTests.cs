@@ -177,6 +177,9 @@ public sealed class RentalListingServiceTests
             Assert.Equal(3, nearby.Count);
             Assert.Contains(nearby, listing => listing.Title == downtown.Name);
             Assert.Contains(nearby, listing => listing.Title == geolocated.Name);
+            var geolocatedResult = nearby.Single(listing => listing.Title == geolocated.Name);
+            Assert.Equal(cityCentre.Latitude, geolocatedResult.Latitude);
+            Assert.Equal(cityCentre.Longitude, geolocatedResult.Longitude);
             Assert.Equal(airdrie.Name, nearby[^1].Title);
             Assert.InRange(nearby[^1].DistanceKm.GetValueOrDefault(), 25d, 35d);
 
