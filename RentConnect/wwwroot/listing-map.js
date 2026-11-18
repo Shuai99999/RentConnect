@@ -2,10 +2,6 @@ const sdkScriptUrl = "https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/at
 const sdkStyleUrl = "https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css";
 
 let activeMap;
-let lastMapConfiguration;
-let recoveryTimer;
-let recoveryInProgress = false;
-let recoveryListenersRegistered = false;
 
 function loadAzureMaps() {
     if (window.atlas) {
@@ -38,32 +34,12 @@ function loadAzureMaps() {
 }
 
 export async function initializeMap(instanceId, containerId, subscriptionKey, listings) {
-    window.clearTimeout(recoveryTimer);
     await loadAzureMaps();
-
-    const container = document.getElementById(containerId);
-    if (!container) {
-        throw new Error(`Map container '${containerId}' was not found.`);
-    }
-
-    registerMapRecoveryListeners();
-    lastMapConfiguration = { instanceId, containerId, subscriptionKey, listings: listings ?? [] };
-
-    if (activeMap?.container === container) {
-        const state = activeMap;
-        state.instanceId = instanceId;
-        await state.mapReady;
-        if (activeMap === state) {
-            await updateListings(instanceId, listings);
-        }
-        return;
-    }
 
     activeMap?.resolveReady?.();
     activeMap?.map.dispose();
-    container.replaceChildren();
 
-    const map = new atlas.Map(container, {
+    const map = new atlas.Map(containerId, {
         authOptions: {
             authType: atlas.AuthenticationType.subscriptionKey,
             subscriptionKey
@@ -77,7 +53,6 @@ export async function initializeMap(instanceId, containerId, subscriptionKey, li
 
     const state = {
         instanceId,
-        container,
         map,
         popup: undefined,
         mapReady: undefined,
@@ -117,10 +92,6 @@ export async function updateListings(instanceId, listings) {
     await state.mapReady;
     if (activeMap !== state) {
         return;
-    }
-
-    if (lastMapConfiguration?.instanceId === instanceId) {
-        lastMapConfiguration.listings = listings ?? [];
     }
 
     state.popup?.close();
@@ -291,65 +262,4 @@ export function disposeMap(instanceId) {
 
 function getActiveMap(instanceId) {
     return activeMap?.instanceId === instanceId ? activeMap : undefined;
-}
-
-function registerMapRecoveryListeners() {
-    if (recoveryListenersRegistered) {
-        return;
-    }
-
-    recoveryListenersRegistered = true;
-    window.addEventListener("pageshow", queueMapRecovery);
-    window.addEventListener("popstate", queueMapRecovery);
-    window.Blazor?.addEventListener("enhancedload", queueMapRecovery);
-}
-
-function queueMapRecovery() {
-    window.clearTimeout(recoveryTimer);
-    recoveryTimer = window.setTimeout(restoreMapIfNeeded, 500);
-}
-
-async function restoreMapIfNeeded() {
-    if (recoveryInProgress) {
-        return;
-    }
-
-    recoveryInProgress = true;
-    try {
-        const configuration = lastMapConfiguration;
-        if (!configuration) {
-            return;
-        }
-
-        const container = document.getElementById(configuration.containerId);
-        if (!container) {
-            return;
-        }
-
-        if (activeMap?.container === container) {
-            const state = activeMap;
-            await state.mapReady;
-            if (activeMap !== state) {
-                return;
-            }
-
-            const latestListings = lastMapConfiguration?.listings ?? [];
-            const expectedMarkers = groupByProperty(latestListings).length;
-            const renderedMarkers = container.querySelectorAll(".rent-map-marker").length;
-            if (renderedMarkers !== expectedMarkers) {
-                await updateListings(state.instanceId, latestListings);
-            }
-            return;
-        }
-
-        await initializeMap(
-            configuration.instanceId,
-            configuration.containerId,
-            configuration.subscriptionKey,
-            configuration.listings);
-    } catch (error) {
-        console.error("The rental map could not be restored after navigation.", error);
-    } finally {
-        recoveryInProgress = false;
-    }
 }

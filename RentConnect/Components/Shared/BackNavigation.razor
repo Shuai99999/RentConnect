@@ -1,5 +1,6 @@
 <a class="back-navigation"
    href="@Href"
+   data-enhance-nav="@(DisableEnhancedNavigation ? "false" : null)"
    aria-label="Back to @Label">
     <span class="back-navigation-icon" aria-hidden="true">
         <svg viewBox="0 0 20 20" focusable="false">
@@ -19,4 +20,7 @@
 
     [Parameter, EditorRequired]
     public string Label { get; set; } = string.Empty;
+
+    [Parameter]
+    public bool DisableEnhancedNavigation { get; set; }
 }

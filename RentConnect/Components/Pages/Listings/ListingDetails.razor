@@ -24,7 +24,9 @@
     }
     else
     {
-        <BackNavigation Href="/listings" Label="Available rentals" />
+        <BackNavigation Href="/listings"
+                        Label="Available rentals"
+                        DisableEnhancedNavigation="true" />
         <div class="details-layout">
             <section>
                 <RentalUnitGallery RentalUnitId="_listing.RentalUnitId" CanManage="_listing.CanManage" />
