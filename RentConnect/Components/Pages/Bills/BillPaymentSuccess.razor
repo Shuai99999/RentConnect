@@ -1,0 +1,109 @@
+@page "/bills/{BillId:guid}/payment-success"
+@attribute [Authorize]
+@rendermode InteractiveServer
+
+@using Microsoft.AspNetCore.Authorization
+@using RentConnect.Application.Billing
+@using RentConnect.Services
+
+@inject ISharedBillService SharedBillService
+@inject CurrentUserProfileService CurrentUserProfileService
+@inject StripePaymentService StripePaymentService
+
+<PageTitle>Payment Confirmation - RentConnect</PageTitle>
+
+<main class="details-page">
+    <BackNavigation Href="@($"/bills/{BillId:D}")" Label="Back to bill" />
+
+    <section class="state-card @(_isSuccessful ? "success-card" : _isLoading ? "" : "error-card")">
+        @if (_isLoading)
+        {
+            <h1>Confirming your payment</h1>
+            <p>RentConnect is securely verifying the Stripe payment…</p>
+        }
+        else if (_isSuccessful)
+        {
+            <h1>Payment successful</h1>
+            <p>Your share has been marked as paid.</p>
+            <a class="primary-button" href="@($"/bills/{BillId:D}")">View bill</a>
+        }
+        else
+        {
+            <h1>Payment could not be confirmed</h1>
+            <p>@_message</p>
+            <a class="primary-button" href="@($"/bills/{BillId:D}")">Return to bill</a>
+        }
+    </section>
+</main>
+
+@code {
+    [Parameter]
+    public Guid BillId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "session_id")]
+    private string? SessionId { get; set; }
+
+    private bool _isLoading = true;
+    private bool _isSuccessful;
+    private string _message = "The payment was not completed. No bill status was changed.";
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _isLoading = true;
+        _isSuccessful = false;
+
+        try
+        {
+            if (string.IsNullOrWhiteSpace(SessionId))
+            {
+                _message = "The Stripe Checkout session is missing. No bill status was changed.";
+                return;
+            }
+
+            var userProfileId = await CurrentUserProfileService
+                .GetRequiredUserProfileIdAsync();
+            var details = await SharedBillService.GetDetailsAsync(
+                BillId,
+                userProfileId);
+            var share = details?.Shares.SingleOrDefault(item =>
+                item.UserProfileId == userProfileId);
+
+            if (details is null || share is null)
+            {
+                _message = "This bill or bill share is not available.";
+                return;
+            }
+
+            var verified = await StripePaymentService.VerifyBillPaymentAsync(
+                SessionId,
+                BillId,
+                userProfileId,
+                share.Amount,
+                share.Currency);
+
+            if (!verified)
+            {
+                _message = "Stripe did not confirm the expected payment. No bill status was changed.";
+                return;
+            }
+
+            if (!share.PaymentDeclaredAtUtc.HasValue)
+            {
+                await SharedBillService.DeclarePaymentAsync(
+                    new DeclareBillPaymentCommand(BillId),
+                    userProfileId);
+            }
+
+            _isSuccessful = true;
+        }
+        catch (Exception exception)
+        {
+            _message = "The payment could not be verified right now. Please return to the bill and try again.";
+            Console.Error.WriteLine(exception);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+}

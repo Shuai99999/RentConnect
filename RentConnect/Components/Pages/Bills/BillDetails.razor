@@ -11,6 +11,8 @@
 
 @inject ISharedBillService SharedBillService
 @inject CurrentUserProfileService CurrentUserProfileService
+@inject StripePaymentService StripePaymentService
+@inject NavigationManager Navigation
 
 <PageTitle>@(_details?.Title ?? "Shared Bill")</PageTitle>
 
@@ -94,7 +96,9 @@
                     }
                     @if (_details.Permissions.CanDeclarePayment && CanDeclareOwnPayment(_details))
                     {
-                        <button class="primary-button" disabled="@_isUpdating" @onclick="DeclarePaymentAsync">Mark My Share Paid</button>
+                        <button class="primary-button" disabled="@_isUpdating" @onclick="PayMyShareAsync">
+                            @(_isUpdating ? "Starting payment…" : "Pay My Share")
+                        </button>
                     }
                     @if (_details.Permissions.CanVoid)
                     {
@@ -376,11 +380,47 @@
             _currentUserProfileId),
         "The bill was voided.");
 
-    private Task DeclarePaymentAsync() => ExecuteAsync(
-        () => SharedBillService.DeclarePaymentAsync(
-            new DeclareBillPaymentCommand(Id),
-            _currentUserProfileId),
-        "Your payment was marked as paid.");
+    private async Task PayMyShareAsync()
+    {
+        if (_isUpdating || _details is null)
+        {
+            return;
+        }
+
+        var share = _details.Shares.SingleOrDefault(item =>
+            item.UserProfileId == _currentUserProfileId);
+
+        if (share is null || share.PaymentDeclaredAtUtc.HasValue)
+        {
+            _errorMessage = "This bill share is not available for payment.";
+            return;
+        }
+
+        _isUpdating = true;
+        _errorMessage = null;
+        _successMessage = null;
+
+        try
+        {
+            var checkoutUrl = await StripePaymentService
+                .CreateBillCheckoutSessionAsync(
+                    Id,
+                    _currentUserProfileId,
+                    share.Amount,
+                    share.Currency,
+                    _details.Title,
+                    Navigation.BaseUri);
+
+            Navigation.NavigateTo(checkoutUrl, forceLoad: true);
+        }
+        catch (Exception exception)
+        {
+            _errorMessage =
+                "Unable to start the secure payment. Please try again.";
+            Console.Error.WriteLine(exception);
+            _isUpdating = false;
+        }
+    }
 
     private Task ConfirmPaymentAsync(Guid userProfileId) => ExecuteAsync(
         () => SharedBillService.ConfirmPaymentAsync(

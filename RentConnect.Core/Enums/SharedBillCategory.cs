@@ -7,5 +7,7 @@ public enum SharedBillCategory
     Gas = 3,
     Internet = 4,
     Cleaning = 5,
-    Other = 6
+    Other = 6,
+    Rent = 7,
+    Maintenance = 8
 }
