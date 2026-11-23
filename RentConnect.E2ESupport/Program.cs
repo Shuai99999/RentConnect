@@ -8,11 +8,15 @@ const string connectionStringVariable =
     "E2E_CONNECTION_STRING";
 const string emailVariable = "E2E_TEST_USER_EMAIL";
 const string passwordVariable = "E2E_TEST_USER_PASSWORD";
+const string applicantEmailVariable = "E2E_TEST_APPLICANT_EMAIL";
+const string applicantPasswordVariable = "E2E_TEST_APPLICANT_PASSWORD";
 
 var connectionString = GetRequiredVariable(
     connectionStringVariable);
 var email = GetRequiredVariable(emailVariable);
 var password = GetRequiredVariable(passwordVariable);
+var applicantEmail = GetRequiredVariable(applicantEmailVariable);
+var applicantPassword = GetRequiredVariable(applicantPasswordVariable);
 
 var services = new ServiceCollection();
 
@@ -40,48 +44,65 @@ await using (var context = await provider
 var userManager = provider
     .GetRequiredService<UserManager<ApplicationUser>>();
 
-var user = await userManager.FindByEmailAsync(email);
+await EnsureUserAsync(userManager, email, password, "Playwright CI Owner");
+await EnsureUserAsync(
+    userManager,
+    applicantEmail,
+    applicantPassword,
+    "Playwright CI Applicant");
 
-if (user is null)
+Console.WriteLine("E2E database and test users are ready.");
+
+static async Task EnsureUserAsync(
+    UserManager<ApplicationUser> userManager,
+    string email,
+    string password,
+    string displayName)
 {
-    var profile = new UserProfile(
-        Guid.NewGuid(),
-        "Playwright CI User");
+    var user = await userManager.FindByEmailAsync(email);
 
-    user = new ApplicationUser
+    if (user is null)
     {
-        UserName = email,
-        Email = email,
-        EmailConfirmed = true,
-        UserProfileId = profile.Id,
-        UserProfile = profile
-    };
+        var profile = new UserProfile(Guid.NewGuid(), displayName);
 
-    var result = await userManager.CreateAsync(user, password);
+        user = new ApplicationUser
+        {
+            UserName = email,
+            Email = email,
+            EmailConfirmed = true,
+            UserProfileId = profile.Id,
+            UserProfile = profile
+        };
 
-    if (!result.Succeeded)
-    {
-        var errors = string.Join(
-            "; ",
-            result.Errors.Select(error => error.Description));
+        var createResult = await userManager.CreateAsync(user, password);
 
-        throw new InvalidOperationException(
-            $"Could not create the E2E test user: {errors}");
+        if (!createResult.Succeeded)
+        {
+            var errors = string.Join(
+                "; ",
+                createResult.Errors.Select(error => error.Description));
+
+            throw new InvalidOperationException(
+                $"Could not create E2E user '{email}': {errors}");
+        }
+
+        return;
     }
-}
-else if (!user.EmailConfirmed)
-{
+
+    if (user.EmailConfirmed)
+    {
+        return;
+    }
+
     user.EmailConfirmed = true;
-    var result = await userManager.UpdateAsync(user);
+    var updateResult = await userManager.UpdateAsync(user);
 
-    if (!result.Succeeded)
+    if (!updateResult.Succeeded)
     {
         throw new InvalidOperationException(
-            "Could not confirm the E2E test user's email.");
+            $"Could not confirm E2E user '{email}'.");
     }
 }
-
-Console.WriteLine("E2E database and test user are ready.");
 
 static string GetRequiredVariable(string name)
 {

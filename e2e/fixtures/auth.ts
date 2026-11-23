@@ -20,6 +20,10 @@ export function anyCredentials(): TestCredentials | undefined {
   );
 }
 
+export function applicantCredentials(): TestCredentials | undefined {
+  return readCredentials('PLAYWRIGHT_APPLICANT');
+}
+
 export async function logIn(
   page: Page,
   credentials: TestCredentials,

@@ -26,6 +26,13 @@ var builder = WebApplication.CreateBuilder(args);
 var isE2EEnvironment =
     builder.Environment.IsEnvironment("E2E");
 
+if (isE2EEnvironment)
+{
+    // CI launches the built project rather than a published deployment.
+    // Make the generated Blazor framework assets available in that mode.
+    builder.WebHost.UseStaticWebAssets();
+}
+
 // Add services to the container.
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();

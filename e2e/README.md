@@ -12,7 +12,8 @@ e2e/
 ├─ fixtures/   Shared credentials and login helpers
 ├─ properties/ Property-management forms
 ├─ shared/     Pages available to every authenticated account
-└─ smoke/      Health, headers, public navigation, and not-found handling
+├─ smoke/      Health, headers, public navigation, and not-found handling
+└─ workflows/  Opt-in, data-changing journeys across multiple accounts
 ```
 
 Test files end in `.spec.ts`. Files under `fixtures` are reusable support code,
@@ -36,6 +37,19 @@ PLAYWRIGHT_USER_EMAIL=user@example.com
 PLAYWRIGHT_USER_PASSWORD=your-test-password
 ```
 
+The rental lifecycle workflow needs a second account and deliberately changes
+data. It is enabled in CI because CI uses a disposable database. To run it
+against another disposable environment, also configure:
+
+```dotenv
+PLAYWRIGHT_APPLICANT_EMAIL=applicant@example.com
+PLAYWRIGHT_APPLICANT_PASSWORD=your-test-password
+PLAYWRIGHT_ALLOW_WRITES=true
+```
+
+Do not enable `PLAYWRIGHT_ALLOW_WRITES` against a shared local database or the
+production Azure database.
+
 Every authenticated RentConnect account can both manage its own rental
 properties and participate in rentals. The older `PLAYWRIGHT_LANDLORD_*` and
 `PLAYWRIGHT_RENTER_*` variable names remain accepted for local compatibility,
@@ -56,11 +70,12 @@ For Playwright's interactive test runner:
 npm run test:e2e:ui
 ```
 
-Run only the quick smoke tests or authentication tests:
+Run only the quick smoke, authentication, or workflow tests:
 
 ```powershell
 npm run test:e2e:smoke
 npm run test:e2e:auth
+npm run test:e2e:workflows
 ```
 
 ## Run against Azure
@@ -87,8 +102,9 @@ npm run test:e2e:report
 
 The existing GitHub Actions job reuses its temporary SQL Server container for
 an isolated `RentConnect_E2E` database. `RentConnect.E2ESupport` applies the EF
-Core migrations and creates an email-confirmed temporary account before the
-browser tests run.
+Core migrations and creates two email-confirmed temporary accounts before the
+browser tests run. The two accounts exercise the owner-to-applicant rental
+lifecycle.
 
 CI starts the web app on `http://127.0.0.1:5086` with
 `ASPNETCORE_ENVIRONMENT=E2E`. Only that environment disables HTTPS redirection

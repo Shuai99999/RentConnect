@@ -13,20 +13,22 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
     env:
-      E2E_CONNECTION_STRING: Server=localhost,1433;Database=RentConnect_E2E;User Id=sa;Password=RentConnect_Test_2026!;Encrypt=True;TrustServerCertificate=True
+      E2E_CONNECTION_STRING: Server=localhost,1433;Database=RentConnect_E2E;User Id=sa;Password=Rc_${{ github.run_id }}_${{ github.run_attempt }}_Sql!aA9;Encrypt=True;TrustServerCertificate=True
       E2E_TEST_USER_EMAIL: playwright-ci@rentconnect.test
-      E2E_TEST_USER_PASSWORD: RentConnect_E2E_2026!
+      E2E_TEST_USER_PASSWORD: Rc_${{ github.run_id }}_${{ github.run_attempt }}_Owner!aA9
+      E2E_TEST_APPLICANT_EMAIL: playwright-applicant@rentconnect.test
+      E2E_TEST_APPLICANT_PASSWORD: Rc_${{ github.run_id }}_${{ github.run_attempt }}_Applicant!aA9
 
     services:
       sqlserver:
         image: mcr.microsoft.com/mssql/server:2022-latest
         env:
           ACCEPT_EULA: Y
-          MSSQL_SA_PASSWORD: RentConnect_Test_2026!
+          MSSQL_SA_PASSWORD: Rc_${{ github.run_id }}_${{ github.run_attempt }}_Sql!aA9
         ports:
           - 1433:1433
         options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'RentConnect_Test_2026!' -C -Q 'SELECT 1'"
+          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P 'Rc_${{ github.run_id }}_${{ github.run_attempt }}_Sql!aA9' -C -Q 'SELECT 1'"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 20
@@ -51,7 +53,7 @@ jobs:
 
       - name: Run tests
         env:
-          RENTCONNECT_TEST_SQLSERVER: Server=localhost,1433;Database=master;User Id=sa;Password=RentConnect_Test_2026!;Encrypt=True;TrustServerCertificate=True
+          RENTCONNECT_TEST_SQLSERVER: Server=localhost,1433;Database=master;User Id=sa;Password=Rc_${{ github.run_id }}_${{ github.run_attempt }}_Sql!aA9;Encrypt=True;TrustServerCertificate=True
         run: dotnet test RentConnect.slnx --configuration Release --no-build
 
       - name: Set up Node.js
@@ -84,6 +86,9 @@ jobs:
           PLAYWRIGHT_WEB_SERVER_COMMAND: dotnet run --project RentConnect/RentConnect.csproj --configuration Release --no-build --no-launch-profile
           PLAYWRIGHT_USER_EMAIL: ${{ env.E2E_TEST_USER_EMAIL }}
           PLAYWRIGHT_USER_PASSWORD: ${{ env.E2E_TEST_USER_PASSWORD }}
+          PLAYWRIGHT_APPLICANT_EMAIL: ${{ env.E2E_TEST_APPLICANT_EMAIL }}
+          PLAYWRIGHT_APPLICANT_PASSWORD: ${{ env.E2E_TEST_APPLICANT_PASSWORD }}
+          PLAYWRIGHT_ALLOW_WRITES: "true"
         run: npm run test:e2e
 
       - name: Upload Playwright report
