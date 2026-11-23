@@ -68,7 +68,8 @@
 .card-heading,
 .card-footer { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 
-.category { color: var(--color-text-muted); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; }
+.category { margin-right: auto; color: var(--color-text-muted); font-size: 0.82rem; font-weight: 700; text-transform: uppercase; }
+.recurring-badge { padding: .26rem .5rem; border-radius: 999px; background: #eef5ff; color: #245b91; font-size: .7rem; font-weight: 750; white-space: nowrap; }
 .status { padding: 0.3rem 0.55rem; border-radius: 999px; background: var(--color-primary-soft); color: var(--color-primary-strong); font-size: 0.72rem; font-weight: 750; }
 .status-settled { background: #e7f8ee; color: #197044; }
 .status-disputed { background: #fff0e5; color: #a54812; }

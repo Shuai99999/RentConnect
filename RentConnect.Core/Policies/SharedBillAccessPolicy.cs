@@ -60,6 +60,16 @@ public static class SharedBillAccessPolicy
                     access.CurrentUserProfileId);
     }
 
+    public static bool CanStopRecurrence(
+        SharedBill bill,
+        SharedBillAccessContext access)
+    {
+        return bill.NextOccurrenceDate.HasValue &&
+               (access.IsPropertyOwner ||
+                bill.CreatedByUserProfileId ==
+                    access.CurrentUserProfileId);
+    }
+
     public static bool CanDeclarePayment(
         SharedBill bill,
         SharedBillAccessContext access)

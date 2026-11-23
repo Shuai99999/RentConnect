@@ -20,6 +20,15 @@
 .amount-inputs { display: grid; grid-template-columns: 95px minmax(0, 1fr); gap: 0.5rem; }
 .split-note { margin: 1rem 0; padding: 1.1rem 1.25rem; border: 1px solid var(--color-primary-border); border-radius: 0.9rem; background: var(--color-primary-soft); }
 .split-note p { margin: 0.35rem 0 0; color: var(--color-text-muted); line-height: 1.55; }
+.recurrence-card { border-color: var(--color-primary-border); }
+.recurrence-toggle { display: flex; align-items: center; justify-content: space-between; gap: 1.5rem; }
+.recurrence-toggle h2 { margin: 0; font-size: 1.25rem; }
+.recurrence-toggle p { margin: .35rem 0 0; color: var(--color-text-muted); }
+.switch-label { display: inline-flex; align-items: center; gap: .55rem; color: var(--color-primary-strong); font-weight: 750; cursor: pointer; }
+.switch-label input { width: 1.2rem; height: 1.2rem; accent-color: var(--color-primary); }
+.recurrence-fields { margin-top: 1.25rem; }
+.recurrence-fields label span { color: var(--color-text-muted); font-size: .8rem; font-weight: 500; }
+.recurrence-note { margin: 0; padding: .85rem 1rem; border-radius: .75rem; background: var(--color-primary-soft); color: var(--color-text-muted); line-height: 1.5; }
 .allocation-list { display: grid; border-top: 1px solid var(--color-border); }
 .allocation-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(190px, 260px); align-items: center; gap: 1rem; padding: 0.85rem 0; border-bottom: 1px solid var(--color-border); }
 .participant-name { display: flex; align-items: center; gap: 0.75rem; }

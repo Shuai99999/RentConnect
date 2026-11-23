@@ -731,6 +731,9 @@ namespace RentConnect.Migrations
                     b.Property<DateOnly>("DueDate")
                         .HasColumnType("date");
 
+                    b.Property<DateOnly?>("NextOccurrenceDate")
+                        .HasColumnType("date");
+
                     b.Property<Guid>("PaidByUserProfileId")
                         .HasColumnType("uniqueidentifier");
 
@@ -739,6 +742,15 @@ namespace RentConnect.Migrations
 
                     b.Property<DateOnly>("PeriodStart")
                         .HasColumnType("date");
+
+                    b.Property<DateOnly?>("RecurrenceEndsOn")
+                        .HasColumnType("date");
+
+                    b.Property<int?>("RecurrenceIntervalMonths")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("RecurringSeriesId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("SplitMethod")
                         .HasColumnType("int");
@@ -761,7 +773,14 @@ namespace RentConnect.Migrations
 
                     b.HasIndex("CreatedByUserProfileId");
 
+                    b.HasIndex("NextOccurrenceDate")
+                        .HasFilter("[NextOccurrenceDate] IS NOT NULL");
+
                     b.HasIndex("PaidByUserProfileId");
+
+                    b.HasIndex("RecurringSeriesId", "PeriodStart")
+                        .IsUnique()
+                        .HasFilter("[RecurringSeriesId] IS NOT NULL");
 
                     b.HasIndex("TenancyId", "DueDate");
 

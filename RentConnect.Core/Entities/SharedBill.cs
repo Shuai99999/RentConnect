@@ -106,6 +106,14 @@ public sealed class SharedBill
 
     public DateOnly DueDate { get; private set; }
 
+    public Guid? RecurringSeriesId { get; private set; }
+
+    public int? RecurrenceIntervalMonths { get; private set; }
+
+    public DateOnly? RecurrenceEndsOn { get; private set; }
+
+    public DateOnly? NextOccurrenceDate { get; private set; }
+
     public BillSplitMethod SplitMethod { get; private set; }
 
     public SharedBillStatus Status { get; private set; }
@@ -117,6 +125,78 @@ public sealed class SharedBill
     public IReadOnlyCollection<BillShare> Shares => _shares;
 
     public IReadOnlyCollection<BillDispute> Disputes => _disputes;
+
+    public void ConfigureRecurrence(
+        Guid recurringSeriesId,
+        int intervalMonths,
+        DateOnly? endsOn)
+    {
+        EnsureDraft();
+        RequireId(
+            recurringSeriesId,
+            nameof(recurringSeriesId),
+            "Recurring series ID");
+
+        if (intervalMonths is not (1 or 3 or 12))
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(intervalMonths),
+                "Recurring bills can repeat monthly, quarterly, or yearly.");
+        }
+
+        if (endsOn.HasValue && endsOn.Value < PeriodStart)
+        {
+            throw new ArgumentException(
+                "The recurrence end date cannot be before the first billing period.",
+                nameof(endsOn));
+        }
+
+        RecurringSeriesId = recurringSeriesId;
+        RecurrenceIntervalMonths = intervalMonths;
+        RecurrenceEndsOn = endsOn;
+
+        var nextDate = AddMonthsPreservingMonthEnd(
+            PeriodStart,
+            intervalMonths);
+        NextOccurrenceDate = endsOn.HasValue && nextDate > endsOn.Value
+            ? null
+            : nextDate;
+    }
+
+    public void MarkAsRecurringOccurrence(Guid recurringSeriesId)
+    {
+        EnsureDraft();
+        RequireId(
+            recurringSeriesId,
+            nameof(recurringSeriesId),
+            "Recurring series ID");
+
+        RecurringSeriesId = recurringSeriesId;
+    }
+
+    public void AdvanceRecurrence()
+    {
+        if (!NextOccurrenceDate.HasValue ||
+            !RecurrenceIntervalMonths.HasValue)
+        {
+            throw new InvalidOperationException(
+                "This bill does not manage an active recurring schedule.");
+        }
+
+        var nextDate = AddMonthsPreservingMonthEnd(
+            NextOccurrenceDate.Value,
+            RecurrenceIntervalMonths.Value);
+
+        NextOccurrenceDate = RecurrenceEndsOn.HasValue &&
+                             nextDate > RecurrenceEndsOn.Value
+            ? null
+            : nextDate;
+    }
+
+    public void StopRecurrence()
+    {
+        NextOccurrenceDate = null;
+    }
 
     public void AllocateEqually(
         IEnumerable<(Guid ShareId, Guid UserProfileId)> participants,
@@ -503,6 +583,23 @@ public sealed class SharedBill
         }
 
         return normalizedTitle;
+    }
+
+    private static DateOnly AddMonthsPreservingMonthEnd(
+        DateOnly value,
+        int months)
+    {
+        var result = value.AddMonths(months);
+        var isMonthEnd = value.Day == DateTime.DaysInMonth(
+            value.Year,
+            value.Month);
+
+        return isMonthEnd
+            ? new DateOnly(
+                result.Year,
+                result.Month,
+                DateTime.DaysInMonth(result.Year, result.Month))
+            : result;
     }
 
     private static void RequireId(

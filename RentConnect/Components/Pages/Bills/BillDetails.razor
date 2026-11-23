@@ -80,6 +80,13 @@
                 <span>Paid by</span>
                 <strong>@_details.PaidByDisplayName</strong>
             </article>
+            @if (_details.RecurringSeriesId.HasValue)
+            {
+                <article>
+                    <span>Recurrence</span>
+                    <strong>@FormatRecurrence(_details)</strong>
+                </article>
+            }
         </section>
 
         @if (HasPrimaryActions(_details))
@@ -103,6 +110,10 @@
                     @if (_details.Permissions.CanVoid)
                     {
                         <button class="danger-button" disabled="@_isUpdating" @onclick="VoidAsync">Void Bill</button>
+                    }
+                    @if (_details.Permissions.CanStopRecurrence)
+                    {
+                        <button class="secondary-button" disabled="@_isUpdating" @onclick="StopRecurrenceAsync">Stop Recurrence</button>
                     }
                 </div>
             </section>
@@ -605,11 +616,18 @@
             !share.PaymentDeclaredAtUtc.HasValue);
     }
 
+    private Task StopRecurrenceAsync() => ExecuteAsync(
+        () => SharedBillService.StopRecurrenceAsync(
+            new StopRecurringBillCommand(Id),
+            _currentUserProfileId),
+        "Future recurring bills have been stopped.");
+
     private static bool HasPrimaryActions(SharedBillDetails details)
     {
         return details.Permissions.CanPublish ||
                details.Permissions.CanVoid ||
-               details.Permissions.CanDeclarePayment;
+               details.Permissions.CanDeclarePayment ||
+               details.Permissions.CanStopRecurrence;
     }
 
     private static BillDisputeItem? GetActiveDispute(SharedBillDetails details)
@@ -648,6 +666,26 @@
             BillSplitMethod.OccupancyDays => "Occupancy days",
             _ => "Custom"
         };
+
+    private static string FormatRecurrence(SharedBillDetails details)
+    {
+        var frequency = details.RecurrenceIntervalMonths switch
+        {
+            1 => "Monthly",
+            3 => "Every 3 months",
+            12 => "Yearly",
+            _ => "Recurring occurrence"
+        };
+
+        if (details.NextOccurrenceDate.HasValue)
+        {
+            return $"{frequency} · next {details.NextOccurrenceDate:MMM d, yyyy}";
+        }
+
+        return details.RecurrenceEndsOn.HasValue
+            ? $"{frequency} · ended {details.RecurrenceEndsOn:MMM d, yyyy}"
+            : frequency;
+    }
 
     private static string GetStatusClass(SharedBillStatus status) =>
         $"status-{status.ToString().ToLowerInvariant()}";

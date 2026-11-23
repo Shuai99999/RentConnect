@@ -122,6 +122,47 @@
                 </div>
             </section>
 
+            <section class="form-card recurrence-card">
+                <div class="recurrence-toggle">
+                    <div>
+                        <h2>Recurring bill</h2>
+                        <p>Automatically create the next draft for rent or another repeating expense.</p>
+                    </div>
+                    <label class="switch-label" for="bill-recurring">
+                        <InputCheckbox id="bill-recurring"
+                                       aria-label="Recurring bill"
+                                       @bind-Value="Input.IsRecurring" />
+                        <span>@(Input.IsRecurring ? "On" : "Off")</span>
+                    </label>
+                </div>
+
+                @if (Input.IsRecurring)
+                {
+                    <div class="form-grid recurrence-fields">
+                        <div class="field">
+                            <label for="recurrence-frequency">Repeat</label>
+                            <InputSelect id="recurrence-frequency"
+                                         class="form-control"
+                                         @bind-Value="Input.RecurrenceIntervalMonths">
+                                <option value="1">Every month</option>
+                                <option value="3">Every 3 months</option>
+                                <option value="12">Every year</option>
+                            </InputSelect>
+                        </div>
+                        <div class="field">
+                            <label for="recurrence-end">End date <span>Optional</span></label>
+                            <InputDate id="recurrence-end"
+                                       class="form-control"
+                                       @bind-Value="Input.RecurrenceEndsOn" />
+                        </div>
+                    </div>
+                    <p class="recurrence-note">
+                        The amount, split method, and participants are copied to each new draft.
+                        New drafts are generated when the shared bills page is opened.
+                    </p>
+                }
+            </section>
+
             <section class="form-card">
                 <div class="section-heading">
                     <h2>Billing period</h2>
@@ -301,7 +342,13 @@
                             .Select(participant => new BillAllocationInput(
                                 participant.UserProfileId,
                                 participant.Value))
-                            .ToArray()),
+                            .ToArray(),
+                    Input.IsRecurring
+                        ? Input.RecurrenceIntervalMonths
+                        : null,
+                    Input.IsRecurring
+                        ? Input.RecurrenceEndsOn
+                        : null),
                 _currentUserProfileId);
 
             NavigationManager.NavigateTo($"/bills/{billId}");
@@ -423,6 +470,9 @@
         public DateOnly PeriodStart { get; set; }
         public DateOnly PeriodEnd { get; set; }
         public DateOnly DueDate { get; set; }
+        public bool IsRecurring { get; set; }
+        public int RecurrenceIntervalMonths { get; set; } = 1;
+        public DateOnly? RecurrenceEndsOn { get; set; }
     }
 
     private sealed class ParticipantAllocationInput

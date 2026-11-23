@@ -17,6 +17,10 @@ public interface ISharedBillService
         Guid userProfileId,
         CancellationToken cancellationToken = default);
 
+    Task<int> GenerateDueRecurringBillsAsync(
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
     Task<SharedBillDetails?> GetDetailsAsync(
         Guid sharedBillId,
         Guid userProfileId,
@@ -39,6 +43,11 @@ public interface ISharedBillService
 
     Task VoidAsync(
         VoidSharedBillCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default);
+
+    Task StopRecurrenceAsync(
+        StopRecurringBillCommand command,
         Guid userProfileId,
         CancellationToken cancellationToken = default);
 

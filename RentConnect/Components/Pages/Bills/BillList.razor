@@ -51,6 +51,10 @@
                 <a class="bill-card" href="@($"/bills/{bill.Id}")">
                     <div class="card-heading">
                         <span class="category">@FormatCategory(bill.Category)</span>
+                        @if (bill.RecurringSeriesId.HasValue)
+                        {
+                            <span class="recurring-badge">↻ Recurring</span>
+                        }
                         <span class="status @GetStatusClass(bill.Status)">
                             @FormatStatus(bill.Status)
                         </span>
@@ -80,6 +84,8 @@
         {
             var userProfileId = await CurrentUserProfileService
                 .GetRequiredUserProfileIdAsync();
+            await SharedBillService.GenerateDueRecurringBillsAsync(
+                userProfileId);
             _bills = await SharedBillService
                 .GetVisibleBillsAsync(userProfileId);
         }

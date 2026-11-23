@@ -77,6 +77,12 @@ public sealed class SharedBillConfiguration
             .HasColumnType("date")
             .IsRequired();
 
+        builder.Property(bill => bill.RecurrenceEndsOn)
+            .HasColumnType("date");
+
+        builder.Property(bill => bill.NextOccurrenceDate)
+            .HasColumnType("date");
+
         builder.Property(bill => bill.CreatedAtUtc)
             .HasColumnType("datetimeoffset")
             .IsRequired();
@@ -115,6 +121,17 @@ public sealed class SharedBillConfiguration
 
         builder.HasIndex(bill => bill.CreatedByUserProfileId);
         builder.HasIndex(bill => bill.PaidByUserProfileId);
+
+        builder.HasIndex(bill => new
+            {
+                bill.RecurringSeriesId,
+                bill.PeriodStart
+            })
+            .IsUnique()
+            .HasFilter("[RecurringSeriesId] IS NOT NULL");
+
+        builder.HasIndex(bill => bill.NextOccurrenceDate)
+            .HasFilter("[NextOccurrenceDate] IS NOT NULL");
 
         builder.Navigation(bill => bill.Shares)
             .HasField("_shares")

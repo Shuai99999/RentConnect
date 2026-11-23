@@ -20,7 +20,9 @@ public sealed record SharedBillSummary(
     string Currency,
     DateOnly DueDate,
     SharedBillStatus Status,
-    DateTimeOffset UpdatedAtUtc);
+    DateTimeOffset UpdatedAtUtc,
+    Guid? RecurringSeriesId,
+    int? RecurrenceIntervalMonths);
 
 public sealed record BillShareItem(
     Guid UserProfileId,
@@ -63,7 +65,8 @@ public sealed record SharedBillPermissions(
     bool CanDeclarePayment,
     bool CanConfirmPayment,
     bool CanRaiseDispute,
-    bool CanResolveDispute);
+    bool CanResolveDispute,
+    bool CanStopRecurrence);
 
 public sealed record SharedBillDetails(
     Guid Id,
@@ -83,6 +86,10 @@ public sealed record SharedBillDetails(
     SharedBillStatus Status,
     DateTimeOffset CreatedAtUtc,
     DateTimeOffset UpdatedAtUtc,
+    Guid? RecurringSeriesId,
+    int? RecurrenceIntervalMonths,
+    DateOnly? RecurrenceEndsOn,
+    DateOnly? NextOccurrenceDate,
     IReadOnlyList<BillShareItem> Shares,
     IReadOnlyList<BillDisputeItem> Disputes,
     IReadOnlyList<BillAttachmentItem> Attachments,

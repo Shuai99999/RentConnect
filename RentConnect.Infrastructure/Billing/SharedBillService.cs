@@ -90,8 +90,112 @@ public sealed class SharedBillService(
                 bill.Total.Currency,
                 bill.DueDate,
                 bill.Status,
-                bill.UpdatedAtUtc))
+                bill.UpdatedAtUtc,
+                bill.RecurringSeriesId,
+                bill.RecurrenceIntervalMonths))
             .ToArrayAsync(cancellationToken);
+    }
+
+    public async Task<int> GenerateDueRecurringBillsAsync(
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var today = GetToday();
+        var activeTenancyIds = GetActiveTenancyIds(
+            context,
+            userProfileId,
+            today);
+        var ownedTenancyIds = GetOwnedTenancyIds(
+            context,
+            userProfileId);
+
+        var sources = await context.SharedBills
+            .Include(bill => bill.Shares)
+            .Where(bill =>
+                bill.NextOccurrenceDate.HasValue &&
+                bill.NextOccurrenceDate.Value <= today &&
+                (activeTenancyIds.Contains(bill.TenancyId) ||
+                 ownedTenancyIds.Contains(bill.TenancyId)))
+            .ToArrayAsync(cancellationToken);
+        var createdCount = 0;
+
+        foreach (var source in sources)
+        {
+            while (source.NextOccurrenceDate is DateOnly periodStart &&
+                   periodStart <= today)
+            {
+                if (!source.RecurringSeriesId.HasValue ||
+                    !source.RecurrenceIntervalMonths.HasValue)
+                {
+                    source.StopRecurrence();
+                    break;
+                }
+
+                var tenancy = await context.Tenancies
+                    .AsNoTracking()
+                    .SingleAsync(
+                        item => item.Id == source.TenancyId,
+                        cancellationToken);
+
+                if (!tenancy.IsActiveOn(periodStart))
+                {
+                    source.StopRecurrence();
+                    break;
+                }
+
+                var seriesId = source.RecurringSeriesId.Value;
+                var alreadyExists = context.SharedBills.Local.Any(bill =>
+                        bill.RecurringSeriesId == seriesId &&
+                        bill.PeriodStart == periodStart) ||
+                    await context.SharedBills.AnyAsync(
+                        bill =>
+                            bill.RecurringSeriesId == seriesId &&
+                            bill.PeriodStart == periodStart,
+                        cancellationToken);
+
+                if (!alreadyExists)
+                {
+                    var monthOffset =
+                        (periodStart.Year - source.PeriodStart.Year) * 12 +
+                        periodStart.Month - source.PeriodStart.Month;
+                    var now = GetUtcNow();
+                    var bill = new SharedBill(
+                        Guid.NewGuid(),
+                        source.TenancyId,
+                        source.CreatedByUserProfileId,
+                        source.PaidByUserProfileId,
+                        source.Title,
+                        source.Category,
+                        new Money(
+                            source.Total.Amount,
+                            source.Total.Currency),
+                        periodStart,
+                        AddMonthsPreservingMonthEnd(
+                            source.PeriodEnd,
+                            monthOffset),
+                        source.DueDate.AddMonths(monthOffset),
+                        now);
+
+                    CopyRecurringAllocation(source, bill, now);
+                    bill.MarkAsRecurringOccurrence(seriesId);
+                    context.SharedBills.Add(bill);
+                    createdCount++;
+                }
+
+                source.AdvanceRecurrence();
+            }
+        }
+
+        if (sources.Length > 0)
+        {
+            await context.SaveChangesAsync(cancellationToken);
+        }
+
+        return createdCount;
     }
 
     public async Task<IReadOnlyList<SharedBillParticipantOption>>
@@ -254,6 +358,10 @@ public sealed class SharedBillService(
             bill.Status,
             bill.CreatedAtUtc,
             bill.UpdatedAtUtc,
+            bill.RecurringSeriesId,
+            bill.RecurrenceIntervalMonths,
+            bill.RecurrenceEndsOn,
+            bill.NextOccurrenceDate,
             shares,
             disputes,
             attachments,
@@ -470,6 +578,20 @@ public sealed class SharedBillService(
                 break;
         }
 
+        if (command.RecurrenceIntervalMonths.HasValue)
+        {
+            bill.ConfigureRecurrence(
+                Guid.NewGuid(),
+                command.RecurrenceIntervalMonths.Value,
+                command.RecurrenceEndsOn);
+        }
+        else if (command.RecurrenceEndsOn.HasValue)
+        {
+            throw new ArgumentException(
+                "Choose a recurrence frequency before setting an end date.",
+                nameof(command));
+        }
+
         context.SharedBills.Add(bill);
         await context.SaveChangesAsync(cancellationToken);
         return bill.Id;
@@ -524,6 +646,31 @@ public sealed class SharedBillService(
         Demand(SharedBillAccessPolicy.CanVoid(bill, access));
 
         bill.Void(GetUtcNow());
+        await context.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task StopRecurrenceAsync(
+        StopRecurringBillCommand command,
+        Guid userProfileId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        EnsureId(userProfileId, nameof(userProfileId));
+
+        await using var context =
+            await contextFactory.CreateDbContextAsync(cancellationToken);
+        var bill = await GetBillAsync(
+            context,
+            command.SharedBillId,
+            cancellationToken);
+        var access = await CreateAccessContextAsync(
+            context,
+            bill,
+            userProfileId,
+            cancellationToken);
+
+        Demand(SharedBillAccessPolicy.CanStopRecurrence(bill, access));
+        bill.StopRecurrence();
         await context.SaveChangesAsync(cancellationToken);
     }
 
@@ -916,7 +1063,54 @@ public sealed class SharedBillService(
             SharedBillAccessPolicy.CanDeclarePayment(bill, access),
             SharedBillAccessPolicy.CanConfirmPayment(bill, access),
             SharedBillAccessPolicy.CanRaiseDispute(bill, access),
-            SharedBillAccessPolicy.CanResolveDispute(bill, access));
+            SharedBillAccessPolicy.CanResolveDispute(bill, access),
+            SharedBillAccessPolicy.CanStopRecurrence(bill, access));
+    }
+
+    private static void CopyRecurringAllocation(
+        SharedBill source,
+        SharedBill destination,
+        DateTimeOffset now)
+    {
+        var shares = source.Shares.ToArray();
+        var decimalPlaces = source.Total.Currency == "JPY" ? 0 : 2;
+
+        switch (source.SplitMethod)
+        {
+            case BillSplitMethod.Equal:
+                destination.AllocateEqually(
+                    shares.Select(share =>
+                        (Guid.NewGuid(), share.UserProfileId)),
+                    decimalPlaces,
+                    now);
+                break;
+
+            case BillSplitMethod.Percentage:
+                destination.AllocateProportionally(
+                    shares.Select(share =>
+                        (Guid.NewGuid(),
+                         share.UserProfileId,
+                         share.Amount.Amount)),
+                    BillSplitMethod.Percentage,
+                    decimalPlaces,
+                    now);
+                break;
+
+            case BillSplitMethod.FixedAmount:
+                destination.AllocateFixed(
+                    shares.Select(share =>
+                        (Guid.NewGuid(),
+                         share.UserProfileId,
+                         new Money(
+                             share.Amount.Amount,
+                             share.Amount.Currency))),
+                    now);
+                break;
+
+            default:
+                throw new InvalidOperationException(
+                    "The recurring bill uses an unsupported split method.");
+        }
     }
 
     private static async Task<MemoryStream> BufferAndValidateAttachmentAsync(
@@ -1059,6 +1253,23 @@ public sealed class SharedBillService(
     {
         return DateOnly.FromDateTime(
             timeProvider.GetUtcNow().UtcDateTime);
+    }
+
+    private static DateOnly AddMonthsPreservingMonthEnd(
+        DateOnly value,
+        int months)
+    {
+        var result = value.AddMonths(months);
+        var isMonthEnd = value.Day == DateTime.DaysInMonth(
+            value.Year,
+            value.Month);
+
+        return isMonthEnd
+            ? new DateOnly(
+                result.Year,
+                result.Month,
+                DateTime.DaysInMonth(result.Year, result.Month))
+            : result;
     }
 
     private DateTimeOffset GetUtcNow()

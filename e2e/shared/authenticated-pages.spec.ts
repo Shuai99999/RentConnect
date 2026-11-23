@@ -39,4 +39,20 @@ test.describe('Shared authenticated pages', () => {
     await expect(page.getByRole('button', { name: 'Search homes' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Use my location' })).toBeVisible();
   });
+
+  test('listing search applies a kilometre radius to map and results', async ({
+    page,
+  }) => {
+    await page.goto('/listings');
+    await page.waitForTimeout(1_000);
+    const city = page.getByLabel('Where do you want to live?');
+    await city.fill('Edmonton');
+    await city.press('Tab');
+    await expect(city).toHaveValue('Edmonton');
+    await page.getByLabel('Search area').selectOption('25');
+    await page.getByRole('button', { name: 'Search homes' }).click();
+
+    await expect(page.getByText('Within 25 km of Edmonton')).toBeVisible();
+    await expect(page.getByRole('heading', { name: /near Edmonton/ })).toBeVisible();
+  });
 });

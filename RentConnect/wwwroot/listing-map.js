@@ -58,7 +58,8 @@ export async function initializeMap(instanceId, containerId, subscriptionKey, li
         mapReady: undefined,
         resolveReady: undefined,
         rentalMarkers: [],
-        userMarker: undefined
+        userMarker: undefined,
+        searchAreaSource: undefined
     };
     activeMap = state;
 
@@ -75,12 +76,82 @@ export async function initializeMap(instanceId, containerId, subscriptionKey, li
                 new atlas.control.CompassControl()
             ], { position: "top-right" });
             state.popup = new atlas.Popup({ closeButton: true, pixelOffset: [0, -18] });
+            state.searchAreaSource = new atlas.source.DataSource();
+            map.sources.add(state.searchAreaSource);
+            map.layers.add([
+                new atlas.layer.PolygonLayer(state.searchAreaSource, undefined, {
+                    fillColor: "#3b9275",
+                    fillOpacity: 0.12
+                }),
+                new atlas.layer.LineLayer(state.searchAreaSource, undefined, {
+                    strokeColor: "#28745e",
+                    strokeWidth: 2,
+                    strokeDashArray: [3, 2]
+                })
+            ]);
             resolve();
         });
     });
 
     await state.mapReady;
     await updateListings(instanceId, listings);
+}
+
+export async function updateSearchArea(instanceId, searchArea) {
+    const state = getActiveMap(instanceId);
+    if (!state) {
+        return;
+    }
+
+    await state.mapReady;
+    if (activeMap !== state || !state.searchAreaSource) {
+        return;
+    }
+
+    state.searchAreaSource.clear();
+    if (!searchArea || !Number.isFinite(searchArea.radiusKm) || searchArea.radiusKm <= 0) {
+        return;
+    }
+
+    const centre = [searchArea.longitude, searchArea.latitude];
+    const ring = createCircle(centre, searchArea.radiusKm, 72);
+    state.searchAreaSource.add(new atlas.data.Feature(
+        new atlas.data.Polygon([ring])
+    ));
+    state.map.setCamera({
+        bounds: atlas.data.BoundingBox.fromPositions(ring),
+        padding: 50,
+        maxZoom: 13,
+        type: "ease",
+        duration: 500
+    });
+}
+
+function createCircle(centre, radiusKm, pointCount) {
+    const [longitude, latitude] = centre;
+    const earthRadiusKm = 6371.0088;
+    const angularDistance = radiusKm / earthRadiusKm;
+    const latitudeRadians = latitude * Math.PI / 180;
+    const longitudeRadians = longitude * Math.PI / 180;
+    const positions = [];
+
+    for (let index = 0; index <= pointCount; index += 1) {
+        const bearing = index / pointCount * Math.PI * 2;
+        const pointLatitude = Math.asin(
+            Math.sin(latitudeRadians) * Math.cos(angularDistance) +
+            Math.cos(latitudeRadians) * Math.sin(angularDistance) * Math.cos(bearing)
+        );
+        const pointLongitude = longitudeRadians + Math.atan2(
+            Math.sin(bearing) * Math.sin(angularDistance) * Math.cos(latitudeRadians),
+            Math.cos(angularDistance) - Math.sin(latitudeRadians) * Math.sin(pointLatitude)
+        );
+        positions.push([
+            pointLongitude * 180 / Math.PI,
+            pointLatitude * 180 / Math.PI
+        ]);
+    }
+
+    return positions;
 }
 
 export async function updateListings(instanceId, listings) {

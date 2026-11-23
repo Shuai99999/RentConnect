@@ -26,7 +26,9 @@ public sealed record CreateSharedBillCommand(
     DateOnly PeriodEnd,
     DateOnly DueDate,
     BillSplitMethod SplitMethod,
-    IReadOnlyList<BillAllocationInput> Allocations);
+    IReadOnlyList<BillAllocationInput> Allocations,
+    int? RecurrenceIntervalMonths = null,
+    DateOnly? RecurrenceEndsOn = null);
 
 public sealed record CreateEqualSharedBillCommand(
     Guid TenancyId,
@@ -43,6 +45,8 @@ public sealed record CreateEqualSharedBillCommand(
 public sealed record PublishSharedBillCommand(Guid SharedBillId);
 
 public sealed record VoidSharedBillCommand(Guid SharedBillId);
+
+public sealed record StopRecurringBillCommand(Guid SharedBillId);
 
 public sealed record DeclareBillPaymentCommand(Guid SharedBillId);
 

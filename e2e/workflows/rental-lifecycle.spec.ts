@@ -74,6 +74,7 @@ test.describe('Rental lifecycle', () => {
         ownerPage.getByRole('heading', { name: propertyName }),
       ).toBeVisible();
 
+      await ownerPage.waitForTimeout(750);
       await ownerPage
         .getByRole('button', { name: 'Add rental space' })
         .click();
@@ -144,6 +145,14 @@ test.describe('Rental lifecycle', () => {
       ).toBeVisible();
       await expect(applicantPage.getByText('Resident View')).toBeVisible();
       await expect(applicantPage.getByText(spaceName)).toBeVisible();
+
+      await ownerPage.goto('/bills/new');
+      await expect(
+        ownerPage.getByRole('heading', { name: 'New Shared Bill' }),
+      ).toBeVisible();
+      await ownerPage.getByLabel('Recurring bill').check();
+      await expect(ownerPage.getByLabel('Repeat')).toHaveValue('1');
+      await expect(ownerPage.getByLabel(/End date/)).toBeVisible();
     } finally {
       await ownerContext.close();
       await applicantContext.close();

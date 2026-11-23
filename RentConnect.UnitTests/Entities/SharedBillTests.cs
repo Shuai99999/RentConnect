@@ -168,6 +168,48 @@ public sealed class SharedBillTests
     }
 
     [Fact]
+    public void ConfigureRecurrence_TracksAndAdvancesMonthlySchedule()
+    {
+        var bill = CreateBill();
+        var seriesId = Guid.NewGuid();
+
+        bill.ConfigureRecurrence(
+            seriesId,
+            1,
+            new DateOnly(2026, 12, 1));
+
+        Assert.Equal(seriesId, bill.RecurringSeriesId);
+        Assert.Equal(1, bill.RecurrenceIntervalMonths);
+        Assert.Equal(
+            new DateOnly(2026, 11, 1),
+            bill.NextOccurrenceDate);
+
+        bill.AdvanceRecurrence();
+        Assert.Equal(
+            new DateOnly(2026, 12, 1),
+            bill.NextOccurrenceDate);
+
+        bill.AdvanceRecurrence();
+        Assert.Null(bill.NextOccurrenceDate);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(6)]
+    public void ConfigureRecurrence_WithUnsupportedFrequency_Throws(
+        int intervalMonths)
+    {
+        var bill = CreateBill();
+
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            bill.ConfigureRecurrence(
+                Guid.NewGuid(),
+                intervalMonths,
+                null));
+    }
+
+    [Fact]
     public void Constructor_WithInvalidBillingPeriod_ThrowsException()
     {
         Assert.Throws<ArgumentException>(

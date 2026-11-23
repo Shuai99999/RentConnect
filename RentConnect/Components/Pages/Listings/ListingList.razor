@@ -82,6 +82,10 @@
         <section class="map-panel" aria-label="Rental property map">
             <div class="map-toolbar">
                 <span><strong>@MappedPropertyCount</strong> properties on the map</span>
+                @if (_appliedCity is not null && _radiusKm > 0)
+                {
+                    <span class="search-area-label">Within @_radiusKm km of @_appliedCity</span>
+                }
                 <span class="map-legend"><i></i> Available rental</span>
             </div>
             <div id="listing-map" class="listing-map" aria-label="Interactive map of available rental properties"></div>
@@ -202,6 +206,10 @@
                     "listing-map",
                     AzureMapsKey,
                     GetMapListings());
+                await _mapModule.InvokeVoidAsync(
+                    "updateSearchArea",
+                    _mapInstanceId,
+                    GetMapSearchArea());
             }
         }
         catch (JSException exception)
@@ -298,7 +306,24 @@
         if (_mapModule is not null && _mapInstanceId is not null && _mapEnabled)
         {
             await _mapModule.InvokeVoidAsync("updateListings", _mapInstanceId, GetMapListings());
+            await _mapModule.InvokeVoidAsync("updateSearchArea", _mapInstanceId, GetMapSearchArea());
         }
+    }
+
+    private MapSearchArea? GetMapSearchArea()
+    {
+        if (_appliedCity is null || _radiusKm <= 0)
+        {
+            return null;
+        }
+
+        var centre = AlbertaRentalSearch.FindCentre(_appliedCity);
+        return centre is null
+            ? null
+            : new MapSearchArea(
+                centre.Latitude,
+                centre.Longitude,
+                _radiusKm);
     }
 
     private MapListing[] GetMapListings() => _listings
@@ -339,6 +364,10 @@
     }
 
     private sealed record UserCoordinates(double Latitude, double Longitude);
+    private sealed record MapSearchArea(
+        double Latitude,
+        double Longitude,
+        int RadiusKm);
     private sealed record MapListing(
         Guid Id,
         Guid PropertyId,

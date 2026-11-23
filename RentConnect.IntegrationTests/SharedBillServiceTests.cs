@@ -327,6 +327,68 @@ public sealed class SharedBillServiceTests
             Assert.Equal(
                 [30m, 70m],
                 fixedBill.Shares.Select(item => item.Amount).Order().ToArray());
+
+            var recurringBillId = await service.CreateAsync(
+                new CreateSharedBillCommand(
+                    tenancyId,
+                    firstTenantId,
+                    "Monthly rent",
+                    SharedBillCategory.Rent,
+                    1800m,
+                    "CAD",
+                    2,
+                    new DateOnly(2026, 9, 1),
+                    new DateOnly(2026, 9, 30),
+                    new DateOnly(2026, 10, 5),
+                    BillSplitMethod.Equal,
+                    [],
+                    1,
+                    new DateOnly(2026, 12, 1)),
+                ownerId);
+
+            var recurringBill = await service.GetDetailsAsync(
+                recurringBillId,
+                ownerId);
+            Assert.NotNull(recurringBill);
+            Assert.NotNull(recurringBill.RecurringSeriesId);
+            Assert.Equal(
+                new DateOnly(2026, 10, 1),
+                recurringBill.NextOccurrenceDate);
+
+            Assert.Equal(
+                1,
+                await service.GenerateDueRecurringBillsAsync(ownerId));
+            Assert.Equal(
+                0,
+                await service.GenerateDueRecurringBillsAsync(ownerId));
+
+            var generatedBills = await context.SharedBills
+                .AsNoTracking()
+                .Where(bill =>
+                    bill.RecurringSeriesId ==
+                    recurringBill.RecurringSeriesId)
+                .OrderBy(bill => bill.PeriodStart)
+                .ToArrayAsync();
+            Assert.Equal(2, generatedBills.Length);
+            Assert.Equal(
+                new DateOnly(2026, 10, 1),
+                generatedBills[1].PeriodStart);
+            Assert.Equal(
+                new DateOnly(2026, 10, 31),
+                generatedBills[1].PeriodEnd);
+            Assert.Equal(
+                new DateOnly(2026, 11, 5),
+                generatedBills[1].DueDate);
+
+            await service.StopRecurrenceAsync(
+                new StopRecurringBillCommand(recurringBillId),
+                ownerId);
+            var stoppedBill = await service.GetDetailsAsync(
+                recurringBillId,
+                ownerId);
+            Assert.NotNull(stoppedBill);
+            Assert.Null(stoppedBill.NextOccurrenceDate);
+            Assert.False(stoppedBill.Permissions.CanStopRecurrence);
         }
         finally
         {
