@@ -82,3 +82,19 @@ dedicated test database.
 ```powershell
 npm run test:e2e:report
 ```
+
+## Continuous integration
+
+The existing GitHub Actions job reuses its temporary SQL Server container for
+an isolated `RentConnect_E2E` database. `RentConnect.E2ESupport` applies the EF
+Core migrations and creates an email-confirmed temporary account before the
+browser tests run.
+
+CI starts the web app on `http://127.0.0.1:5086` with
+`ASPNETCORE_ENVIRONMENT=E2E`. Only that environment disables HTTPS redirection
+and permits its authentication cookie over HTTP. Development and production
+retain their HTTPS settings.
+
+The SQL Server service container, E2E database, and temporary account are all
+discarded automatically when the GitHub Actions job finishes. The HTML report,
+screenshots, and traces are uploaded as the `playwright-report` artifact.

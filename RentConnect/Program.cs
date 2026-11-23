@@ -23,6 +23,8 @@ using Azure.Identity;
 using Microsoft.AspNetCore.DataProtection;
 
 var builder = WebApplication.CreateBuilder(args);
+var isE2EEnvironment =
+    builder.Environment.IsEnvironment("E2E");
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -192,7 +194,9 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.HttpOnly = true;
-    options.Cookie.SecurePolicy = CookieSecurePolicy.Always;
+    options.Cookie.SecurePolicy = isE2EEnvironment
+        ? CookieSecurePolicy.SameAsRequest
+        : CookieSecurePolicy.Always;
     options.Cookie.SameSite = SameSiteMode.Lax;
     options.ExpireTimeSpan = TimeSpan.FromHours(8);
     options.SlidingExpiration = true;
@@ -234,14 +238,20 @@ else
         "/Error",
         createScopeForErrors: true);
 
-    app.UseHsts();
+    if (!isE2EEnvironment)
+    {
+        app.UseHsts();
+    }
 }
 
 app.UseStatusCodePagesWithReExecute(
     "/not-found",
     createScopeForStatusCodePages: true);
 
-app.UseHttpsRedirection();
+if (!isE2EEnvironment)
+{
+    app.UseHttpsRedirection();
+}
 
 app.Use(async (httpContext, next) =>
 {

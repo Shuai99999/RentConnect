@@ -12,6 +12,10 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    env:
+      E2E_CONNECTION_STRING: Server=localhost,1433;Database=RentConnect_E2E;User Id=sa;Password=RentConnect_Test_2026!;Encrypt=True;TrustServerCertificate=True
+      E2E_TEST_USER_EMAIL: playwright-ci@rentconnect.test
+      E2E_TEST_USER_PASSWORD: RentConnect_E2E_2026!
 
     services:
       sqlserver:
@@ -49,3 +53,45 @@ jobs:
         env:
           RENTCONNECT_TEST_SQLSERVER: Server=localhost,1433;Database=master;User Id=sa;Password=RentConnect_Test_2026!;Encrypt=True;TrustServerCertificate=True
         run: dotnet test RentConnect.slnx --configuration Release --no-build
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+
+      - name: Install Playwright dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Prepare E2E database
+        run: >-
+          dotnet run
+          --project RentConnect.E2ESupport/RentConnect.E2ESupport.csproj
+          --configuration Release
+          --no-build
+
+      - name: Run Playwright tests
+        env:
+          ASPNETCORE_ENVIRONMENT: E2E
+          ASPNETCORE_URLS: http://127.0.0.1:5086
+          ConnectionStrings__DefaultConnection: ${{ env.E2E_CONNECTION_STRING }}
+          Database__ApplyMigrationsOnStartup: "true"
+          PLAYWRIGHT_BASE_URL: http://127.0.0.1:5086
+          PLAYWRIGHT_START_SERVER: "true"
+          PLAYWRIGHT_WEB_SERVER_COMMAND: dotnet run --project RentConnect/RentConnect.csproj --configuration Release --no-build --no-launch-profile
+          PLAYWRIGHT_USER_EMAIL: ${{ env.E2E_TEST_USER_EMAIL }}
+          PLAYWRIGHT_USER_PASSWORD: ${{ env.E2E_TEST_USER_PASSWORD }}
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v5
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
