@@ -483,3 +483,10 @@ $RECYCLE.BIN/
 
 # Local maintenance attachment storage
 /RentConnect/App_Data/
+
+# Playwright
+/.env.playwright.local
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
