@@ -3,7 +3,6 @@
 @rendermode InteractiveServer
 
 @using Microsoft.AspNetCore.Authorization
-@using Microsoft.AspNetCore.Components.Authorization
 @using RentConnect.Application.Properties
 @using RentConnect.Services
 
@@ -20,11 +19,9 @@
             <p>View rental spaces, current occupancy, and property details.</p>
         </div>
 
-        <AuthorizeView Roles="Landlord">
-            <a class="primary-button" href="/properties/new">
-                Add property
-            </a>
-        </AuthorizeView>
+        <a class="primary-button" href="/properties/new">
+            Add property
+        </a>
     </header>
 
     @if (_isLoading)

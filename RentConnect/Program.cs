@@ -185,7 +185,6 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     options.Lockout.DefaultLockoutTimeSpan =
         TimeSpan.FromMinutes(15);
 })
-    .AddRoles<IdentityRole>()
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
@@ -222,29 +221,6 @@ if (builder.Configuration.GetValue(
         await dbContextFactory.CreateDbContextAsync();
 
     await migrationContext.Database.MigrateAsync();
-}
-
-// Create required roles.
-using (var scope = app.Services.CreateScope())
-{
-    var roleManager =
-        scope.ServiceProvider
-            .GetRequiredService<RoleManager<IdentityRole>>();
-
-    foreach (var role in new[] { "Landlord", "Renter" })
-    {
-        if (!await roleManager.RoleExistsAsync(role))
-        {
-            var result = await roleManager.CreateAsync(
-                new IdentityRole(role));
-
-            if (!result.Succeeded)
-            {
-                throw new InvalidOperationException(
-                    $"Failed to create role: {role}");
-            }
-        }
-    }
 }
 
 // Configure the HTTP request pipeline.

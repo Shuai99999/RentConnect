@@ -18,11 +18,9 @@
             <h1>Tenancies</h1>
             <p>Manage lease periods, household members, and invitations.</p>
         </div>
-        <AuthorizeView Roles="Landlord">
-            <a class="primary-button" href="/tenancies/new">
-                Create tenancy
-            </a>
-        </AuthorizeView>
+        <a class="primary-button" href="/tenancies/new">
+            Create tenancy
+        </a>
     </header>
 
     @if (_isLoading)
@@ -38,11 +36,9 @@
         <section class="state-card empty-card">
             <h2>No tenancies yet</h2>
             <p>Owners can create a tenancy for a vacant rental space. Residents will see one here after accepting an invitation.</p>
-            <AuthorizeView Roles="Landlord">
-                <a class="secondary-button" href="/tenancies/new">
-                    Create a tenancy
-                </a>
-            </AuthorizeView>
+            <a class="secondary-button" href="/tenancies/new">
+                Create a tenancy
+            </a>
         </section>
     }
     else

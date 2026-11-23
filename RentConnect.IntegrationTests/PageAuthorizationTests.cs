@@ -1,14 +1,19 @@
 using Microsoft.AspNetCore.Authorization;
 using RentConnect.Components.Pages.Listings;
+using RentConnect.Components.Pages.Properties;
+using RentConnect.Components.Pages.Tenancies;
 
 namespace RentConnect.IntegrationTests;
 
-public sealed class ListingPageAuthorizationTests
+public sealed class PageAuthorizationTests
 {
     [Theory]
     [InlineData(typeof(ListingEdit))]
     [InlineData(typeof(ListingManage))]
-    public void ListingManagementRoutes_RequireAuthenticationWithoutRoleGate(
+    [InlineData(typeof(RentalApplicationList))]
+    [InlineData(typeof(PropertyCreate))]
+    [InlineData(typeof(TenancyCreate))]
+    public void CapabilityPages_RequireAuthenticationWithoutRoleGate(
         Type pageType)
     {
         var attributes = pageType
