@@ -1,7 +1,7 @@
 .maintenance-details-page {
-    width: min(980px, calc(100% - 2rem));
+    width: min(980px, calc(100% - (2 * var(--page-gutter))));
     margin: 0 auto;
-    padding: 3rem 0 5rem;
+    padding: var(--page-space-top) 0 var(--page-space-bottom);
     color: var(--color-text);
 }
 
@@ -52,7 +52,7 @@
 .private-badge {
     display: inline-flex;
     padding: 0.4rem 0.7rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 0.78rem;
     font-weight: 700;
 }
@@ -64,18 +64,18 @@
 
 .status-acknowledged,
 .status-scheduled {
-    background: #fff6db;
-    color: #8a6116;
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
 }
 
 .status-in-progress {
-    background: #e8f4ff;
-    color: #17669b;
+    background: var(--color-info-soft);
+    color: var(--color-info);
 }
 
 .status-resolved {
-    background: #e7f8ee;
-    color: #197044;
+    background: var(--color-success-soft);
+    color: var(--color-success);
 }
 
 .status-closed,
@@ -85,8 +85,8 @@
 }
 
 .private-badge {
-    background: #f7eefe;
-    color: #7a3ca1;
+    background: var(--color-purple-soft);
+    color: var(--color-purple);
 }
 
 .details-grid {
@@ -100,8 +100,8 @@
 .content-card,
 .state-panel {
     border: 1px solid var(--color-border);
-    border-radius: 1rem;
-    background: white;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
     box-shadow: 0 8px 30px rgb(var(--color-shadow-rgb) / 5%);
 }
 
@@ -123,11 +123,11 @@
     }
 
 .priority-high {
-    color: #b54708;
+    color: var(--color-warning);
 }
 
 .priority-emergency {
-    color: #b42318;
+    color: var(--color-danger);
 }
 
 .content-card {
@@ -159,8 +159,8 @@
 }
 
 .resolution-card {
-    border-color: #b9e5cc;
-    background: #f7fcf9;
+    border-color: var(--color-success-border);
+    background: var(--color-success-soft);
 }
 
 .action-card {
@@ -179,7 +179,7 @@
     padding: 0.6rem 0.9rem;
     border: 1px solid var(--color-primary-border);
     border-radius: 0.65rem;
-    background: white;
+    background: var(--color-surface);
     color: var(--color-primary-strong);
     font: inherit;
     font-size: 0.9rem;
@@ -193,21 +193,21 @@
     }
 
 .danger-outline-button {
-    border-color: #f0b4b0;
-    color: #b42318;
+    border-color: var(--color-danger-border);
+    color: var(--color-danger);
 }
 
     .danger-outline-button:hover {
-        border-color: #d92d20;
-        background: #fff5f4;
+        border-color: var(--color-danger);
+        background: var(--color-danger-soft);
     }
 
 .status-action-editor {
     margin-top: 1rem;
     padding: 1rem;
     border: 1px solid var(--color-border);
-    border-radius: 0.8rem;
-    background: white;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
 }
 
     .status-action-editor h3 {
@@ -229,8 +229,8 @@
         min-height: 44px;
         padding: 0.7rem 0.8rem;
         border: 1px solid var(--color-border-strong);
-        border-radius: 0.7rem;
-        background: white;
+        border-radius: var(--radius-sm);
+        background: var(--color-surface);
         color: var(--color-text);
         font: inherit;
     }
@@ -309,7 +309,7 @@
 .empty-conversation {
     padding: 1.5rem;
     border: 1px dashed var(--color-border-strong);
-    border-radius: 0.8rem;
+    border-radius: var(--radius-md);
     color: var(--color-text-muted);
     text-align: center;
 }
@@ -322,7 +322,7 @@
 .message-card {
     padding: 1rem;
     border: 1px solid var(--color-border);
-    border-radius: 0.8rem;
+    border-radius: var(--radius-md);
     background: var(--color-surface-subtle);
 }
 
@@ -362,8 +362,8 @@
         min-height: 95px;
         padding: 0.8rem;
         border: 1px solid var(--color-border-strong);
-        border-radius: 0.75rem;
-        background: white;
+        border-radius: var(--radius-md);
+        background: var(--color-surface);
         color: var(--color-text);
         font: inherit;
         line-height: 1.6;
@@ -377,7 +377,7 @@
     }
 
     .edit-message-composer ::deep .field-validation {
-        color: #b42318;
+        color: var(--color-danger);
         font-size: 0.85rem;
         font-weight: 600;
     }
@@ -400,14 +400,14 @@
 }
 
 .delete-button {
-    color: #b42318;
+    color: var(--color-danger);
 }
 
 .small-primary-button,
 .danger-button {
     padding: 0.55rem 0.8rem;
     border-radius: 0.6rem;
-    color: white;
+    color: var(--color-on-primary);
 }
 
 .small-primary-button {
@@ -415,11 +415,11 @@
 }
 
 .danger-button {
-    background: #b42318;
+    background: var(--color-danger);
 }
 
 .delete-confirmation {
-    color: #8f1d18;
+    color: var(--color-danger-strong);
     font-size: 0.85rem;
     font-weight: 700;
 }
@@ -447,8 +447,8 @@
     }
 
 .error-panel {
-    border-color: #f5c2c0;
-    background: #fff7f7;
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-soft);
 }
 
 .secondary-button {
@@ -458,8 +458,8 @@
     min-height: 44px;
     padding: 0.7rem 1.15rem;
     border: 1px solid var(--color-border-strong);
-    border-radius: 0.75rem;
-    background: white;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
     color: var(--color-text-secondary);
     font-weight: 700;
     text-decoration: none;
@@ -490,8 +490,8 @@
         min-height: 110px;
         padding: 0.8rem;
         border: 1px solid var(--color-border-strong);
-        border-radius: 0.75rem;
-        background: white;
+        border-radius: var(--radius-md);
+        background: var(--color-surface);
         color: var(--color-text);
         font: inherit;
         line-height: 1.6;
@@ -520,9 +520,9 @@
     min-height: 44px;
     padding: 0.7rem 1.15rem;
     border: 0;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-md);
     background: var(--color-primary);
-    color: white;
+    color: var(--color-on-primary);
     font-weight: 700;
     cursor: pointer;
     box-shadow: 0 10px 24px rgb(var(--color-primary-rgb) / 22%);
@@ -533,23 +533,23 @@
     }
 
     .message-composer ::deep .field-validation {
-        color: #b42318;
+        color: var(--color-danger);
         font-size: 0.85rem;
         font-weight: 600;
     }
 
 .form-alert {
     padding: 0.9rem 1rem;
-    border: 1px solid #f5c2c0;
-    border-radius: 0.75rem;
-    background: #fff7f7;
-    color: #8f1d18;
+    border: 1px solid var(--color-danger-border);
+    border-radius: var(--radius-md);
+    background: var(--color-danger-soft);
+    color: var(--color-danger-strong);
 }
 
 .conversation-closed {
     margin-top: 1.25rem;
     padding: 0.9rem 1rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-md);
     background: var(--color-surface-muted);
     color: var(--color-text-secondary);
 }
@@ -557,7 +557,7 @@
 .empty-attachments {
     padding: 1.5rem;
     border: 1px dashed var(--color-border-strong);
-    border-radius: 0.8rem;
+    border-radius: var(--radius-md);
     color: var(--color-text-muted);
     text-align: center;
 }
@@ -572,7 +572,7 @@
     min-width: 0;
     overflow: hidden;
     border: 1px solid var(--color-border);
-    border-radius: 0.85rem;
+    border-radius: var(--radius-md);
     background: var(--color-surface-subtle);
 }
 
@@ -654,7 +654,7 @@
 .attachments-closed {
     margin-top: 1.25rem;
     padding: 0.9rem 1rem;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-md);
     background: var(--color-surface-muted);
     color: var(--color-text-secondary);
 }

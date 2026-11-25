@@ -1,7 +1,7 @@
 .details-page {
-    width: min(760px, calc(100% - 2rem));
+    width: min(760px, calc(100% - (2 * var(--page-gutter))));
     margin: 0 auto;
-    padding: 2.5rem 0 5rem;
+    padding: var(--page-space-top) 0 var(--page-space-bottom);
     color: var(--color-text);
 }
 
@@ -9,8 +9,8 @@
     margin-top: 1.5rem;
     padding: 3rem 1.5rem;
     border: 1px solid var(--color-border);
-    border-radius: 1rem;
-    background: white;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
     text-align: center;
 }
 
@@ -24,11 +24,11 @@
 }
 
 .success-card {
-    border-color: #a9ddbd;
-    background: #f4fcf7;
+    border-color: var(--color-success-border);
+    background: var(--color-success-soft);
 }
 
 .error-card {
-    border-color: #f5c2c0;
-    background: #fff7f7;
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-soft);
 }

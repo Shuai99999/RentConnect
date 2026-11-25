@@ -80,11 +80,11 @@ export async function initializeMap(instanceId, containerId, subscriptionKey, li
             map.sources.add(state.searchAreaSource);
             map.layers.add([
                 new atlas.layer.PolygonLayer(state.searchAreaSource, undefined, {
-                    fillColor: "#3b9275",
+                    fillColor: "#00866f",
                     fillOpacity: 0.12
                 }),
                 new atlas.layer.LineLayer(state.searchAreaSource, undefined, {
-                    strokeColor: "#28745e",
+                    strokeColor: "#006e5c",
                     strokeWidth: 2,
                     strokeDashArray: [3, 2]
                 })

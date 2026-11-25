@@ -14,10 +14,10 @@
     z-index: 1000;
     display: none;
     padding: 0.85rem 3rem 0.85rem 1rem;
-    border: 1px solid #f4b4b0;
-    border-radius: 0.75rem;
-    background: #fff1f0;
-    color: #8f1d18;
+    border: 1px solid var(--color-danger-border);
+    border-radius: var(--radius-md);
+    background: var(--color-danger-soft);
+    color: var(--color-danger-strong);
     box-shadow: 0 12px 30px rgb(80 25 25 / 16%);
 }
 

@@ -1,8 +1,8 @@
 
 .properties-page {
-    width: min(1100px, calc(100% - 2rem));
+    width: min(1100px, calc(100% - (2 * var(--page-gutter))));
     margin: 0 auto;
-    padding: 3rem 0 5rem;
+    padding: var(--page-space-top) 0 var(--page-space-bottom);
     color: var(--color-text);
 }
 
@@ -48,13 +48,13 @@
 
 .primary-button {
     background: var(--color-primary);
-    color: white;
+    color: var(--color-on-primary);
     box-shadow: 0 10px 24px rgb(var(--color-primary-rgb) / 20%);
 }
 
 .secondary-button {
     border: 1px solid var(--color-primary-border);
-    background: white;
+    background: var(--color-surface);
     color: var(--color-primary-strong);
 }
 
@@ -70,8 +70,8 @@
     padding: 1.35rem;
     align-content: start;
     border: 1px solid var(--color-border);
-    border-radius: 1.1rem;
-    background: white;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
     color: var(--color-text);
     box-shadow: 0 10px 30px rgb(var(--color-shadow-rgb) / 5%);
     text-decoration: none;
@@ -127,7 +127,7 @@
 
 .access-badge {
     padding: 0.28rem 0.55rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 0.68rem;
     font-weight: 800;
 }
@@ -138,8 +138,8 @@
     }
 
     .access-badge.resident {
-        background: #f9eee4;
-        color: #8b5a35;
+        background: var(--color-accent-soft);
+        color: var(--color-accent);
     }
 
 .property-card h2 {
@@ -181,8 +181,8 @@
 .state-card {
     padding: 3rem 1.5rem;
     border: 1px solid var(--color-border);
-    border-radius: 1rem;
-    background: white;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
     text-align: center;
 }
 
@@ -191,8 +191,8 @@
     }
 
 .error-card {
-    border-color: #f5c2c0;
-    background: #fff7f7;
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-soft);
 }
 
 .empty-icon {
@@ -201,7 +201,7 @@
     height: 58px;
     margin: 0 auto 1rem;
     place-items: center;
-    border-radius: 1rem;
+    border-radius: var(--radius-lg);
     background: var(--color-primary-soft);
     color: var(--color-primary-strong);
 }

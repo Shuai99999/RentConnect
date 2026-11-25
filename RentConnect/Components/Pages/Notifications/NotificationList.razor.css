@@ -1,7 +1,7 @@
 .notifications-page {
-    width: min(920px, calc(100% - 2rem));
+    width: min(920px, calc(100% - (2 * var(--page-gutter))));
     margin: 0 auto;
-    padding: 3rem 0 5rem;
+    padding: var(--page-space-top) 0 var(--page-space-bottom);
     color: var(--color-text);
 }
 
@@ -43,8 +43,8 @@
     align-items: center;
     justify-content: center;
     border: 1px solid var(--color-border-strong);
-    border-radius: 0.75rem;
-    background: white;
+    border-radius: var(--radius-md);
+    background: var(--color-surface);
     color: var(--color-text-secondary);
     font: inherit;
     font-weight: 700;
@@ -76,8 +76,8 @@
     align-items: center;
     gap: 1rem;
     border: 1px solid var(--color-border);
-    border-radius: 1rem;
-    background: white;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
     color: inherit;
     font: inherit;
     text-align: left;
@@ -110,7 +110,7 @@
     width: 42px;
     height: 42px;
     place-items: center;
-    border-radius: 0.8rem;
+    border-radius: var(--radius-md);
     font-size: 1.05rem;
     font-weight: 800;
 }
@@ -121,18 +121,18 @@
 }
 
 .type-status {
-    background: #e7f8ee;
-    color: #197044;
+    background: var(--color-success-soft);
+    color: var(--color-success);
 }
 
 .type-message {
-    background: #e8f4ff;
-    color: #17669b;
+    background: var(--color-info-soft);
+    color: var(--color-info);
 }
 
 .type-photo {
-    background: #f7eefe;
-    color: #7a3ca1;
+    background: var(--color-purple-soft);
+    color: var(--color-purple);
 }
 
 .type-default {
@@ -155,7 +155,7 @@
 .unread-label {
     display: inline-flex;
     padding: 0.2rem 0.45rem;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     background: var(--color-primary-soft);
     color: var(--color-primary-strong);
     font-size: 0.68rem;
@@ -182,8 +182,8 @@
 .state-panel {
     padding: 3rem 1.5rem;
     border: 1px solid var(--color-border);
-    border-radius: 1rem;
-    background: white;
+    border-radius: var(--radius-lg);
+    background: var(--color-surface);
     text-align: center;
 }
 
@@ -201,15 +201,15 @@
     height: 48px;
     place-items: center;
     border-radius: 50%;
-    background: #e7f8ee;
-    color: #197044;
+    background: var(--color-success-soft);
+    color: var(--color-success);
     font-size: 1.25rem;
     font-weight: 800;
 }
 
 .error-panel {
-    border-color: #f5c2c0;
-    background: #fff7f7;
+    border-color: var(--color-danger-border);
+    background: var(--color-danger-soft);
 }
 
 @media (max-width: 640px) {

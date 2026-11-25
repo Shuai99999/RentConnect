@@ -1,5 +1,5 @@
 /* ============================================================
-   RENTCONNECT — RENTAL APPLICATIONS DASHBOARD
+   RENTCONNECT ï¿½ RENTAL APPLICATIONS DASHBOARD
    Modern, responsive landlord interface
    ============================================================ */
 
@@ -15,8 +15,8 @@
     margin: 0 auto;
     padding: 36px 32px 70px;
     box-sizing: border-box;
-    background: #f8faf9;
-    color: #172b3a;
+    background: var(--color-surface-subtle);
+    color: var(--color-text);
     font-family: inherit;
 }
 
@@ -45,8 +45,8 @@
     width: fit-content;
     margin: 0 0 12px;
     padding: 7px 13px;
-    background: #e0f3e8;
-    color: #176747;
+    background: var(--color-success-soft);
+    color: var(--color-success);
     border-radius: 8px;
     font-size: 11px;
     font-weight: 800;
@@ -56,7 +56,7 @@
 
 .page-header h1 {
     margin: 0 0 10px;
-    color: #152b35;
+    color: var(--color-text);
     font-size: clamp(28px, 3vw, 36px);
     font-weight: 800;
     letter-spacing: -1.2px;
@@ -65,7 +65,7 @@
 
 .page-header p {
     margin: 0;
-    color: #6b7b89;
+    color: var(--color-text-subtle);
     font-size: 14px;
     line-height: 1.7;
 }
@@ -88,9 +88,9 @@
     height: 46px;
     box-sizing: border-box;
     padding: 0 15px;
-    background: #ffffff;
-    color: #263747;
-    border: 1px solid #dfe8e3;
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
     border-radius: 11px;
     font-family: inherit;
     font-size: 13px;
@@ -103,7 +103,7 @@
 }
 
     .search-input::placeholder {
-        color: #99a5ae;
+        color: var(--color-text-subtle);
     }
 
 .status-filter {
@@ -113,13 +113,13 @@
 
     .search-input:hover,
     .status-filter:hover {
-        border-color: #b5d5c8;
+        border-color: var(--color-primary-border);
     }
 
     .search-input:focus,
     .status-filter:focus {
         outline: none;
-        border-color: #0e7755;
+        border-color: var(--color-primary);
         box-shadow: 0 0 0 3px rgba(14, 119, 85, 0.12);
     }
 
@@ -143,16 +143,16 @@
     min-height: 110px;
     box-sizing: border-box;
     padding: 22px;
-    background: #ffffff;
-    border: 1px solid #e4ece8;
-    border-radius: 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
     box-shadow: 0 4px 16px rgba(23, 43, 58, 0.035);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
     .stat-card:hover {
         transform: translateY(-3px);
-        border-color: #d3e4dc;
+        border-color: var(--color-border);
         box-shadow: 0 10px 26px rgba(23, 43, 58, 0.07);
     }
 
@@ -169,23 +169,23 @@
 }
 
 .total-icon {
-    background: #e3f2fa;
-    color: #1679a8;
+    background: var(--color-info-soft);
+    color: var(--color-info);
 }
 
 .pending-icon {
-    background: #fff2d9;
-    color: #b87400;
+    background: var(--color-warning-soft);
+    color: var(--color-warning);
 }
 
 .approved-icon {
-    background: #e1f5e8;
-    color: #168449;
+    background: var(--color-success-soft);
+    color: var(--color-success);
 }
 
 .declined-icon {
-    background: #ffe4e5;
-    color: #d72b34;
+    background: var(--color-danger-soft);
+    color: var(--color-danger);
 }
 
 .stat-card > div:last-child {
@@ -194,7 +194,7 @@
 
 .stat-card strong {
     display: block;
-    color: #172b3a;
+    color: var(--color-text);
     font-size: 28px;
     font-weight: 800;
     line-height: 1.1;
@@ -203,7 +203,7 @@
 .stat-card span {
     display: block;
     margin-top: 7px;
-    color: #758392;
+    color: var(--color-text-subtle);
     font-size: 12px;
     line-height: 1.4;
 }
@@ -233,8 +233,8 @@
     min-width: 0;
     box-sizing: border-box;
     padding: 24px;
-    background: #ffffff;
-    border: 1px solid #e4ece8;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 17px;
     box-shadow: 0 4px 16px rgba(23, 43, 58, 0.035);
     transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
@@ -242,7 +242,7 @@
 
     .application-card:hover {
         transform: translateY(-2px);
-        border-color: #cfe4d9;
+        border-color: var(--color-primary-border);
         box-shadow: 0 12px 30px rgba(23, 43, 58, 0.075);
     }
 
@@ -258,8 +258,8 @@
     width: 50px;
     height: 50px;
     flex-shrink: 0;
-    background: #d8efe4;
-    color: #0c684a;
+    background: var(--color-success-soft);
+    color: var(--color-success);
     border-radius: 50%;
     font-size: 16px;
     font-weight: 800;
@@ -289,7 +289,7 @@
 
     .applicant-top h2 {
         margin: 2px 0 6px;
-        color: #172b3a;
+        color: var(--color-text);
         font-size: 16px;
         font-weight: 800;
         line-height: 1.4;
@@ -298,7 +298,7 @@
 
 .applicant-email {
     margin: 0;
-    color: #788796;
+    color: var(--color-text-subtle);
     font-size: 12px;
     line-height: 1.5;
     overflow-wrap: anywhere;
@@ -315,7 +315,7 @@
     justify-content: center;
     flex-shrink: 0;
     padding: 7px 13px;
-    border-radius: 999px;
+    border-radius: var(--radius-pill);
     font-size: 11px;
     font-weight: 750;
     line-height: 1.3;
@@ -323,18 +323,18 @@
 }
 
     .status.pending {
-        background: #fff1d5;
-        color: #a96500;
+        background: var(--color-warning-soft);
+        color: var(--color-warning);
     }
 
     .status.approved {
-        background: #dcf5e4;
-        color: #14773c;
+        background: var(--color-success-soft);
+        color: var(--color-success);
     }
 
     .status.rejected {
-        background: #ffe3e3;
-        color: #c52828;
+        background: var(--color-danger-soft);
+        color: var(--color-danger);
     }
 
 
@@ -345,11 +345,11 @@
 .applicant-message {
     margin: 16px 0 0;
     padding: 14px 16px;
-    background: #f6f8fa;
+    background: var(--color-surface-muted);
     border: 0;
-    border-left: 3px solid #b9d9cb;
+    border-left: 3px solid var(--color-primary-border);
     border-radius: 9px;
-    color: #566675;
+    color: var(--color-text-muted);
     font-size: 12px;
     line-height: 1.7;
     overflow-wrap: anywhere;
@@ -375,10 +375,20 @@
     width: 70px;
     height: 70px;
     flex-shrink: 0;
-    background: #e1efe9;
-    color: #146445;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
     border-radius: 11px;
     overflow: hidden;
+}
+
+.property-thumbnail-placeholder {
+    display: grid;
+    width: 100%;
+    height: 100%;
+    min-height: 72px;
+    place-items: center;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
 }
 
     .property-thumbnail img {
@@ -394,7 +404,7 @@
 
     .property-info h3 {
         margin: 0 0 6px;
-        color: #172b3a;
+        color: var(--color-text);
         font-size: 13px;
         font-weight: 800;
         line-height: 1.4;
@@ -403,14 +413,14 @@
 
     .property-info p {
         margin: 0 0 6px;
-        color: #788796;
+        color: var(--color-text-subtle);
         font-size: 12px;
         line-height: 1.4;
         overflow-wrap: anywhere;
     }
 
     .property-info a {
-        color: #176b50;
+        color: var(--color-primary-strong);
         font-size: 11px;
         font-weight: 650;
         line-height: 1.5;
@@ -419,7 +429,7 @@
     }
 
         .property-info a:hover {
-            color: #0c523c;
+            color: var(--color-primary-deep);
             text-decoration: underline;
         }
 
@@ -437,7 +447,7 @@
 }
 
 .application-date {
-    color: #788796;
+    color: var(--color-text-subtle);
     font-size: 11px;
     line-height: 1.5;
     text-align: right;
@@ -463,9 +473,9 @@
     min-height: 42px;
     box-sizing: border-box;
     padding: 11px 17px;
-    background: #086747;
-    color: #ffffff;
-    border: 1px solid #086747;
+    background: var(--color-primary);
+    color: var(--color-surface);
+    border: 1px solid var(--color-primary);
     border-radius: 10px;
     font-family: inherit;
     font-size: 12px;
@@ -478,9 +488,9 @@
 }
 
     .primary-button:hover:not(:disabled) {
-        background: #075239;
-        border-color: #075239;
-        color: #ffffff;
+        background: var(--color-primary-strong);
+        border-color: var(--color-primary-strong);
+        color: var(--color-surface);
         transform: translateY(-1px);
         box-shadow: 0 6px 14px rgba(8, 103, 71, 0.16);
     }
@@ -501,9 +511,9 @@
     min-height: 42px;
     box-sizing: border-box;
     padding: 11px 17px;
-    background: #ffffff;
-    color: #c52828;
-    border: 1px solid #e6a5a5;
+    background: var(--color-surface);
+    color: var(--color-danger);
+    border: 1px solid var(--color-danger-border);
     border-radius: 10px;
     font-family: inherit;
     font-size: 12px;
@@ -514,8 +524,8 @@
 }
 
     .decline-button:hover:not(:disabled) {
-        background: #fff0f0;
-        border-color: #c52828;
+        background: var(--color-danger-soft);
+        border-color: var(--color-danger);
         transform: translateY(-1px);
     }
 
@@ -527,7 +537,7 @@
 .applications-page button:focus-visible,
 .applications-page a:focus-visible,
 .confirmation-dialog button:focus-visible {
-    outline: 3px solid #7ac6a6;
+    outline: 3px solid var(--color-success-border);
     outline-offset: 3px;
 }
 
@@ -553,15 +563,15 @@
 }
 
 .success-message {
-    background: #e0f5e8;
-    color: #176a40;
-    border: 1px solid #bce8ce;
+    background: var(--color-success-soft);
+    color: var(--color-success);
+    border: 1px solid var(--color-success-border);
 }
 
 .error-message {
-    background: #ffe6e6;
-    color: #a72222;
-    border: 1px solid #f6c3c3;
+    background: var(--color-danger-soft);
+    color: var(--color-danger-strong);
+    border: 1px solid var(--color-danger-border);
 }
 
 
@@ -577,8 +587,8 @@
     min-height: 250px;
     box-sizing: border-box;
     padding: 45px 30px;
-    background: #ffffff;
-    border: 1px solid #e4ece8;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 17px;
     text-align: center;
     box-shadow: 0 4px 16px rgba(23, 43, 58, 0.035);
@@ -586,7 +596,7 @@
 
     .state-card h2 {
         margin: 0 0 12px;
-        color: #172b3a;
+        color: var(--color-text);
         font-size: 21px;
         font-weight: 800;
     }
@@ -594,7 +604,7 @@
     .state-card p {
         max-width: 450px;
         margin: 0 0 22px;
-        color: #788796;
+        color: var(--color-text-subtle);
         font-size: 14px;
         line-height: 1.7;
     }
@@ -606,9 +616,9 @@
     width: 68px;
     height: 68px;
     margin-bottom: 22px;
-    background: #e6f5ed;
-    color: #176b50;
-    border-radius: 18px;
+    background: var(--color-primary-soft);
+    color: var(--color-primary-strong);
+    border-radius: var(--radius-lg);
     font-size: 34px;
 }
 
@@ -642,15 +652,15 @@
     box-sizing: border-box;
     overflow-y: auto;
     padding: 34px;
-    background: #ffffff;
-    border: 1px solid #e4ece8;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
     border-radius: 20px;
     box-shadow: 0 25px 70px rgba(0, 0, 0, 0.25);
 }
 
     .confirmation-dialog h2 {
         margin: 0 35px 16px 0;
-        color: #173d32;
+        color: var(--color-text);
         font-size: 23px;
         font-weight: 800;
         line-height: 1.3;
@@ -658,13 +668,13 @@
 
 .confirmation-description {
     margin: 0 0 22px;
-    color: #63786e;
+    color: var(--color-text-muted);
     font-size: 14px;
     line-height: 1.8;
 }
 
     .confirmation-description strong {
-        color: #173d32;
+        color: var(--color-text);
         font-weight: 800;
     }
 
@@ -683,8 +693,8 @@
     width: 34px;
     height: 34px;
     padding: 0;
-    background: #f2f5f3;
-    color: #63786e;
+    background: var(--color-surface-muted);
+    color: var(--color-text-muted);
     border: none;
     border-radius: 9px;
     font-size: 16px;
@@ -693,8 +703,8 @@
 }
 
     .close-dialog:hover:not(:disabled) {
-        background: #e5ece8;
-        color: #173d32;
+        background: var(--color-surface-muted);
+        color: var(--color-text);
     }
 
 
@@ -708,8 +718,8 @@
     gap: 14px;
     margin: 22px 0;
     padding: 15px;
-    background: #f5f9f6;
-    border: 1px solid #e0ebe4;
+    background: var(--color-surface-subtle);
+    border: 1px solid var(--color-border);
     border-radius: 13px;
 }
 
@@ -720,7 +730,7 @@
     width: 58px;
     height: 58px;
     flex-shrink: 0;
-    background: #e1efe9;
+    background: var(--color-primary-soft);
     border-radius: 11px;
     overflow: hidden;
 }
@@ -738,7 +748,7 @@
 
 .confirmation-property strong {
     display: block;
-    color: #173d32;
+    color: var(--color-text);
     font-size: 14px;
     font-weight: 800;
     overflow-wrap: anywhere;
@@ -746,7 +756,7 @@
 
 .confirmation-property p {
     margin: 5px 0 0;
-    color: #788796;
+    color: var(--color-text-subtle);
     font-size: 12px;
     overflow-wrap: anywhere;
 }
@@ -771,9 +781,9 @@
     justify-content: center;
     min-height: 42px;
     padding: 11px 18px;
-    background: #ffffff;
-    color: #40564c;
-    border: 1px solid #d6e2da;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
     border-radius: 10px;
     font-family: inherit;
     font-size: 13px;
@@ -783,8 +793,8 @@
 }
 
     .cancel-button:hover:not(:disabled) {
-        background: #f1f7f3;
-        border-color: #a9c9b8;
+        background: var(--color-surface-subtle);
+        border-color: var(--color-primary-border);
     }
 
 .decline-confirm-button {
@@ -793,9 +803,9 @@
     justify-content: center;
     min-height: 42px;
     padding: 11px 18px;
-    background: #c52828;
-    color: #ffffff;
-    border: 1px solid #c52828;
+    background: var(--color-danger);
+    color: var(--color-surface);
+    border: 1px solid var(--color-danger);
     border-radius: 10px;
     font-family: inherit;
     font-size: 13px;
@@ -805,8 +815,8 @@
 }
 
     .decline-confirm-button:hover:not(:disabled) {
-        background: #a91f1f;
-        border-color: #a91f1f;
+        background: var(--color-danger-strong);
+        border-color: var(--color-danger-strong);
         transform: translateY(-1px);
     }
 
@@ -1004,12 +1014,12 @@
 
     .property-details {
         padding-top: 12px;
-        border-top: 1px solid #edf1ee;
+        border-top: 1px solid var(--color-surface-muted);
     }
 
     .application-right {
         padding-top: 12px;
-        border-top: 1px solid #edf1ee;
+        border-top: 1px solid var(--color-surface-muted);
     }
 
     .card-actions {

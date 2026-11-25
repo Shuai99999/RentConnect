@@ -21,7 +21,7 @@
 
 
 #components-reconnect-modal {
-    background-color: white;
+    background-color: var(--color-on-primary);
     width: 20rem;
     margin: 20vh auto;
     padding: 2rem;
@@ -91,7 +91,7 @@
 #components-reconnect-modal button {
     border: 0;
     background-color: var(--color-primary);
-    color: white;
+    color: var(--color-on-primary);
     padding: 4px 24px;
     border-radius: 4px;
 }
